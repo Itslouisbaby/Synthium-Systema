@@ -11,6 +11,9 @@ export type {
   Observation,
   PlanStep,
   Plan,
+  PlanGraph,
+  PlannerInput,
+  PlannerConfig,
   Evaluation,
   AuditEvent,
   LoopState,
@@ -44,6 +47,10 @@ export type {
   ActionClassType,
   StepStatus,
 } from './policy/types.js';
+
+// Planning (Milestone 3)
+export { HeuristicPlanner } from './planning/heuristic-planner.js';
+export { PlannerRegistry, type Planner } from './planning/planner.js';
 
 // Convenience wrapper
 import { runNeuronWavesLoop, type LoopConfig, type LoopInput } from './orchestrator/loop.js';

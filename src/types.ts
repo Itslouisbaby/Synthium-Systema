@@ -1,6 +1,6 @@
 /**
  * Synth NeuronWaves - Core Types
- * Milestone 1: Loop Artifacts
+ * Milestone 3: Planner interface
  */
 
 /** Timestamp in milliseconds since epoch */
@@ -31,21 +31,24 @@ export interface Observation {
 
 /**
  * PlanStep - Single step in execution plan
- * Milestone 1: simplified - one step, local_only action class
+ * Milestone 3: Extended to include all policy action classes
  */
 export interface PlanStep {
   /** Unique step identifier */
   readonly stepId: UUID;
   /** Human-readable intent */
   readonly intent: string;
-  /** Action classification */
-  readonly actionClass: 'local_only' | 'external_read' | 'external_write' | 'irreversible';
+  /** Action classification - extends policy action classes */
+  readonly actionClass: 'local_only' | 'external_read' | 'external_write' | 'irreversible' | 'money_movement' | 'identity_security_sensitive';
   /** Execution status - Milestone 2: policy-based statuses */
   readonly status: 'planned' | 'allowed' | 'awaiting_approval' | 'blocked' | 'executing' | 'completed' | 'failed';
+  /** Optional tool name for future use */
+  readonly toolName?: string;
 }
 
 /**
  * Plan - Execution plan generated from observation
+ * @deprecated Use PlanGraph for new code (Milestone 3+)
  */
 export interface Plan {
   /** Unique plan ID */
@@ -56,6 +59,44 @@ export interface Plan {
   readonly createdAtMs: TimestampMs;
   /** Steps in the plan */
   readonly steps: readonly PlanStep[];
+}
+
+/**
+ * PlanGraph - Execution plan generated from input
+ * Milestone 3: Planning subsystem
+ */
+export interface PlanGraph {
+  /** Unique plan ID */
+  readonly id: UUID;
+  /** Session key */
+  readonly sessionKey: SessionKey;
+  /** When plan was created */
+  readonly createdAtMs: TimestampMs;
+  /** Steps in the plan */
+  readonly steps: PlanStep[];
+}
+
+/**
+ * PlannerInput - Input to create a plan
+ * Milestone 3: Planning subsystem
+ */
+export interface PlannerInput {
+  /** Input text/natural language description */
+  readonly text: string;
+  /** Session identifier */
+  readonly sessionKey: SessionKey;
+  /** Working directory for execution context */
+  readonly workspaceDir: string;
+  /** Autonomy level (1-3) */
+  readonly autonomy: number;
+}
+
+/**
+ * PlannerConfig - Planner configuration (Milestone 3)
+ */
+export interface PlannerConfig {
+  /** Whether planner should be verbose/logging */
+  readonly verbose?: boolean;
 }
 
 /**

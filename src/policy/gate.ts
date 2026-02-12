@@ -2,7 +2,6 @@
  * Policy Gate - Safety boundary enforcement
  * Milestone 2: Hard boundaries before tools/memory/LLM
  */
-
 import type {
   AutonomyLevel,
   AutonomyLimits,
@@ -46,7 +45,7 @@ export class PolicyGate {
     this.stats.actionsConsidered++;
 
     // Check hard blocks first (regardless of level)
-    if (HARD_BLOCKED_CLASSES.includes(step.actionClass)) {
+    if (HARD_BLOCKED_CLASSES.includes(step.actionClass as any)) {
       this.stats.actionsBlocked++;
       return {
         decision: 'block',
@@ -54,27 +53,35 @@ export class PolicyGate {
       };
     }
 
-    // Check limits
+    // Level-based evaluation first (to get clear rejection reasons)
+    let levelDecision: PolicyDecision;
+    switch (this.autonomy) {
+      case Autonomy.Level1:
+        levelDecision = this.evaluateLevel1(step);
+        break;
+      case Autonomy.Level2:
+        levelDecision = this.evaluateLevel2(step);
+        break;
+      case Autonomy.Level3:
+        levelDecision = this.evaluateLevel3(step);
+        break;
+      default:
+        return { decision: 'block', reason: 'Unknown autonomy level' };
+    }
+
+    // If level rejected it, return that decision immediately
+    if (levelDecision.decision === 'block') {
+      return levelDecision;
+    }
+
+    // Check limits only for allowed decisions
     const limitCheck = this.checkLimits(step);
     if (limitCheck) {
       this.stats.actionsBlocked++;
       return limitCheck;
     }
 
-    // Level-based evaluation
-    switch (this.autonomy) {
-      case Autonomy.Level1:
-        return this.evaluateLevel1(step);
-      case Autonomy.Level2:
-        return this.evaluateLevel2(step);
-      case Autonomy.Level3:
-        return this.evaluateLevel3(step);
-      default:
-        return {
-          decision: 'block',
-          reason: 'Unknown autonomy level',
-        };
-    }
+    return levelDecision;
   }
 
   /**
@@ -123,17 +130,10 @@ export class PolicyGate {
   private evaluateLevel1(step: PolicyStep): PolicyDecision {
     if (step.actionClass === ActionClass.LocalOnly) {
       this.stats.actionsAllowed++;
-      return {
-        decision: 'allow',
-        reason: 'Level 1: local_only allowed',
-      };
+      return { decision: 'allow', reason: 'Level 1: local_only allowed' };
     }
-
     this.stats.actionsBlocked++;
-    return {
-      decision: 'block',
-      reason: `Level 1: ${step.actionClass} not allowed`,
-    };
+    return { decision: 'block', reason: `Level 1: ${step.actionClass} not allowed` };
   }
 
   /**
@@ -146,52 +146,32 @@ export class PolicyGate {
   private evaluateLevel2(step: PolicyStep): PolicyDecision {
     if (step.actionClass === ActionClass.LocalOnly) {
       this.stats.actionsAllowed++;
-      return {
-        decision: 'allow',
-        reason: 'Level 2: local_only allowed',
-      };
+      return { decision: 'allow', reason: 'Level 2: local_only allowed' };
     }
 
     if (step.actionClass === ActionClass.ExternalRead) {
-      // Check allowlist
       if (this.isAllowlisted(step.target)) {
         this.stats.actionsAllowed++;
         this.stats.externalCount++;
-        return {
-          decision: 'allow',
-          reason: 'Level 2: external_read allowlisted',
-        };
+        return { decision: 'allow', reason: 'Level 2: external_read allowlisted' };
       }
-
       this.stats.actionsBlocked++;
-      return {
-        decision: 'block',
-        reason: 'Level 2: external_read not in allowlist',
-      };
+      return { decision: 'block', reason: 'Level 2: external_read not in allowlist' };
     }
 
     if (step.actionClass === ActionClass.Irreversible) {
       this.stats.actionsAwaitingApproval++;
       this.stats.irreversibleCount++;
-      return {
-        decision: 'awaiting_approval',
-        reason: 'Level 2: irreversible action requires approval',
-      };
+      return { decision: 'awaiting_approval', reason: 'Level 2: irreversible action requires approval' };
     }
 
     if (step.actionClass === ActionClass.ExternalWrite) {
       this.stats.actionsBlocked++;
-      return {
-        decision: 'block',
-        reason: 'Level 2: external_write blocked',
-      };
+      return { decision: 'block', reason: 'Level 2: external_write blocked' };
     }
 
     this.stats.actionsBlocked++;
-    return {
-      decision: 'block',
-      reason: `Level 2: ${step.actionClass} not allowed`,
-    };
+    return { decision: 'block', reason: `Level 2: ${step.actionClass} not allowed` };
   }
 
   /**
@@ -204,43 +184,28 @@ export class PolicyGate {
   private evaluateLevel3(step: PolicyStep): PolicyDecision {
     if (step.actionClass === ActionClass.LocalOnly) {
       this.stats.actionsAllowed++;
-      return {
-        decision: 'allow',
-        reason: 'Level 3: local_only allowed',
-      };
+      return { decision: 'allow', reason: 'Level 3: local_only allowed' };
     }
 
     if (step.actionClass === ActionClass.ExternalRead) {
       this.stats.actionsAllowed++;
       this.stats.externalCount++;
-      return {
-        decision: 'allow',
-        reason: 'Level 3: external_read allowed',
-      };
+      return { decision: 'allow', reason: 'Level 3: external_read allowed' };
     }
 
     if (step.actionClass === ActionClass.ExternalWrite) {
       this.stats.actionsAllowed++;
-      return {
-        decision: 'allow',
-        reason: 'Level 3: external_write allowed',
-      };
+      return { decision: 'allow', reason: 'Level 3: external_write allowed' };
     }
 
     if (step.actionClass === ActionClass.Irreversible) {
       this.stats.actionsAwaitingApproval++;
       this.stats.irreversibleCount++;
-      return {
-        decision: 'awaiting_approval',
-        reason: 'Level 3: irreversible action requires approval',
-      };
+      return { decision: 'awaiting_approval', reason: 'Level 3: irreversible action requires approval' };
     }
 
     this.stats.actionsBlocked++;
-    return {
-      decision: 'block',
-      reason: `Level 3: ${step.actionClass} not allowed`,
-    };
+    return { decision: 'block', reason: `Level 3: ${step.actionClass} not allowed` };
   }
 
   /**

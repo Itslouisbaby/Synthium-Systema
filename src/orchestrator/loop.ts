@@ -7,6 +7,9 @@ import { randomUUID } from 'node:crypto';
 import type {
   Observation,
   Plan,
+  PlanGraph,
+  PlannerInput,
+  PlannerConfig,
   PlanStep,
   Evaluation,
   AuditEvent,
@@ -18,6 +21,8 @@ import type {
 import { ArtifactStore, type StoreConfig } from '../artifacts/store.js';
 import { PolicyGate } from '../policy/gate.js';
 import type { AutonomyLevel, PolicyAuditEvent } from '../policy/types.js';
+import type { Planner } from '../planning/planner.js';
+import { HeuristicPlanner } from '../planning/heuristic-planner.js';
 
 /** Loop configuration */
 export interface LoopConfig {
@@ -25,6 +30,10 @@ export interface LoopConfig {
   readonly artifactBaseDir: string;
   /** Autonomy level (1=assist, 2=delegated, 3=dev) - defaults to Level 1 */
   readonly autonomyLevel?: AutonomyLevel;
+  /** Optional planner instance (defaults to HeuristicPlanner) */
+  readonly planner?: Planner;
+  /** Optional planner configuration */
+  readonly plannerConfig?: PlannerConfig;
 }
 
 /**
@@ -47,24 +56,32 @@ export async function runNeuronWavesLoop(
     observedAtMs: now,
   };
 
-  // Generate minimal plan (Milestone 2: one step, local_only)
-  const stepId = randomUUID();
-  const step: PlanStep = {
-    stepId,
-    intent: `Process: ${input.content.slice(0, 50)}`,
-    actionClass: 'local_only',
-    status: 'planned',
+  // Determine configuration values
+  const autonomyLevel = config.autonomyLevel ?? 1;
+  const workspaceDir = config.artifactBaseDir;
+
+  // Create planner instance (use provided planner or default to HeuristicPlanner)
+  const planner = config.planner ?? new HeuristicPlanner();
+
+  // Plan using the planner (Milestone 3)
+  const plannerInput: PlannerInput = {
+    text: input.content,
+    sessionKey: input.sessionKey,
+    workspaceDir,
+    autonomy: autonomyLevel,
   };
 
+  const planGraph: PlanGraph = planner.createPlan(plannerInput);
+
+  // Convert PlanGraph to Plan for compatibility
   const plan: Plan = {
-    id: randomUUID(),
-    sessionKey: input.sessionKey,
-    createdAtMs: now,
-    steps: [step],
+    id: planGraph.id,
+    sessionKey: planGraph.sessionKey,
+    createdAtMs: planGraph.createdAtMs,
+    steps: planGraph.steps,
   };
 
   // Create Policy Gate instance (default to Level 1 for safety)
-  const autonomyLevel = config.autonomyLevel ?? 1;
   const gate = new PolicyGate(autonomyLevel, {
     baseDir: config.artifactBaseDir,
     allowlist: [],
