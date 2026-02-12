@@ -1,8 +1,9 @@
 /**
- * Orchestrator Loop - Milestone 4
- * Deterministic loop with Policy Gate integration and Memory
+ * Orchestrator Loop - Milestone 5
+ * Deterministic loop with Policy Gate, Memory, and Approvals integration
  */
 import { randomUUID } from 'node:crypto';
+import { readFileSync, existsSync } from 'node:fs';
 import type {
   Observation,
   Plan,
@@ -25,6 +26,74 @@ import { HeuristicPlanner } from '../planning/heuristic-planner.js';
 import { LocalMemoryAdapter } from '../memory/adapter-local.js';
 import type { ContextBundle } from '../memory/types.js';
 
+/**
+ * Approval record stored in approvals.json
+ */
+interface ApprovalRecord {
+  /** Step ID that was approved/denied */
+  readonly stepId: string;
+  /** Decision made on this step */
+  readonly decision: 'approved' | 'denied';
+  /** When the decision was made (timestamp in ms) */
+  readonly decidedAtMs: number;
+}
+
+/**
+ * Load approvals from disk
+ * Reads <artifactBaseDir>/state/approvals.json if it exists
+ * @param artifactBaseDir - Base directory for artifacts
+ * @returns Map of stepId -> ApprovalRecord, or undefined if file doesn't exist
+ */
+function loadApprovals(artifactBaseDir: string): Map<string, ApprovalRecord> | undefined {
+  const approvalsPath = `${artifactBaseDir}/state/approvals.json`;
+
+  if (!existsSync(approvalsPath)) {
+    return undefined;
+  }
+
+  try {
+    const content = readFileSync(approvalsPath, 'utf-8');
+    const approvals: ApprovalRecord[] = JSON.parse(content);
+
+    // Convert to Map for efficient lookup
+    const approvalsMap = new Map<string, ApprovalRecord>();
+    for (const approval of approvals) {
+      approvalsMap.set(approval.stepId, approval);
+    }
+
+    return approvalsMap;
+  } catch (error) {
+    // If file is malformed, return undefined (no approvals)
+    console.error('Error loading approvals.json:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Check if a step has an approval record
+ * Returns the approval status if found, undefined otherwise
+ * @param stepId - Step ID to check
+ * @param approvalsMap - Map of stepId -> ApprovalRecord
+ * @returns 'allowed' if approved, 'blocked' if denied, undefined if no approval
+ */
+function getStepApprovalStatus(
+  stepId: string,
+  approvalsMap: Map<string, ApprovalRecord>
+): 'allowed' | 'blocked' | undefined {
+  const approval = approvalsMap.get(stepId);
+  if (!approval) {
+    return undefined;
+  }
+
+  if (approval.decision === 'approved') {
+    return 'allowed';
+  } else if (approval.decision === 'denied') {
+    return 'blocked';
+  }
+
+  return undefined;
+}
+
 /** Loop configuration */
 export interface LoopConfig {
   /** Base directory for artifacts */
@@ -43,7 +112,7 @@ export interface LoopConfig {
 
 /**
  * runNeuronWavesLoop - Main execution loop
- * Milestone 4: Memory integration
+ * Milestone 5: Memory + Approvals integration
  */
 export async function runNeuronWavesLoop(
   input: LoopInput,
@@ -106,6 +175,9 @@ export async function runNeuronWavesLoop(
     steps: planGraph.steps,
   };
 
+  // Load approvals from disk (Milestone 5)
+  const approvalsMap = loadApprovals(config.artifactBaseDir);
+
   // Create Policy Gate instance (default to Level 1 for safety)
   const gate = new PolicyGate(autonomyLevel, {
     baseDir: config.artifactBaseDir,
@@ -115,30 +187,54 @@ export async function runNeuronWavesLoop(
   // Policy audit events
   const policyAuditEvents: PolicyAuditEvent[] = [];
 
-  // Evaluate each step with the gate
+  // Evaluate each step with the gate, checking approvals first (Milestone 5)
   const evaluatedSteps: PlanStep[] = plan.steps.map((step) => {
-    const decision = gate.evaluate({
-      stepId: step.stepId,
-      actionClass: step.actionClass,
-    });
-
-    // Map decision to step status
     let status: PlanStep['status'];
-    switch (decision.decision) {
-      case 'allow':
-        status = 'allowed';
-        break;
-      case 'awaiting_approval':
-        status = 'awaiting_approval';
-        break;
-      case 'block':
-        status = 'blocked';
-        break;
+    let skipPolicyEvaluation = false;
+
+    // Milestone 5: Check approvals BEFORE policy gate evaluation
+    if (step.status === 'awaiting_approval' && approvalsMap) {
+      const approvalStatus = getStepApprovalStatus(step.stepId, approvalsMap);
+      if (approvalStatus) {
+        // Approval found - use that decision and skip policy evaluation
+        status = approvalStatus;
+        skipPolicyEvaluation = true;
+
+        // Create audit event for approval-based decision
+        const approval = approvalsMap.get(step.stepId)!;
+        const auditEvent = gate.createAuditEvent(step.stepId, {
+          decision: status === 'allowed' ? 'allow' : 'block',
+          reason: `Pre-approved via approvals.json (decision: ${approval.decision} at ${new Date(approval.decidedAtMs).toISOString()})`,
+          autonomyLevel,
+        }, approval.decidedAtMs);
+        policyAuditEvents.push(auditEvent);
+      }
     }
 
-    // Create audit event for this decision
-    const auditEvent = gate.createAuditEvent(step.stepId, decision, now);
-    policyAuditEvents.push(auditEvent);
+    // Only evaluate policy if not already handled by approval
+    if (!skipPolicyEvaluation) {
+      const decision = gate.evaluate({
+        stepId: step.stepId,
+        actionClass: step.actionClass,
+      });
+
+      // Map decision to step status
+      switch (decision.decision) {
+        case 'allow':
+          status = 'allowed';
+          break;
+        case 'awaiting_approval':
+          status = 'awaiting_approval';
+          break;
+        case 'block':
+          status = 'blocked';
+          break;
+      }
+
+      // Create audit event for this decision
+      const auditEvent = gate.createAuditEvent(step.stepId, decision, now);
+      policyAuditEvents.push(auditEvent);
+    }
 
     return {
       ...step,

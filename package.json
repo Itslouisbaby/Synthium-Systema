@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "description": "Synth platform cognitive planning system",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
     }
+  },
+  "bin": {
+    "synth": "dist/cli/index.mjs"
   },
   "files": [
     "dist",
@@ -17,7 +20,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --dts --clean",
+    "build": "npm run build:lib && npm run build:cli",
+    "build:lib": "tsdown src/index.ts --format esm --dts --clean",
+    "build:cli": "tsdown src/cli/index.ts --format esm --dts --clean --outDir dist/cli",
     "test": "vitest run",
     "dev": "vitest",
     "lint": "echo \"No lint configured\""
