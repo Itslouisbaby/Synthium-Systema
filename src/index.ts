@@ -24,6 +24,27 @@ export { ArtifactStore, type StoreConfig, type SessionPaths } from './artifacts/
 // Orchestrator
 export { runNeuronWavesLoop, type LoopConfig } from './orchestrator/loop.js';
 
+// Policy (Milestone 2)
+export {
+  PolicyGate,
+  Autonomy,
+  DefaultLimits,
+  HARD_BLOCKED_CLASSES,
+  initialStats,
+  ActionClass,
+} from './policy/gate.js';
+export type {
+  AutonomyLevel,
+  AutonomyLimits,
+  PolicyConfig,
+  PolicyDecision,
+  PolicyGateStats,
+  PolicyStep,
+  PolicyAuditEvent,
+  ActionClassType,
+  StepStatus,
+} from './policy/types.js';
+
 // Convenience wrapper
 import { runNeuronWavesLoop, type LoopConfig, type LoopInput } from './orchestrator/loop.js';
 

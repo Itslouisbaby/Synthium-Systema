@@ -40,8 +40,8 @@ export interface PlanStep {
   readonly intent: string;
   /** Action classification */
   readonly actionClass: 'local_only' | 'external_read' | 'external_write' | 'irreversible';
-  /** Execution status */
-  readonly status: 'planned' | 'executing' | 'completed' | 'failed' | 'blocked';
+  /** Execution status - Milestone 2: policy-based statuses */
+  readonly status: 'planned' | 'allowed' | 'awaiting_approval' | 'blocked' | 'executing' | 'completed' | 'failed';
 }
 
 /**
