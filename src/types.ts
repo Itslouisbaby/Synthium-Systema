@@ -78,7 +78,7 @@ export interface Evaluation {
 
 /**
  * AuditEvent - Record of significant actions
- * Milestone 1: minimal - just tracks that loop ran
+ * Milestone 2: includes policy decision tracking
  */
 export interface AuditEvent {
   /** Event ID */
@@ -86,11 +86,22 @@ export interface AuditEvent {
   /** Session key */
   readonly sessionKey: SessionKey;
   /** Event type */
-  readonly type: 'loop_start' | 'loop_complete' | 'plan_created' | 'evaluation_complete';
+  readonly type:
+    | 'loop_start'
+    | 'loop_complete'
+    | 'plan_created'
+    | 'evaluation_complete'
+    | 'policy_decision';
   /** Related IDs */
   readonly relatedIds: Record<string, UUID>;
   /** When event occurred */
   readonly occurredAtMs: TimestampMs;
+  /** Optional details (e.g., policy decision info) */
+  readonly details?: {
+    readonly decision?: 'allow' | 'awaiting_approval' | 'block';
+    readonly reason?: string;
+    readonly autonomyLevel?: number;
+  };
 }
 
 /**

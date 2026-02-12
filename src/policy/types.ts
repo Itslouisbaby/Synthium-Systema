@@ -61,7 +61,7 @@ export const DefaultLimits: Record<AutonomyLevel, AutonomyLimits> = {
   [Autonomy.Level2]: {
     maxActionsPerRun: 100,
     maxExternalPerRun: 50,
-    maxIrreversiblePerRun: 0,
+    maxIrreversiblePerRun: 10,
     maxToolCallsPerRun: 0,
   },
   [Autonomy.Level3]: {
