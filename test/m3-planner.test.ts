@@ -18,7 +18,10 @@ describe('Milestone 3: Planner + Heuristic', () => {
       const plan1 = planner.plan(input, sessionKey);
       const plan2 = planner.plan(input, sessionKey);
 
-      expect(plan1).toEqual(plan2);
+      // Compare deterministic fields (createdAtMs differs by ~1ms)
+      expect(plan1.id).toBe(plan2.id);
+      expect(plan1.sessionKey).toBe(plan2.sessionKey);
+      expect(plan1.steps).toEqual(plan2.steps);
       expect(plan1.steps.length).toBeGreaterThan(0);
       expect(plan1.steps[0].actionClass).toBe('external_read');
     });
