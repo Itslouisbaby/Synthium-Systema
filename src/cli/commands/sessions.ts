@@ -20,7 +20,7 @@ export default async function sessionsCommand(options: CLIOptions): Promise<CLIR
   try {
     const entries = readdirSync(neuronwavesDir, { withFileTypes: true });
     const sessionIds = entries
-      .filter(entry => entry.isDirectory())
+      .filter(entry => entry.isDirectory() && entry.name !== 'memory' && entry.name !== 'audit')
       .map(entry => entry.name)
       .sort();
     

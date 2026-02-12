@@ -63,7 +63,7 @@ function showPlan(workspace: string, sessionId: string, json: boolean): CLIResul
 }
 
 function showMemory(workspace: string, sessionId: string, json: boolean): CLIResult {
-  const flashPath = join(workspace, '.synth', 'memory', 'sessions', sessionId, 'hot', 'flash', 'current.json');
+  const flashPath = join(workspace, '.synth', 'neuronwaves', 'memory', 'sessions', sessionId, 'hot', 'flash', 'current.json');
   
   if (!existsSync(flashPath)) {
     return {
