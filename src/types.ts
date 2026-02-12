@@ -227,3 +227,52 @@ export interface LoopOutput {
     readonly state: string;
   };
 }
+
+/**
+ * LLM Planner Configuration - Milestone 7
+ */
+export interface LLMPlannerConfig {
+  /** Enable LLM planner (default: false) */
+  readonly enabled: boolean;
+  /** LLM provider */
+  readonly provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  /** Model name */
+  readonly model: string;
+  /** API key (or from env) */
+  readonly apiKey?: string;
+  /** Base URL for custom/ollama */
+  readonly baseUrl?: string;
+  /** Max steps in plan (default: 10) */
+  readonly maxSteps: number;
+  /** LLM call timeout (default: 30000) */
+  readonly timeoutMs: number;
+  /** Max tokens per response (default: 2000) */
+  readonly maxTokens: number;
+  /** Temperature (default: 0) */
+  readonly temperature: number;
+  /** Dev mode - logs raw prompts (default: false) */
+  readonly devMode?: boolean;
+}
+
+/**
+ * Planner Audit Record - Milestone 7
+ * Hash-only auditing for privacy
+ */
+export interface PlannerAuditRecord {
+  /** Plan ID */
+  readonly planId: string;
+  /** Which planner ran */
+  readonly plannerUsed: 'prompted' | 'heuristic';
+  /** SHA-256 hash of prompt */
+  readonly promptHash: string;
+  /** SHA-256 hash of response (LLM only) */
+  readonly responseHash?: string;
+  /** Validation passed */
+  readonly validationPassed: boolean;
+  /** Validation errors if any */
+  readonly validationErrors?: string[];
+  /** Fallback was triggered */
+  readonly fallbackTriggered: boolean;
+  /** Timestamp */
+  readonly timestampMs: number;
+}
