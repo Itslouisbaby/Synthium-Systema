@@ -2,7 +2,7 @@
  * Tool Executor - Milestone 6
  * Executes tools with timeout, limits, and audit trails
  */
-import { randomUUID } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import type { PlanStep } from '../types.js';
 import { ActionClass } from '../types.js';
 import type { Tool, ToolLimits, ExecutorResult, ToolRegistry } from './types.js';
