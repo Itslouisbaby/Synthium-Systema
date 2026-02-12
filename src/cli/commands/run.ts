@@ -47,7 +47,7 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
   const level = validateLevel(options.level);
 
   // Construct artifact base directory
-  const artifactBaseDir = `${workspace}/.synth/neuronwaves/${sessionId}`;
+  const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
 
   try {
     // Execute the NeuronWaves loop
