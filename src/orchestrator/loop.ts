@@ -1,6 +1,6 @@
 /**
- * Orchestrator Loop - Milestone 5
- * Deterministic loop with Policy Gate, Memory, and Approvals integration
+ * Orchestrator Loop - Milestone 6
+ * Deterministic loop with Policy Gate, Memory, Approvals, and Tool Execution integration
  */
 import { randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
@@ -25,6 +25,7 @@ import type { Planner } from '../planning/planner.js';
 import { HeuristicPlanner } from '../planning/heuristic-planner.js';
 import { LocalMemoryAdapter } from '../memory/adapter-local.js';
 import type { ContextBundle } from '../memory/types.js';
+import { ToolExecutor } from '../tools/index.js';
 
 /**
  * Approval record stored in approvals.json
@@ -253,16 +254,70 @@ export async function runNeuronWavesLoop(
   const awaitingSteps = evaluatedSteps.filter((s) => s.status === 'awaiting_approval');
   const blockedSteps = evaluatedSteps.filter((s) => s.status === 'blocked');
 
+  // Milestone 6: Tool execution
+  // Initialize ToolExecutor with limits (maxToolCallsPerRun: 10)
+  const toolExecutor = new ToolExecutor({
+    maxToolCallsPerRun: 10,
+    artifactBaseDir: config.artifactBaseDir,
+    sessionKey: input.sessionKey,
+  });
+
+  // Track tool calls count
+  let toolCallsCount = 0;
+
+  // Execute allowed steps that have toolName and actionClass === 'local_only'
+  const executedSteps = await Promise.all(
+    stepsToExecute.map(async (step) => {
+      // Only execute if step has toolName, tool is registered, and actionClass === 'local_only'
+      if (step.toolName && toolExecutor.isToolRegistered(step.toolName) && step.actionClass === 'local_only') {
+        // Execute step
+        const result = await toolExecutor.executeStep(step, workspaceDir);
+
+        // Update count
+        toolCallsCount = toolExecutor.getToolCallsCount();
+
+        // Return updated step with execution status
+        return {
+          ...step,
+          status: result.success ? 'executed' : 'failed',
+        };
+      }
+
+      // Step doesn't meet execution criteria, keep as 'allowed'
+      return step;
+    })
+  );
+
+  // Build final plan with execution results (executed steps replace allowed steps)
+  const finalSteps: PlanStep[] = [
+    ...executedSteps,
+    ...awaitingSteps,
+    ...blockedSteps,
+  ];
+
+  const finalPlan: Plan = {
+    ...evaluatedPlan,
+    steps: finalSteps,
+  };
+
   let evaluationResult: Evaluation['result'];
   let evaluationSummary: string;
 
+  // Count executed and failed steps
+  const successfulExecutions = executedSteps.filter((s) => s.status === 'executed').length;
+  const failedExecutions = executedSteps.filter((s) => s.status === 'failed').length;
+  const pendingExecutions = executedSteps.filter((s) => s.status === 'allowed').length;
+
   if (awaitingSteps.length > 0) {
     evaluationResult = 'partial';
-    evaluationSummary = `${stepsToExecute.length} step(s) allowed, ${awaitingSteps.length} awaiting approval, ${blockedSteps.length} blocked`;
+    evaluationSummary = `${successfulExecutions} executed, ${failedExecutions} failed, ${pendingExecutions} pending, ${awaitingSteps.length} awaiting approval, ${blockedSteps.length} blocked`;
   } else if (blockedSteps.length > 0) {
     evaluationResult = 'failure';
-    evaluationSummary = `${stepsToExecute.length} step(s) allowed, ${blockedSteps.length} blocked by policy`;
-  } else if (stepsToExecute.length === 0) {
+    evaluationSummary = `${successfulExecutions} executed, ${failedExecutions} failed, ${blockedSteps.length} blocked by policy`;
+  } else if (failedExecutions > 0) {
+    evaluationResult = 'partial';
+    evaluationSummary = `${successfulExecutions} executed, ${failedExecutions} failed`;
+  } else if (executedSteps.length === 0) {
     evaluationResult = 'failure';
     evaluationSummary = 'No steps allowed by policy';
   } else {
@@ -273,7 +328,7 @@ export async function runNeuronWavesLoop(
   // Produce evaluation
   const evaluation: Evaluation = {
     id: randomUUID(),
-    planId: evaluatedPlan.id,
+    planId: finalPlan.id,
     sessionKey: input.sessionKey,
     result: evaluationResult,
     summary: evaluationSummary,
@@ -293,14 +348,14 @@ export async function runNeuronWavesLoop(
       id: randomUUID(),
       sessionKey: input.sessionKey,
       type: 'plan_created',
-      relatedIds: { planId: evaluatedPlan.id },
+      relatedIds: { planId: finalPlan.id },
       occurredAtMs: now,
     },
     ...policyAuditEvents.map((pe) => ({
       id: randomUUID(),
       sessionKey: input.sessionKey,
       type: 'policy_decision' as const,
-      relatedIds: { planId: evaluatedPlan.id, stepId: pe.stepId },
+      relatedIds: { planId: finalPlan.id, stepId: pe.stepId },
       occurredAtMs: pe.timestampMs,
       details: {
         decision: pe.decision,
@@ -312,7 +367,7 @@ export async function runNeuronWavesLoop(
       id: randomUUID(),
       sessionKey: input.sessionKey,
       type: 'evaluation_complete',
-      relatedIds: { planId: evaluatedPlan.id, evaluationId: evaluation.id },
+      relatedIds: { planId: finalPlan.id, evaluationId: evaluation.id },
       occurredAtMs: now,
     },
     {
@@ -321,7 +376,7 @@ export async function runNeuronWavesLoop(
       type: 'loop_complete',
       relatedIds: {
         observationId: observation.id,
-        planId: evaluatedPlan.id,
+        planId: finalPlan.id,
         evaluationId: evaluation.id,
       },
       occurredAtMs: now,
@@ -332,7 +387,7 @@ export async function runNeuronWavesLoop(
   const state: LoopState = {
     sessionKey: input.sessionKey,
     latestObservationId: observation.id,
-    latestPlanId: evaluatedPlan.id,
+    latestPlanId: finalPlan.id,
     latestEvaluationId: evaluation.id,
     updatedAtMs: now,
     runCount: 1, // Will be incremented on subsequent runs
@@ -341,14 +396,14 @@ export async function runNeuronWavesLoop(
   // Write all artifacts
   const artifactPaths = await store.writeLoopArtifacts({
     observation,
-    plan: evaluatedPlan,
+    plan: finalPlan,
     evaluation,
     auditEvents,
     state,
   });
 
   return {
-    plan: evaluatedPlan,
+    plan: finalPlan,
     evaluation,
     artifactPaths,
   };

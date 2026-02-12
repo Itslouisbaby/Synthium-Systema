@@ -30,8 +30,24 @@ export interface Observation {
 }
 
 /**
+ * Action Classes - Milestone 6
+ * Classification of action sensitivity
+ */
+export const ActionClass = {
+  LocalOnly: 'local_only',
+  ExternalRead: 'external_read',
+  ExternalWrite: 'external_write',
+  Irreversible: 'irreversible',
+  MoneyMovement: 'money_movement',
+  IdentitySecurity: 'identity_security_sensitive',
+} as const;
+
+export type ActionClassType = typeof ActionClass[keyof typeof ActionClass];
+
+/**
  * PlanStep - Single step in execution plan
  * Milestone 3: Extended to include all policy action classes
+ * Milestone 6: Added toolName, toolInput, outputSummary
  */
 export interface PlanStep {
   /** Unique step identifier */
@@ -39,11 +55,15 @@ export interface PlanStep {
   /** Human-readable intent */
   readonly intent: string;
   /** Action classification - extends policy action classes */
-  readonly actionClass: 'local_only' | 'external_read' | 'external_write' | 'irreversible' | 'money_movement' | 'identity_security_sensitive';
+  readonly actionClass: ActionClassType;
   /** Execution status - Milestone 2: policy-based statuses */
-  readonly status: 'planned' | 'allowed' | 'awaiting_approval' | 'blocked' | 'executing' | 'completed' | 'failed';
-  /** Optional tool name for future use */
+  readonly status: 'planned' | 'allowed' | 'awaiting_approval' | 'blocked' | 'executed' | 'failed' | 'skipped';
+  /** Tool name for execution (Milestone 6) */
   readonly toolName?: string;
+  /** Tool input parameters (Milestone 6) */
+  readonly toolInput?: Record<string, unknown>;
+  /** Step output summary after execution (Milestone 6) */
+  readonly outputSummary?: unknown;
 }
 
 /**
