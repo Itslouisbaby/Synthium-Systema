@@ -77,8 +77,22 @@ export interface PlanGraph {
 }
 
 /**
+ * Memory context bundle - recalled memories for planning
+ * Milestone 4: Local memory integration
+ */
+export interface ContextBundle {
+  /** Recent flash memory entries */
+  readonly flash: { id: string; content: string; timestampMs: number }[];
+  /** Relevant warm memory hits */
+  readonly warmHits: { id: string; content: string; timestampMs: number }[];
+  /** When memories were recalled */
+  readonly recalledAtMs: TimestampMs;
+}
+
+/**
  * PlannerInput - Input to create a plan
  * Milestone 3: Planning subsystem
+ * Milestone 4: Added contextBundle
  */
 export interface PlannerInput {
   /** Input text/natural language description */
@@ -89,6 +103,8 @@ export interface PlannerInput {
   readonly workspaceDir: string;
   /** Autonomy level (1-3) */
   readonly autonomy: number;
+  /** Optional memory context */
+  readonly contextBundle?: ContextBundle;
 }
 
 /**

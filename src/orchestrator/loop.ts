@@ -1,8 +1,7 @@
 /**
- * Orchestrator Loop - Milestone 2
- * Deterministic loop with Policy Gate integration
+ * Orchestrator Loop - Milestone 4
+ * Deterministic loop with Policy Gate integration and Memory
  */
-
 import { randomUUID } from 'node:crypto';
 import type {
   Observation,
@@ -23,6 +22,8 @@ import { PolicyGate } from '../policy/gate.js';
 import type { AutonomyLevel, PolicyAuditEvent } from '../policy/types.js';
 import type { Planner } from '../planning/planner.js';
 import { HeuristicPlanner } from '../planning/heuristic-planner.js';
+import { LocalMemoryAdapter } from '../memory/adapter-local.js';
+import type { ContextBundle } from '../memory/types.js';
 
 /** Loop configuration */
 export interface LoopConfig {
@@ -34,11 +35,15 @@ export interface LoopConfig {
   readonly planner?: Planner;
   /** Optional planner configuration */
   readonly plannerConfig?: PlannerConfig;
+  /** Optional memory adapter (defaults to LocalMemoryAdapter) */
+  readonly memoryAdapter?: LocalMemoryAdapter;
+  /** Whether to enable memory (default true) */
+  readonly enableMemory?: boolean;
 }
 
 /**
  * runNeuronWavesLoop - Main execution loop
- * Milestone 2: Policy Gate integration, step evaluation
+ * Milestone 4: Memory integration
  */
 export async function runNeuronWavesLoop(
   input: LoopInput,
@@ -59,18 +64,38 @@ export async function runNeuronWavesLoop(
   // Determine configuration values
   const autonomyLevel = config.autonomyLevel ?? 1;
   const workspaceDir = config.artifactBaseDir;
+  const enableMemory = config.enableMemory ?? true;
+
+  // Initialize memory (Milestone 4)
+  let contextBundle: ContextBundle | undefined;
+  if (enableMemory) {
+    const memoryAdapter = config.memoryAdapter ?? new LocalMemoryAdapter({ 
+      baseDir: `${config.artifactBaseDir}/memory` 
+    });
+    
+    // Write observation to flash memory
+    await memoryAdapter.writeObservation(input.sessionKey, observation);
+    
+    // Generate keywords from content for recall
+    const keywords = input.content.toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t: string) => t.length > 2);
+    
+    // Build context bundle
+    contextBundle = await memoryAdapter.buildContextBundle(input.sessionKey, keywords);
+  }
 
   // Create planner instance (use provided planner or default to HeuristicPlanner)
   const planner = config.planner ?? new HeuristicPlanner();
 
-  // Plan using the planner (Milestone 3)
+  // Plan using the planner (Milestone 3/4)
   const plannerInput: PlannerInput = {
     text: input.content,
     sessionKey: input.sessionKey,
     workspaceDir,
     autonomy: autonomyLevel,
+    contextBundle,
   };
-
   const planGraph: PlanGraph = planner.createPlan(plannerInput);
 
   // Convert PlanGraph to Plan for compatibility
@@ -191,10 +216,7 @@ export async function runNeuronWavesLoop(
       id: randomUUID(),
       sessionKey: input.sessionKey,
       type: 'evaluation_complete',
-      relatedIds: {
-        planId: evaluatedPlan.id,
-        evaluationId: evaluation.id,
-      },
+      relatedIds: { planId: evaluatedPlan.id, evaluationId: evaluation.id },
       occurredAtMs: now,
     },
     {

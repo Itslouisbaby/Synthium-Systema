@@ -1,6 +1,6 @@
 /**
  * Synth NeuronWaves - Cognitive Planning System
- * Milestone 1: Loop skeleton with artifacts
+ * Milestone 4: Local memory
  */
 
 // Core types
@@ -14,6 +14,7 @@ export type {
   PlanGraph,
   PlannerInput,
   PlannerConfig,
+  ContextBundle,
   Evaluation,
   AuditEvent,
   LoopState,
@@ -51,6 +52,18 @@ export type {
 // Planning (Milestone 3)
 export { HeuristicPlanner } from './planning/heuristic-planner.js';
 export { PlannerRegistry, type Planner } from './planning/planner.js';
+
+// Memory (Milestone 4)
+export { LocalMemoryStore } from './memory/local-store.js';
+export { LocalMemoryAdapter } from './memory/adapter-local.js';
+export type {
+  MemoryConfig,
+  MemoryEntry,
+  FlashMemoryFile,
+  WarmMemoryFile,
+  MemoryIndex,
+  ContextBundle,
+} from './memory/types.js';
 
 // Convenience wrapper
 import { runNeuronWavesLoop, type LoopConfig, type LoopInput } from './orchestrator/loop.js';
