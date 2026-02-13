@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runNeuronWavesLoop } from '../src/orchestrator/loop.js';
 import { ArtifactStore } from '../src/artifacts/store.js';
+import type { Planner, PlanGraph, PlannerInput, PlanStep } from '../src/orchestrator/types.js';
 
 describe('M8 Track B: Loop Integration', () => {
   let tempWorkspace: string;
@@ -28,6 +29,22 @@ describe('M8 Track B: Loop Integration', () => {
       // Create a subdirectory to work in
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'test.txt'), content: 'hello world', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       const result = await runNeuronWavesLoop(
         {
           content: 'Write to test.txt with some content',
@@ -37,6 +54,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
@@ -59,7 +77,24 @@ describe('M8 Track B: Loop Integration', () => {
     it('extracts facts from local_read and stores in facts.json', async () => {
       // Create a test file first
       mkdirSync(tempWorkspace, { recursive: true });
-      writeFileSync(join(tempWorkspace, 'existing.txt'), 'some content');
+      const testFile = join(tempWorkspace, 'existing.txt');
+      writeFileSync(testFile, 'some content');
+
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_read',
+            toolInput: { path: testFile },
+            status: 'allowed',
+          }],
+        }),
+      };
 
       const result = await runNeuronWavesLoop(
         {
@@ -70,6 +105,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
@@ -87,6 +123,22 @@ describe('M8 Track B: Loop Integration', () => {
     it('extracts facts from local_search and stores in facts.json', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_search',
+            toolInput: { query: 'content', root: tempWorkspace },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       const result = await runNeuronWavesLoop(
         {
           content: 'Search for "content" in current directory',
@@ -96,6 +148,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
@@ -113,6 +166,22 @@ describe('M8 Track B: Loop Integration', () => {
     it('creates facts.json file in session directory', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'test.txt'), content: 'hello', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       await runNeuronWavesLoop(
         {
           content: 'Write test file',
@@ -122,11 +191,12 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
       // Check that facts.json exists in session directory
-      const factsPath = join(tempWorkspace, sessionKey, 'facts.json');
+      const factsPath = join(tempWorkspace, 'memory', 'semantic', 'facts.json');
       expect(existsSync(factsPath)).toBe(true);
 
       // Check file is valid JSON
@@ -140,6 +210,22 @@ describe('M8 Track B: Loop Integration', () => {
     it('recalls semantic facts when running again', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockWritePlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'first.txt'), content: 'some content', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       // First run: Create facts
       const result1 = await runNeuronWavesLoop(
         {
@@ -150,6 +236,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockWritePlanner,
         }
       );
 
@@ -159,6 +246,22 @@ describe('M8 Track B: Loop Integration', () => {
       const store = new ArtifactStore({ baseDir: tempWorkspace });
       const facts1 = await store.readFacts(sessionKey);
       expect(facts1.length).toBeGreaterThan(0);
+
+      const mockSecondWritePlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'second.txt'), content: 'more content', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
 
       // Second run: Facts should be recalled into context
       const result2 = await runNeuronWavesLoop(
@@ -170,6 +273,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockSecondWritePlanner,
         }
       );
 
@@ -184,6 +288,22 @@ describe('M8 Track B: Loop Integration', () => {
 
       // Run multiple times
       for (let i = 0; i < 3; i++) {
+        const mockPlanner: Planner = {
+          createPlan: (input: PlannerInput): PlanGraph => ({
+            id: 'test-plan',
+            sessionKey: input.sessionKey,
+            createdAtMs: Date.now(),
+            steps: [{
+              stepId: 'step-1',
+              intent: input.text,
+              actionClass: 'local_only',
+              toolName: 'local_write',
+              toolInput: { path: join(tempWorkspace, `file${i}.txt`), content: `content ${i}`, mode: 'overwrite' },
+              status: 'allowed',
+            }],
+          }),
+        };
+
         await runNeuronWavesLoop(
           {
             content: `Write to file${i}.txt`,
@@ -193,6 +313,7 @@ describe('M8 Track B: Loop Integration', () => {
             artifactBaseDir: tempWorkspace,
             autonomyLevel: 1,
             enableMemory: true,
+            planner: mockPlanner,
           }
         );
       }
@@ -209,6 +330,22 @@ describe('M8 Track B: Loop Integration', () => {
     it('stores facts as JSON array with correct structure', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'test.txt'), content: 'hello', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       await runNeuronWavesLoop(
         {
           content: 'Create test file',
@@ -218,6 +355,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
@@ -226,16 +364,21 @@ describe('M8 Track B: Loop Integration', () => {
 
       // Each fact should have all required fields
       for (const fact of facts) {
-        expect(fact.id).toBeDefined();
+        expect(fact.factId).toBeDefined();
         expect(fact.sessionKey).toBe(sessionKey);
         expect(fact.statement).toBeDefined();
+        expect(fact.statementHash).toBeDefined();
         expect(fact.toolName).toBeDefined();
         expect(fact.evidence).toBeDefined();
-        expect(fact.evidence.type).toBe('tool_result');
-        expect(fact.evidence.refId).toBeDefined();
-        expect(fact.evidence.timestampMs).toBeDefined();
+        expect(fact.evidence).toHaveLength(1);
+        expect(fact.evidence[0].type).toBe('tool_result');
+        expect(fact.evidence[0].refId).toBeDefined();
+        expect(fact.evidence[0].timestampMs).toBeDefined();
+        expect(fact.source).toBe('consolidator');
+        expect(fact.privacyLevel).toBeDefined();
         expect(fact.confidence).toBeDefined();
         expect(fact.lastVerifiedMs).toBeDefined();
+        expect(fact.lastReinforcedMs).toBeDefined();
         expect(fact.createdAtMs).toBeDefined();
       }
     });
@@ -244,6 +387,22 @@ describe('M8 Track B: Loop Integration', () => {
   describe('integration with existing loop features', () => {
     it('works with memory enabled', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
+
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'test.txt'), content: 'hello', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
 
       const result = await runNeuronWavesLoop(
         {
@@ -254,6 +413,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 
@@ -269,6 +429,22 @@ describe('M8 Track B: Loop Integration', () => {
     it('works with memory disabled (facts still created)', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [{
+            stepId: 'step-1',
+            intent: input.text,
+            actionClass: 'local_only',
+            toolName: 'local_write',
+            toolInput: { path: join(tempWorkspace, 'test.txt'), content: 'hello', mode: 'overwrite' },
+            status: 'allowed',
+          }],
+        }),
+      };
+
       const result = await runNeuronWavesLoop(
         {
           content: 'Write to file',
@@ -278,6 +454,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: false,
+          planner: mockPlanner,
         }
       );
 
@@ -295,7 +472,15 @@ describe('M8 Track B: Loop Integration', () => {
     it('creates no facts when no tools executed', async () => {
       mkdirSync(tempWorkspace, { recursive: true });
 
-      // Use input that doesn't trigger any tool execution
+      const mockPlanner: Planner = {
+        createPlan: (input: PlannerInput): PlanGraph => ({
+          id: 'test-plan',
+          sessionKey: input.sessionKey,
+          createdAtMs: Date.now(),
+          steps: [], // No steps = no tool execution
+        }),
+      };
+
       const result = await runNeuronWavesLoop(
         {
           content: 'This is just a comment with no actions',
@@ -305,6 +490,7 @@ describe('M8 Track B: Loop Integration', () => {
           artifactBaseDir: tempWorkspace,
           autonomyLevel: 1,
           enableMemory: true,
+          planner: mockPlanner,
         }
       );
 

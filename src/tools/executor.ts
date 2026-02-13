@@ -5,7 +5,8 @@
 import { randomUUID } from 'node:crypto';
 import type { PlanStep } from '../types.js';
 import { ActionClass } from '../types.js';
-import type { Tool, ToolLimits, ExecutorResult, ToolRegistry } from './types.js';
+import type { Tool, ToolLimits, ExecutorResult } from './types.js';
+import type { ToolRegistry } from './registry.js';
 import { DEFAULT_TOOL_LIMITS } from './types.js';
 
 /**

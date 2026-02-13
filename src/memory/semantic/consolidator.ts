@@ -2,7 +2,7 @@
  * Semantic Fact Consolidator - Milestone 8 Track B
  * Extracts semantic facts from tool execution results
  */
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import type { UUID, TimestampMs, SessionKey, SemanticFact } from '../../types.js';
 import type { PlanStep } from '../../types.js';
 import type { LocalReadOutput, LocalWriteOutput, LocalSearchOutput } from '../../tools/types.js';
@@ -11,6 +11,13 @@ import type { LocalReadOutput, LocalWriteOutput, LocalSearchOutput } from '../..
  * Consolidator - Extracts semantic facts from tool results
  */
 export class Consolidator {
+  /**
+   * Generate SHA-256 hash of a statement
+   */
+  private hashStatement(statement: string): string {
+    return createHash('sha256').update(statement).digest('hex');
+  }
+
   /**
    * Extract facts from tool results
    * @param steps - Plan steps with execution results
@@ -79,19 +86,26 @@ export class Consolidator {
     // Build statement
     const truncatedNote = truncated ? ' (truncated)' : '';
     const statement = `File "${path}" exists and contains ${bytesRead} bytes${truncatedNote}`;
+    const statementHash = this.hashStatement(statement);
 
     return {
-      id: randomUUID(),
+      factId: randomUUID(),
       sessionKey,
       statement,
+      statementHash,
       toolName: 'local_read',
-      evidence: {
-        type: 'tool_result',
-        refId: step.stepId,
-        timestampMs: step.stepId ? undefined : timestampMs, // Use step timestamp if available
-      },
+      evidence: [
+        {
+          type: 'tool_result',
+          refId: step.stepId,
+          timestampMs,
+        },
+      ],
+      source: 'consolidator',
+      privacyLevel: 'private',
       confidence: 1.0, // Direct tool result = high confidence
       lastVerifiedMs: timestampMs,
+      lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
     };
   }
@@ -115,19 +129,26 @@ export class Consolidator {
 
     // Build statement
     const statement = `File "${path}" was written successfully (${bytesWritten} bytes)`;
+    const statementHash = this.hashStatement(statement);
 
     return {
-      id: randomUUID(),
+      factId: randomUUID(),
       sessionKey,
       statement,
+      statementHash,
       toolName: 'local_write',
-      evidence: {
-        type: 'tool_result',
-        refId: step.stepId,
-        timestampMs: timestampMs,
-      },
+      evidence: [
+        {
+          type: 'tool_result',
+          refId: step.stepId,
+          timestampMs,
+        },
+      ],
+      source: 'consolidator',
+      privacyLevel: 'private',
       confidence: 1.0, // Direct tool result = high confidence
       lastVerifiedMs: timestampMs,
+      lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
     };
   }
@@ -154,19 +175,26 @@ export class Consolidator {
     const statement = totalMatches === 0
       ? `Search for "${query}" in "${root}" found no matches`
       : `Search for "${query}" in "${root}" found ${totalMatches} matches`;
+    const statementHash = this.hashStatement(statement);
 
     return {
-      id: randomUUID(),
+      factId: randomUUID(),
       sessionKey,
       statement,
+      statementHash,
       toolName: 'local_search',
-      evidence: {
-        type: 'tool_result',
-        refId: step.stepId,
-        timestampMs: timestampMs,
-      },
+      evidence: [
+        {
+          type: 'tool_result',
+          refId: step.stepId,
+          timestampMs,
+        },
+      ],
+      source: 'consolidator',
+      privacyLevel: 'private',
       confidence: 1.0, // Direct tool result = high confidence
       lastVerifiedMs: timestampMs,
+      lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
     };
   }

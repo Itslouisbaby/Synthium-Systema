@@ -28,10 +28,18 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
+      expect(facts[0].factId).toBeDefined();
       expect(facts[0].statement).toBe('File "test.txt" was written successfully (100 bytes)');
+      expect(facts[0].statementHash).toBeDefined();
       expect(facts[0].toolName).toBe('local_write');
       expect(facts[0].confidence).toBe(1.0);
       expect(facts[0].sessionKey).toBe('test-session');
+      expect(facts[0].source).toBe('consolidator');
+      expect(facts[0].privacyLevel).toBe('private');
+      expect(facts[0].lastReinforcedMs).toBeDefined();
+      expect(facts[0].evidence).toHaveLength(1);
+      expect(facts[0].evidence[0].type).toBe('tool_result');
+      expect(facts[0].evidence[0].refId).toBe('step-1');
     });
 
     it('creates no fact from failed local_write', () => {
@@ -92,6 +100,7 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
+      expect(facts[0].factId).toBeDefined();
       expect(facts[0].statement).toBe('File "test.txt" exists and contains 12 bytes');
       expect(facts[0].toolName).toBe('local_read');
     });
@@ -116,6 +125,7 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
+      expect(facts[0].factId).toBeDefined();
       expect(facts[0].statement).toBe('File "test.txt" exists and contains 1000 bytes (truncated)');
     });
   });
@@ -141,6 +151,7 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
+      expect(facts[0].factId).toBeDefined();
       expect(facts[0].statement).toBe('Search for "hello" in "./src" found 5 matches');
       expect(facts[0].toolName).toBe('local_search');
     });
@@ -165,6 +176,7 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
+      expect(facts[0].factId).toBeDefined();
       expect(facts[0].statement).toBe('Search for "notfound" in "./src" found no matches');
     });
   });
@@ -327,7 +339,8 @@ describe('M8 Track B: Consolidator', () => {
       const facts = consolidator.extractFacts(steps, 'test-session');
 
       expect(facts).toHaveLength(1);
-      expect(facts[0].evidence).toEqual({
+      expect(facts[0].evidence).toHaveLength(1);
+      expect(facts[0].evidence[0]).toEqual({
         type: 'tool_result',
         refId: 'step-123',
         timestampMs: expect.any(Number),

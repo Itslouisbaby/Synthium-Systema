@@ -102,26 +102,34 @@ export interface PlanGraph {
  */
 export interface SemanticFact {
   /** Unique fact ID */
-  readonly id: UUID;
+  readonly factId: UUID;
   /** Session this fact belongs to */
   readonly sessionKey: SessionKey;
   /** Natural language statement of the fact */
   readonly statement: string;
+  /** SHA-256 hash of the statement */
+  readonly statementHash: string;
   /** Tool that generated this fact */
   readonly toolName: string;
   /** Evidence for this fact */
-  readonly evidence: {
+  readonly evidence: readonly {
     /** Type of evidence */
     readonly type: 'tool_result';
     /** Reference to tool result (step ID, etc.) */
     readonly refId: string;
     /** When evidence was collected */
     readonly timestampMs: TimestampMs;
-  };
+  }[];
+  /** Source of this fact */
+  readonly source: 'consolidator';
+  /** Privacy level of the fact */
+  readonly privacyLevel: 'private' | 'public';
   /** Confidence score (0-1) */
   readonly confidence: number;
   /** Last time this fact was verified */
   readonly lastVerifiedMs: TimestampMs;
+  /** Last time this fact was reinforced */
+  readonly lastReinforcedMs: TimestampMs;
   /** When fact was created */
   readonly createdAtMs: TimestampMs;
 }

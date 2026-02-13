@@ -27,7 +27,7 @@ import type { Planner } from '../planning/planner.js';
 import { HeuristicPlanner } from '../planning/heuristic-planner.js';
 import { LocalMemoryAdapter } from '../memory/adapter-local.js';
 import type { ContextBundle } from '../memory/types.js';
-import { ToolExecutor } from '../tools/index.js';
+import { ToolExecutor, createDefaultRegistry } from '../tools/index.js';
 import { Consolidator } from '../memory/semantic/consolidator.js';
 
 /**
@@ -264,12 +264,11 @@ export async function runNeuronWavesLoop(
   const blockedSteps = evaluatedSteps.filter((s) => s.status === 'blocked');
 
   // Milestone 6: Tool execution
-  // Initialize ToolExecutor with limits (maxToolCallsPerRun: 10)
-  const toolExecutor = new ToolExecutor({
-    maxToolCallsPerRun: 10,
-    artifactBaseDir: config.artifactBaseDir,
-    sessionKey: input.sessionKey,
-  });
+  // Initialize ToolExecutor with default registry and limits (maxToolCallsPerRun: 10)
+  const toolExecutor = new ToolExecutor(
+    createDefaultRegistry(),
+    { maxToolCallsPerRun: 10 }
+  );
 
   // Track tool calls count
   let toolCallsCount = 0;
@@ -277,19 +276,17 @@ export async function runNeuronWavesLoop(
   // Execute allowed steps that have toolName and actionClass === 'local_only'
   const executedSteps = await Promise.all(
     stepsToExecute.map(async (step) => {
-      // Only execute if step has toolName, tool is registered, and actionClass === 'local_only'
-      if (step.toolName && toolExecutor.isToolRegistered(step.toolName) && step.actionClass === 'local_only') {
+      // Only execute if step has toolName and actionClass === 'local_only'
+      // ToolExecutor.executeStep will validate tool registration internally
+      if (step.toolName && step.actionClass === 'local_only') {
         // Execute step
-        const result = await toolExecutor.executeStep(step, workspaceDir);
+        const { step: executedStep } = await toolExecutor.executeStep(step, workspaceDir);
 
         // Update count
-        toolCallsCount = toolExecutor.getToolCallsCount();
+        toolCallsCount = toolExecutor.getCallCount();
 
         // Return updated step with execution status
-        return {
-          ...step,
-          status: result.success ? 'executed' : 'failed',
-        };
+        return executedStep;
       }
 
       // Step doesn't meet execution criteria, keep as 'allowed'

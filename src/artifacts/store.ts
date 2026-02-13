@@ -19,6 +19,8 @@ import type {
 export interface StoreConfig {
   /** Base directory for all artifacts */
   readonly baseDir: string;
+  /** Directory for semantic memory (defaults to baseDir/memory/semantic) */
+  readonly semanticDir?: string;
 }
 
 /** Paths to all artifact files for a session */
@@ -37,13 +39,17 @@ export interface SessionPaths {
  */
 export class ArtifactStore {
   private readonly baseDir: string;
+  private readonly semanticDir: string;
 
   constructor(config: StoreConfig) {
     this.baseDir = config.baseDir;
+    // Default to baseDir/memory/semantic if not specified
+    this.semanticDir = config.semanticDir ?? join(this.baseDir, 'memory', 'semantic');
   }
 
   /**
    * Get all file paths for a session
+   * Note: facts are stored globally, not per-session
    */
   getSessionPaths(sessionKey: SessionKey): SessionPaths {
     const sessionDir = join(this.baseDir, sessionKey);
@@ -54,7 +60,7 @@ export class ArtifactStore {
       evaluations: join(sessionDir, 'evaluations.jsonl'),
       audit: join(sessionDir, 'audit', 'actions.jsonl'),
       state: join(sessionDir, 'state', 'active.json'),
-      facts: join(sessionDir, 'facts.json'),
+      facts: join(this.semanticDir, 'facts.json'),
     };
   }
 
@@ -138,23 +144,30 @@ export class ArtifactStore {
   /**
    * Write semantic facts (last-write-wins)
    * Milestone 8: Semantic memory integration
+   * Facts are stored globally at the semantic directory path
    */
   async writeFacts(sessionKey: SessionKey, facts: SemanticFact[]): Promise<void> {
-    const paths = await this.ensureSessionDir(sessionKey);
+    // Ensure semantic directory exists
+    await mkdir(this.semanticDir, { recursive: true });
+
+    // Write facts to global semantic path
+    const factsPath = join(this.semanticDir, 'facts.json');
     const content = JSON.stringify(facts, null, 2);
-    await writeFile(paths.facts, content);
+    await writeFile(factsPath, content);
   }
 
   /**
    * Read semantic facts
    * Milestone 8: Semantic memory integration
+   * Facts are read from global semantic path
    */
   async readFacts(sessionKey: SessionKey): Promise<SemanticFact[]> {
-    const paths = this.getSessionPaths(sessionKey);
+    // Read from global semantic path
+    const factsPath = join(this.semanticDir, 'facts.json');
     const { readFile } = await import('node:fs/promises');
 
     try {
-      const content = await readFile(paths.facts, 'utf-8');
+      const content = await readFile(factsPath, 'utf-8');
       const facts: SemanticFact[] = JSON.parse(content);
       return facts;
     } catch (error) {
