@@ -12,6 +12,7 @@ import type {
   AuditEvent,
   LoopState,
   SessionKey,
+  SemanticFact,
 } from '../types.js';
 
 /** Artifact store configuration */
@@ -28,6 +29,7 @@ export interface SessionPaths {
   readonly evaluations: string;
   readonly audit: string;
   readonly state: string;
+  readonly facts: string;
 }
 
 /**
@@ -52,6 +54,7 @@ export class ArtifactStore {
       evaluations: join(sessionDir, 'evaluations.jsonl'),
       audit: join(sessionDir, 'audit', 'actions.jsonl'),
       state: join(sessionDir, 'state', 'active.json'),
+      facts: join(sessionDir, 'facts.json'),
     };
   }
 
@@ -130,5 +133,33 @@ export class ArtifactStore {
     ]);
 
     return this.getSessionPaths(params.state.sessionKey);
+  }
+
+  /**
+   * Write semantic facts (last-write-wins)
+   * Milestone 8: Semantic memory integration
+   */
+  async writeFacts(sessionKey: SessionKey, facts: SemanticFact[]): Promise<void> {
+    const paths = await this.ensureSessionDir(sessionKey);
+    const content = JSON.stringify(facts, null, 2);
+    await writeFile(paths.facts, content);
+  }
+
+  /**
+   * Read semantic facts
+   * Milestone 8: Semantic memory integration
+   */
+  async readFacts(sessionKey: SessionKey): Promise<SemanticFact[]> {
+    const paths = this.getSessionPaths(sessionKey);
+    const { readFile } = await import('node:fs/promises');
+
+    try {
+      const content = await readFile(paths.facts, 'utf-8');
+      const facts: SemanticFact[] = JSON.parse(content);
+      return facts;
+    } catch (error) {
+      // File doesn't exist or is malformed - return empty array
+      return [];
+    }
   }
 }

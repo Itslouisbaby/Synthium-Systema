@@ -1,5 +1,6 @@
 /**
  * Orchestrator Loop - Milestone 6
+ * Milestone 8: Semantic fact consolidation and recall integration
  * Deterministic loop with Policy Gate, Memory, Approvals, and Tool Execution integration
  */
 import { randomUUID } from 'node:crypto';
@@ -17,6 +18,7 @@ import type {
   LoopInput,
   LoopOutput,
   SessionKey,
+  SemanticFact,
 } from '../types.js';
 import { ArtifactStore, type StoreConfig } from '../artifacts/store.js';
 import { PolicyGate } from '../policy/gate.js';
@@ -26,6 +28,7 @@ import { HeuristicPlanner } from '../planning/heuristic-planner.js';
 import { LocalMemoryAdapter } from '../memory/adapter-local.js';
 import type { ContextBundle } from '../memory/types.js';
 import { ToolExecutor } from '../tools/index.js';
+import { Consolidator } from '../memory/semantic/consolidator.js';
 
 /**
  * Approval record stored in approvals.json
@@ -139,20 +142,26 @@ export async function runNeuronWavesLoop(
   // Initialize memory (Milestone 4)
   let contextBundle: ContextBundle | undefined;
   if (enableMemory) {
-    const memoryAdapter = config.memoryAdapter ?? new LocalMemoryAdapter({ 
-      baseDir: `${config.artifactBaseDir}/memory` 
+    const memoryAdapter = config.memoryAdapter ?? new LocalMemoryAdapter({
+      baseDir: `${config.artifactBaseDir}/memory`
     });
-    
+
     // Write observation to flash memory
     await memoryAdapter.writeObservation(input.sessionKey, observation);
-    
+
     // Generate keywords from content for recall
     const keywords = input.content.toLowerCase()
       .split(/[^a-z0-9]+/)
       .filter((t: string) => t.length > 2);
-    
+
     // Build context bundle
     contextBundle = await memoryAdapter.buildContextBundle(input.sessionKey, keywords);
+
+    // Milestone 8: Recall semantic facts and add to context bundle
+    const semanticFacts = await store.readFacts(input.sessionKey);
+    if (semanticFacts.length > 0) {
+      contextBundle.semanticFacts = semanticFacts;
+    }
   }
 
   // Create planner instance (use provided planner or default to HeuristicPlanner)
@@ -334,6 +343,15 @@ export async function runNeuronWavesLoop(
     summary: evaluationSummary,
     evaluatedAtMs: now,
   };
+
+  // Milestone 8: Consolidate semantic facts from tool execution results
+  const consolidator = new Consolidator();
+  const semanticFacts = consolidator.extractFacts(finalSteps, input.sessionKey);
+
+  // Store semantic facts if any were extracted
+  if (semanticFacts.length > 0) {
+    await store.writeFacts(input.sessionKey, semanticFacts);
+  }
 
   // Create audit events (including policy decisions)
   const auditEvents: AuditEvent[] = [

@@ -97,14 +97,47 @@ export interface PlanGraph {
 }
 
 /**
+ * Semantic Fact - Extracted from tool results
+ * Milestone 8: Consolidator & Loop Integration
+ */
+export interface SemanticFact {
+  /** Unique fact ID */
+  readonly id: UUID;
+  /** Session this fact belongs to */
+  readonly sessionKey: SessionKey;
+  /** Natural language statement of the fact */
+  readonly statement: string;
+  /** Tool that generated this fact */
+  readonly toolName: string;
+  /** Evidence for this fact */
+  readonly evidence: {
+    /** Type of evidence */
+    readonly type: 'tool_result';
+    /** Reference to tool result (step ID, etc.) */
+    readonly refId: string;
+    /** When evidence was collected */
+    readonly timestampMs: TimestampMs;
+  };
+  /** Confidence score (0-1) */
+  readonly confidence: number;
+  /** Last time this fact was verified */
+  readonly lastVerifiedMs: TimestampMs;
+  /** When fact was created */
+  readonly createdAtMs: TimestampMs;
+}
+
+/**
  * Memory context bundle - recalled memories for planning
  * Milestone 4: Local memory integration
+ * Milestone 8: Added semanticFacts
  */
 export interface ContextBundle {
   /** Recent flash memory entries */
   readonly flash: { id: string; content: string; timestampMs: number }[];
   /** Relevant warm memory hits */
   readonly warmHits: { id: string; content: string; timestampMs: number }[];
+  /** Semantic facts from tool execution */
+  readonly semanticFacts?: SemanticFact[];
   /** When memories were recalled */
   readonly recalledAtMs: TimestampMs;
 }
