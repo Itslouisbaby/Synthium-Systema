@@ -7,10 +7,22 @@ import * as path from 'path';
 /**
  * Artifact data types loaded from workspace
  */
-interface ArtifactData {
+export interface ArtifactData {
   active: any | null;
   plans: any[];
   approvals: any[];
+}
+
+/**
+ * Runtime data types from cognitive field
+ */
+export interface RuntimeData {
+  field: any[];
+  signals: any[];
+  fieldError: string | null;
+  signalsError: string | null;
+  hasRuntime: boolean;
+  lastUpdate: number;
 }
 
 /**
@@ -48,6 +60,7 @@ interface TUIState {
   selectedMemoryTab: MemoryTab;
   safeMode: boolean;
   killSwitch: boolean;
+  runtimeData: RuntimeData;
   lastUpdate: number;
 }
 
@@ -105,6 +118,14 @@ export class TUIStateStore {
       selectedMemoryTab: 'flash',
       safeMode: false,
       killSwitch: false,
+      runtimeData: {
+        field: [],
+        signals: [],
+        fieldError: null,
+        signalsError: null,
+        hasRuntime: false,
+        lastUpdate: Date.now(),
+      },
       lastUpdate: Date.now(),
     };
   }
@@ -137,6 +158,82 @@ export class TUIStateStore {
       fs.writeFileSync(this.persistentStatePath, JSON.stringify(persistent, null, 2));
     } catch (error) {
       console.error('Failed to save persistent state:', error);
+    }
+  }
+
+  /**
+   * Load runtime data from .synth/runtime/
+   */
+  private loadRuntimeData(): void {
+    try {
+      const workspacePath = this.state.workspacePath;
+      const runtimePath = path.join(workspacePath, '.synth', 'runtime');
+      const hasRuntimeDir = fs.existsSync(runtimePath);
+      
+      this.state.runtimeData.hasRuntime = hasRuntimeDir;
+      this.state.runtimeData.fieldError = null;
+      this.state.runtimeData.signalsError = null;
+      
+      if (hasRuntimeDir) {
+        // Load field.jsonl
+        const fieldPath = path.join(runtimePath, 'field.jsonl');
+        if (fs.existsSync(fieldPath)) {
+          try {
+            const fieldContent = fs.readFileSync(fieldPath, 'utf-8');
+            this.state.runtimeData.field = fieldContent
+              .split('\n')
+              .filter(line => line.trim())
+              .map(line => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((item): item is any => item !== null);
+          } catch (error) {
+            this.state.runtimeData.field = [];
+            this.state.runtimeData.fieldError = error instanceof Error ? error.message : 'Unknown error';
+          }
+        } else {
+          this.state.runtimeData.field = [];
+        }
+
+        // Load signals.jsonl
+        const signalsPath = path.join(runtimePath, 'signals.jsonl');
+        if (fs.existsSync(signalsPath)) {
+          try {
+            const signalsContent = fs.readFileSync(signalsPath, 'utf-8');
+            this.state.runtimeData.signals = signalsContent
+              .split('\n')
+              .filter(line => line.trim())
+              .map(line => {
+                try {
+                  return JSON.parse(line);
+                } catch {
+                  return null;
+                }
+              })
+              .filter((item): item is any => item !== null);
+          } catch (error) {
+            this.state.runtimeData.signals = [];
+            this.state.runtimeData.signalsError = error instanceof Error ? error.message : 'Unknown error';
+          }
+        } else {
+          this.state.runtimeData.signals = [];
+        }
+      } else {
+        // Runtime directory doesn't exist
+        this.state.runtimeData.field = [];
+        this.state.runtimeData.signals = [];
+      }
+
+      this.state.runtimeData.lastUpdate = Date.now();
+    } catch (error) {
+      this.state.runtimeData.field = [];
+      this.state.runtimeData.signals = [];
+      this.state.runtimeData.hasRuntime = false;
+      this.state.runtimeData.fieldError = error instanceof Error ? error.message : 'Unknown error';
     }
   }
 
@@ -188,6 +285,7 @@ export class TUIStateStore {
    */
   private tick(): void {
     this.loadArtifactData();
+    this.loadRuntimeData();
     this.notifyObservers();
   }
 
@@ -302,6 +400,13 @@ export class TUIStateStore {
    */
   public getArtifactData(): Readonly<ArtifactData> {
     return Object.freeze(JSON.parse(JSON.stringify(this.state.artifactData)));
+  }
+
+  /**
+   * Get runtime data
+   */
+  public getRuntimeData(): Readonly<RuntimeData> {
+    return Object.freeze(JSON.parse(JSON.stringify(this.state.runtimeData)));
   }
 
   /**

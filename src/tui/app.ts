@@ -98,6 +98,28 @@ export class BlessedTUI {
   }
 
   /**
+   * Render an activation bar (ASCII visualization)
+   */
+  private renderActivationBar(percentage: number): string {
+    const clamped = Math.min(100, Math.max(0, percentage));
+    const filled = Math.round(clamped / 10);
+    const empty = 10 - filled;
+    
+    // Color based on activation level
+    let barColor = 'gray-fg';
+    if (clamped >= 75) {
+      barColor = 'green-fg';
+    } else if (clamped >= 50) {
+      barColor = 'cyan-fg';
+    } else if (clamped >= 25) {
+      barColor = 'yellow-fg';
+    }
+    
+    const bar = `{${barColor}}[${'█'.repeat(filled)}${'░'.repeat(empty)}]{/${barColor}}`;
+    return bar;
+  }
+
+  /**
    * Prompt user to select workspace
    */
   private promptWorkspaceSelection(): void {
@@ -493,43 +515,85 @@ export class BlessedTUI {
 
     // Update cognitive field panel
     if (this.boxes.cognitive) {
-      const artifactData = state.artifactData;
+      const runtimeData = this.stateStore.getRuntimeData();
       let content = `\n {bold}Cognitive Field Preview{/bold}:\n\n`;
 
-      if (artifactData.active) {
-        content += `  {green-fg}Active Session{/green-fg}:\n`;
-        content += `  {cyan-fg}•{/cyan-fg} Main processing node\n`;
-        if (artifactData.active.status) {
-          content += `  {gray-fg}  Status: ${artifactData.active.status}{/gray-fg}\n`;
+      if (!runtimeData.hasRuntime) {
+        content += `  {gray-fg}Runtime disabled or not present{/gray-fg}\n`;
+        content += `  {gray-fg}.synth/runtime/ directory not found{/gray-fg}\n\n`;
+      } else if (runtimeData.fieldError || runtimeData.signalsError) {
+        // Show parse errors
+        if (runtimeData.fieldError) {
+          content += `  {red-fg}Error reading field.jsonl:{/red-fg}\n`;
+          content += `  {gray-fg}${runtimeData.fieldError.substring(0, 50)}${runtimeData.fieldError.length > 50 ? '...' : ''}{/gray-fg}\n\n`;
         }
-        content += `\n`;
-      }
-
-      if (artifactData.plans.length > 0) {
-        content += `  {cyan-fg}Planning Nodes{/cyan-fg} ({cyan-fg}${artifactData.plans.length}{/cyan-fg}):\n`;
-        artifactData.plans.slice(0, 3).forEach((plan, idx) => {
-          const status = plan.status || 'pending';
-          const statusColor = status === 'completed' ? 'green' : status === 'in-progress' ? 'yellow' : 'gray';
-          content += `  {${statusColor}-fg}●{/}${statusColor}-fg} Node[${idx + 1}]: ${status.toUpperCase()}\n`;
-        });
-        if (artifactData.plans.length > 3) {
-          content += `  {gray-fg}... ${artifactData.plans.length - 3} more nodes{/gray-fg}\n`;
+        if (runtimeData.signalsError) {
+          content += `  {red-fg}Error reading signals.jsonl:{/red-fg}\n`;
+          content += `  {gray-fg}${runtimeData.signalsError.substring(0, 50)}${runtimeData.signalsError.length > 50 ? '...' : ''}{/gray-fg}\n\n`;
         }
       } else {
-        content += `  {gray-fg}No active nodes{/gray-fg}\n`;
-        content += `  {gray-fg}Cognitive field idle...{/gray-fg}\n`;
-      }
+        // Display top active nodes with activation bars
+        if (runtimeData.field.length > 0) {
+          content += `  {bold}Top Active Nodes{/bold} ({cyan-fg}${runtimeData.field.length}{/cyan-fg}):\n\n`;
+          
+          // Extract nodes and sort by activation
+          const nodes = runtimeData.field
+            .filter(item => item && (item.activation !== undefined || item.activationLevel !== undefined))
+            .map(item => ({
+              nodeId: item.nodeId || item.id || item.name || 'unknown',
+              activation: item.activation !== undefined ? item.activation : (item.activationLevel || 0),
+              signal: item.signal || '',
+              attention: item.attention || '',
+              timestamp: item.timestamp || ''
+            }))
+            .sort((a, b) => b.activation - a.activation);
 
-      if (artifactData.approvals.length > 0) {
-        content += `\n  {yellow-fg}Policy Gate{/yellow-fg}:\n`;
-        let pending = artifactData.approvals.filter((e: any) => e.status === 'pending' || e.level === 'info').length;
-        let approved = artifactData.approvals.filter((e: any) => e.status === 'approved' || e.level === 'success').length;
-        let errors = artifactData.approvals.filter((e: any) => e.status === 'rejected' || e.level === 'error').length;
-        content += `  {green-fg}✓ Approved: ${approved}{/green-fg}\n`;
-        content += `  {yellow-fg}◐ Pending: ${pending}{/yellow-fg}\n`;
-        if (errors > 0) {
-          content += `  {red-fg}✗ Errors: ${errors}{/red-fg}\n`;
+          if (nodes.length > 0) {
+            nodes.slice(0, 6).forEach(node => {
+              const bar = this.renderActivationBar(node.activation);
+              const activationPercent = Math.min(100, Math.max(0, node.activation)).toFixed(1);
+              const nodeIdDisplay = node.nodeId.length > 18 ? node.nodeId.substring(0, 18) + '..' : node.nodeId;
+              content += `  {cyan-fg}${nodeIdDisplay.padEnd(20)}{/cyan-fg} ${bar} {white-fg}${activationPercent}%{/white-fg}\n`;
+            });
+
+            // Show attention focus if available
+            const focused = nodes.find(n => n.attention && n.attention.trim() !== '');
+            if (focused) {
+              content += `\n  {yellow-fg}Attention{/yellow-fg}: {cyan-fg}${focused.attention.substring(0, 40)}${focused.attention.length > 40 ? '...' : ''}{/cyan-fg}\n`;
+            }
+
+            // Display recent signals
+            const signalsWithText = runtimeData.signals
+              .filter(item => item && item.signal !== undefined && item.signal !== '')
+              .slice(-3);
+
+            if (signalsWithText.length > 0) {
+              content += `\n  {bold}Recent Signals{/bold}:\n`;
+              signalsWithText.forEach(sig => {
+                const signalText = typeof sig.signal === 'string' ? sig.signal : JSON.stringify(sig.signal);
+                content += `  {gray-fg}→ ${signalText.substring(0, 45)}${signalText.length > 45 ? '...' : ''}{/gray-fg}\n`;
+              });
+            }
+          } else {
+            content += `  {gray-fg}No active nodes found{/gray-fg}\n`;
+          }
+        } else {
+          content += `  {gray-fg}No field data present{/gray-fg}\n`;
+          content += `  {gray-fg}field.jsonl: {red-fg}empty{/red-fg}{/gray-fg}\n\n`;
+          
+          if (runtimeData.signals.length > 0) {
+            content += `  {bold}Recent Signals{/bold} ({cyan-fg}${runtimeData.signals.length}{/cyan-fg}):\n`;
+            const recentSignals = runtimeData.signals.slice(-5);
+            recentSignals.forEach(sig => {
+              const signalText = sig.signal || JSON.stringify(sig);
+              content += `  {gray-fg}→ ${signalText.substring(0, 45)}${signalText.length > 45 ? '...' : ''}{/gray-fg}\n`;
+            });
+          }
         }
+
+        // Last update timestamp
+        const lastUpdateTime = new Date(runtimeData.lastUpdate);
+        content += `\n  {gray-fg}Updated: ${lastUpdateTime.toLocaleTimeString()}{/gray-fg}\n`;
       }
 
       content += `\n  {gray-fg}Read-only view{/gray-fg}\n`;
