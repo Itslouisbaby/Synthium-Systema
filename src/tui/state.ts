@@ -14,6 +14,22 @@ interface ArtifactData {
 }
 
 /**
+ * Memory statistics from workspace
+ */
+interface MemoryStats {
+  flash: number;      // Recent observations count
+  warm: number;       // Consolidated summaries count
+  semantic: number;   // Learned facts count
+  memoryHealth: 'excellent' | 'good' | 'warning' | 'critial';
+  lastUpdate: number;
+}
+
+/**
+ * Memory tab selection
+ */
+type MemoryTab = 'flash' | 'warm' | 'semantic';
+
+/**
  * Persistent states
  */
 interface PersistentState {
@@ -28,6 +44,8 @@ interface TUIState {
   workspacePath: string;
   selectedSession: string | null;
   artifactData: ArtifactData;
+  memoryStats: MemoryStats;
+  selectedMemoryTab: MemoryTab;
   safeMode: boolean;
   killSwitch: boolean;
   lastUpdate: number;
@@ -77,6 +95,14 @@ export class TUIStateStore {
         plans: [],
         approvals: [],
       },
+      memoryStats: {
+        flash: 0,
+        warm: 0,
+        semantic: 0,
+        memoryHealth: 'good',
+        lastUpdate: Date.now(),
+      },
+      selectedMemoryTab: 'flash',
       safeMode: false,
       killSwitch: false,
       lastUpdate: Date.now(),
