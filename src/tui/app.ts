@@ -64,6 +64,40 @@ export class BlessedTUI {
   }
 
   /**
+   * Safely extract a value from an object with a fallback
+   */
+  private safeGet<T>(obj: any, path: string, fallback: T): T {
+    try {
+      const keys = path.split('.');
+      let current = obj;
+      for (const key of keys) {
+        if (current && typeof current === 'object' && key in current) {
+          current = current[key];
+        } else {
+          return fallback;
+        }
+      }
+      return current !== undefined && current !== null ? current : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
+   * Safely parse a date and return formatted string
+   */
+  private safeFormatDate(date: any, format: 'time' | 'datetime' = 'time'): string {
+    try {
+      if (!date) return '';
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      return format === 'time' ? d.toLocaleTimeString() : d.toLocaleString();
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * Prompt user to select workspace
    */
   private promptWorkspaceSelection(): void {
@@ -226,55 +260,144 @@ export class BlessedTUI {
     // Update sessions panel
     if (this.boxes.sessions) {
       const artifactData = state.artifactData;
-      let content = `\n Artifact Data Status:\n\n`;
-      content += `  Workspace: {cyan-fg}${state.workspacePath}{/cyan-fg}\n`;
-      content += `  Active Session: ${state.selectedSession || '{gray-fg}None{/gray-fg}'}\n\n`;
-      content += `  {green-fg}✓{/green-fg} active.json: ${artifactData.active ? 'Loaded' : '{red-fg}Not found{/red-fg}'}\n`;
-      content += `  {green-fg}✓{/green-fg} plans.jsonl: {cyan-fg}${artifactData.plans.length} plans{/cyan-fg}\n`;
-      content += `  {green-fg}✓{/green-fg} approvals.json: {cyan-fg}${artifactData.approvals.length} entries{/cyan-fg}\n\n`;
-      content += `  Last Update: ${new Date(state.lastUpdate).toLocaleTimeString()}\n`;
+      let content = `\n {bold}Active Sessions{/bold}:\n\n`;
+
+      // Extract session IDs from active.json
+      const sessionIds: string[] = [];
+      if (artifactData.active) {
+        // Try to extract session ID from active data
+        if (artifactData.active.sessionId) {
+          sessionIds.push(artifactData.active.sessionId);
+        }
+        if (artifactData.active.id) {
+          sessionIds.push(artifactData.active.id);
+        }
+        // Also check for nested data
+        if (artifactData.active.data && artifactData.active.data.sessionId) {
+          sessionIds.push(artifactData.active.data.sessionId);
+        }
+      }
+
+      // Show session IDs or no session message
+      if (sessionIds.length > 0) {
+        sessionIds.forEach((sessionId, idx) => {
+          const isSelected = state.selectedSession === sessionId;
+          const status = artifactData.active?.status || 'running';
+          const statusColor = status === 'running' ? 'green' : status === 'error' ? 'red' : 'yellow';
+          const marker = isSelected ? '{cyan-fg}→{/cyan-fg}' : '  ';
+          content += `  ${marker} {${statusColor}-fg}${status}{/${statusColor}-fg} {cyan-fg}${sessionId.substring(0, 16)}${sessionId.length > 16 ? '...' : ''}{/cyan-fg}\n`;
+        });
+      } else {
+        content += `  {gray-fg}No active sessions{/gray-fg}\n`;
+        content += `  {gray-fg}Waiting for session to start...{/gray-fg}\n`;
+      }
+
+      content += `\n {bold}Data Sources{/bold}:\n`;
+      content += `  {green-fg}●{/green-fg} active.json: ${artifactData.active ? 'Loaded' : '{gray-fg}Not found{/gray-fg}'}\n`;
+      content += `  {green-fg}●{/green-fg} plans.jsonl: {cyan-fg}${artifactData.plans.length} plans{/cyan-fg}\n`;
+      content += `  {green-fg}●{/green-fg} approvals.json: {cyan-fg}${artifactData.approvals.length} entries{/cyan-fg}\n`;
+      content += `\n  Last: {gray-fg}${new Date(state.lastUpdate).toLocaleTimeString()}{/gray-fg}\n`;
       this.boxes.sessions.setContent(content);
     }
 
     // Update memory panel
     if (this.boxes.memory) {
       const artifactData = state.artifactData;
-      let content = `\n Memory Inspector:\n\n`;
+      let content = `\n {bold}Memory Inspector{/bold}:\n\n`;
 
       if (artifactData.active) {
-        content += `  {yellow-fg}Active Session Data{/yellow-fg}:\n`;
-        content += `  Status: ${JSON.stringify(artifactData.active).substring(0, 100)}...\n\n`;
+        content += `  {yellow-fg}Active Session{/yellow-fg}:\n`;
+        content += `  Session ID: {cyan-fg}${artifactData.active.sessionId || artifactData.active.id || 'unknown'}{/cyan-fg}\n`;
+        content += `  Created: {gray-fg}${artifactData.active.createdAt || new Date().toISOString()}{/gray-fg}\n`;
+        content += `  Status: {green-fg}${artifactData.active.status || 'active'}{/green-fg}\n\n`;
+
+        // Show snippet of active data
+        if (artifactData.active.data) {
+          const dataStr = JSON.stringify(artifactData.active.data);
+          content += `  {gray-fg}Data: ${dataStr.substring(0, 60)}${dataStr.length > 60 ? '...' : ''}{/gray-fg}\n\n`;
+        } else if (artifactData.active.metadata) {
+          const metaStr = JSON.stringify(artifactData.active.metadata);
+          content += `  {gray-fg}Metadata: ${metaStr.substring(0, 60)}${metaStr.length > 60 ? '...' : ''}{/gray-fg}\n\n`;
+        }
       } else {
         content += `  {gray-fg}No active session data{/gray-fg}\n\n`;
       }
 
+      // Show plans as memory entries
       if (artifactData.plans.length > 0) {
-        content += `  {cyan-fg}Recent Plans{/cyan-fg}:\n`;
+        content += `  {cyan-fg}Stored Plans{/cyan-fg} ({cyan-fg}${artifactData.plans.length}{/cyan-fg}):\n`;
         artifactData.plans.slice(0, 3).forEach((plan, idx) => {
-          content += `  ${idx + 1}. ${JSON.stringify(plan).substring(0, 60)}...\n`;
+          const planId = plan.id || plan.sessionId || idx.toString();
+          content += `  {green-fg}●{/green-fg} {cyan-fg}${planId.substring(0, 15)}${planId.length > 15 ? '...' : ''}{/cyan-fg}\n`;
         });
         if (artifactData.plans.length > 3) {
-          content += `  ... and ${artifactData.plans.length - 3} more\n`;
+          content += `  {gray-fg}... and ${artifactData.plans.length - 3} more{/gray-fg}\n`;
         }
       } else {
-        content += `  {gray-fg}No plans found{/gray-fg}\n`;
+        content += `  {gray-fg}No plans stored{/gray-fg}\n`;
       }
 
+      content += `\n  {gray-fg}Flash • Warm • Semantic{/gray-fg}\n`;
       this.boxes.memory.setContent(content);
     }
 
     // Update run panel
     if (this.boxes.run) {
       const artifactData = state.artifactData;
-      let content = `\n Active Run:\n\n`;
+      let content = `\n {bold}Active Run Status{/bold}:\n\n`;
 
       if (artifactData.active) {
-        content += `  {green-fg}Session Active{/green-fg}\n`;
-        content += `  Last update: ${new Date(state.lastUpdate).toLocaleTimeString()}\n\n`;
-        content += `  {gray-fg}Execution steps available in audit log{/gray-fg}\n`;
+        // Extract session info
+        const sessionId = artifactData.active.sessionId || artifactData.active.id || 'unknown';
+        const status = artifactData.active.status || 'unknown';
+        const statusColor = status === 'running' ? 'green' : status === 'completed' ? 'cyan' : status === 'error' ? 'red' : 'yellow';
+
+        content += `  Session: {cyan-fg}${sessionId.substring(0, 20)}${sessionId.length > 20 ? '...' : ''}{/cyan-fg}\n`;
+        content += `  Status: {${statusColor}-fg}${status.toUpperCase()}{/${statusColor}-fg}\n\n`;
+
+        // Extract run steps from various sources
+        let runSteps: any[] = [];
+
+        // Try to get steps from active data
+        if (Array.isArray(artifactData.active.steps)) {
+          runSteps = artifactData.active.steps;
+        } else if (artifactData.active.data && Array.isArray(artifactData.active.data.steps)) {
+          runSteps = artifactData.active.data.steps;
+        }
+
+        // Show execution steps
+        content += `  {bold}Execution Steps{/bold}:\n`;
+        if (runSteps.length > 0) {
+          runSteps.slice(0, 8).forEach((step, idx) => {
+            const stepStatus = step.status || 'pending';
+            const stepColor = stepStatus === 'completed' ? 'green' : stepStatus === 'running' ? 'yellow' : stepStatus === 'error' ? 'red' : 'gray';
+            const stepName = step.name || step.description || `Step ${idx + 1}`;
+            const marker = stepStatus === 'completed' ? '✓' : stepStatus === 'running' ? '◐' : stepStatus === 'error' ? '✗' : '○';
+            content += `  {${stepColor}-fg}${marker}{/${stepColor}-fg} {gray-fg}${stepName.substring(0, 40)}${stepName.length > 40 ? '...' : ''}{/gray-fg}\n`;
+          });
+          if (runSteps.length > 8) {
+            content += `  {gray-fg}... and ${runSteps.length - 8} more steps{/gray-fg}\n`;
+          }
+        } else {
+          // Show plans as alternative if no steps
+          if (artifactData.plans.length > 0) {
+            content += `  {cyan-fg}Available Plans{/cyan-fg} (${artifactData.plans.length}):\n`;
+            artifactData.plans.slice(0, 4).forEach((plan, idx) => {
+              const planStatus = plan.status || 'pending';
+              const planColor = planStatus === 'completed' ? 'green' : planStatus === 'in-progress' ? 'yellow' : 'gray';
+              content += `  {${planColor}-fg}${idx + 1}.{/${planColor}-fg} {gray-fg}${JSON.stringify(plan).substring(0, 35)}...{/gray-fg}\n`;
+            });
+          } else {
+            content += `  {gray-fg}No execution steps yet{/gray-fg}\n`;
+            content += `  {gray-fg}Waiting for planning...{/gray-fg}\n`;
+          }
+        }
+
+        content += `\n  Last: {gray-fg}${new Date(state.lastUpdate).toLocaleTimeString()}{/gray-fg}\n`;
       } else {
         content += `  {gray-fg}No active run{/gray-fg}\n`;
-        content += `  Waiting for session to start...\n`;
+        content += `  {gray-fg}Waiting for session to start...{/gray-fg}\n`;
+        content += `  {gray-fg}Check sessions panel for details{/gray-fg}\n`;
       }
 
       this.boxes.run.setContent(content);
@@ -283,17 +406,86 @@ export class BlessedTUI {
     // Update audit panel
     if (this.boxes.audit) {
       const artifactData = state.artifactData;
-      let content = `\n Audit Log:\n\n`;
+      let content = `\n {bold}Audit Log{/bold}:\n\n`;
 
       if (artifactData.approvals.length > 0) {
-        content += `  {green-fg}Recent Events{/green-fg}:\n`;
-        artifactData.approvals.slice(0, 5).forEach((entry, idx) => {
-          const timestamp = new Date().toLocaleTimeString();
-          content += `  [${timestamp}] ${JSON.stringify(entry).substring(0, 50)}...\n`;
+        content += `  Recent Events ({cyan-fg}${artifactData.approvals.length}{/cyan-fg}):\n\n`;
+
+        artifactData.approvals.slice(0, 6).forEach((entry, idx) => {
+          // Extract timestamp and level
+          let timestamp = '';
+          let level = 'INFO';
+          let message = '';
+
+          if (entry.timestamp) {
+            const ts = new Date(entry.timestamp);
+            if (!isNaN(ts.getTime())) {
+              timestamp = ts.toLocaleTimeString();
+            } else {
+              timestamp = entry.timestamp;
+            }
+          } else if (entry.createdAt) {
+            const ts = new Date(entry.createdAt);
+            if (!isNaN(ts.getTime())) {
+              timestamp = ts.toLocaleTimeString();
+            } else {
+              timestamp = entry.createdAt;
+            }
+          } else {
+            timestamp = new Date().toLocaleTimeString();
+          }
+
+          // Extract log level
+          if (entry.level) {
+            level = entry.level.toUpperCase();
+          } else if (entry.type) {
+            level = entry.type.toUpperCase();
+          } else if (entry.status) {
+            level = entry.status.toUpperCase();
+          }
+
+          // Determine color based on level
+          let levelColor = 'gray';
+          if (level === 'ERROR' || level === 'FAIL') {
+            levelColor = 'red';
+          } else if (level === 'WARN' || level === 'WARNING') {
+            levelColor = 'yellow';
+          } else if (level === 'INFO') {
+            levelColor = 'cyan';
+          } else if (level === 'SUCCESS' || level === 'OK') {
+            levelColor = 'green';
+          } else if (level === 'DEBUG') {
+            levelColor = 'gray';
+          }
+
+          // Extract message
+          if (entry.message) {
+            message = entry.message;
+          } else if (entry.description) {
+            message = entry.description;
+          } else if (entry.action) {
+            message = entry.action;
+          } else {
+            message = JSON.stringify(entry).substring(0, 50);
+          }
+
+          content += `  {${levelColor}-fg}[${level}]{/${levelColor}-fg} {gray-fg}${timestamp}{/gray-fg}\n`;
+          content += `    {gray-fg}${message.substring(0, 55)}${message.length > 55 ? '...' : ''}{/gray-fg}\n\n`;
+        });
+      } else if (artifactData.plans.length > 0) {
+        // Use plans as audit fallback
+        content += `  {cyan-fg}Planning Activity{/cyan-fg} ({cyan-fg}${artifactData.plans.length}{/cyan-fg}):\n\n`;
+        artifactData.plans.slice(0, 4).forEach((plan, idx) => {
+          const timestamp = plan.timestamp || plan.createdAt || '';
+          const ts = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+          const status = plan.status || 'pending';
+          const statusColor = status === 'completed' ? 'green' : status === 'error' ? 'red' : 'cyan';
+          content += `  {${statusColor}-fg}[${status.toUpperCase()}]{/${statusColor}-fg} {gray-fg}${ts}{/gray-fg}\n`;
+          content += `    {gray-fg}${JSON.stringify(plan).substring(0, 50)}...{/gray-fg}\n\n`;
         });
       } else {
         content += `  {gray-fg}No audit events{/gray-fg}\n`;
-        content += `  System ready...\n`;
+        content += `  {gray-fg}System ready...{/gray-fg}\n`;
       }
 
       this.boxes.audit.setContent(content);
@@ -302,16 +494,42 @@ export class BlessedTUI {
     // Update cognitive field panel
     if (this.boxes.cognitive) {
       const artifactData = state.artifactData;
-      let content = `\n Cognitive Field Preview:\n\n`;
+      let content = `\n {bold}Cognitive Field Preview{/bold}:\n\n`;
+
+      if (artifactData.active) {
+        content += `  {green-fg}Active Session{/green-fg}:\n`;
+        content += `  {cyan-fg}•{/cyan-fg} Main processing node\n`;
+        if (artifactData.active.status) {
+          content += `  {gray-fg}  Status: ${artifactData.active.status}{/gray-fg}\n`;
+        }
+        content += `\n`;
+      }
 
       if (artifactData.plans.length > 0) {
-        content += `  {cyan-fg}Active Planning Nodes{/cyan-fg}:\n`;
+        content += `  {cyan-fg}Planning Nodes{/cyan-fg} ({cyan-fg}${artifactData.plans.length}{/cyan-fg}):\n`;
         artifactData.plans.slice(0, 3).forEach((plan, idx) => {
-          content += `  Node[${idx + 1}]: Planning in progress...\n`;
+          const status = plan.status || 'pending';
+          const statusColor = status === 'completed' ? 'green' : status === 'in-progress' ? 'yellow' : 'gray';
+          content += `  {${statusColor}-fg}●{/}${statusColor}-fg} Node[${idx + 1}]: ${status.toUpperCase()}\n`;
         });
+        if (artifactData.plans.length > 3) {
+          content += `  {gray-fg}... ${artifactData.plans.length - 3} more nodes{/gray-fg}\n`;
+        }
       } else {
         content += `  {gray-fg}No active nodes{/gray-fg}\n`;
-        content += `  Cognitive field idle...\n`;
+        content += `  {gray-fg}Cognitive field idle...{/gray-fg}\n`;
+      }
+
+      if (artifactData.approvals.length > 0) {
+        content += `\n  {yellow-fg}Policy Gate{/yellow-fg}:\n`;
+        let pending = artifactData.approvals.filter((e: any) => e.status === 'pending' || e.level === 'info').length;
+        let approved = artifactData.approvals.filter((e: any) => e.status === 'approved' || e.level === 'success').length;
+        let errors = artifactData.approvals.filter((e: any) => e.status === 'rejected' || e.level === 'error').length;
+        content += `  {green-fg}✓ Approved: ${approved}{/green-fg}\n`;
+        content += `  {yellow-fg}◐ Pending: ${pending}{/yellow-fg}\n`;
+        if (errors > 0) {
+          content += `  {red-fg}✗ Errors: ${errors}{/red-fg}\n`;
+        }
       }
 
       content += `\n  {gray-fg}Read-only view{/gray-fg}\n`;
