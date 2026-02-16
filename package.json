@@ -12,7 +12,8 @@
     }
   },
   "bin": {
-    "synth": "dist/cli/index.mjs"
+    "synth": "dist/cli/index.mjs",
+    "synth-tui": "dist/tui/index.mjs"
   },
   "files": [
     "dist",
@@ -20,14 +21,20 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:cli",
+    "build": "npm run build:lib && npm run build:cli && npm run build:tui",
     "build:lib": "tsdown src/index.ts --format esm --dts --clean",
     "build:cli": "tsdown src/cli/index.ts --format esm --dts --clean --outDir dist/cli",
+    "build:tui": "tsdown src/tui/index.ts --format esm --dts --clean --outDir dist/tui",
     "test": "vitest run",
     "dev": "vitest",
     "lint": "echo \"No lint configured\""
   },
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0"
+  },
   "devDependencies": {
+    "@types/blessed": "^0.1.21",
     "tsdown": "^0.20.3",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"

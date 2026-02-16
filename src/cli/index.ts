@@ -166,6 +166,10 @@ function validateCommandOptions(command: string, options: CLIOptions): void {
       // No required options
       break;
 
+    case 'tui':
+      // TUI command - no additional validation needed
+      break;
+
     default:
       console.error(`Error: Unknown command: ${command}`);
       printUsage();
@@ -208,6 +212,10 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
         break;
       case 'sessions':
         handlers.sessions = (await import('./commands/sessions.js')).default;
+        break;
+
+      case 'tui':
+        handlers.tui = (await import('./commands/tui.js')).default;
         break;
     }
 

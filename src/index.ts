@@ -84,3 +84,8 @@ export async function synthesize(options: WaveOptions) {
   };
   return runNeuronWavesLoop(input, config);
 }
+
+// TUI exports
+export { SynthTUI, type TUIConfig } from './tui/index.js';
+export { theme } from './tui/theme.js';
+export { panels, TUIpanels, type SessionData, type MemoryData, type RunStep, type AuditData, type CognitiveNode } from './tui/panels.js';
