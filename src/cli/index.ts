@@ -213,10 +213,15 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
       case 'sessions':
         handlers.sessions = (await import('./commands/sessions.js')).default;
         break;
+    }
 
-      case 'tui':
-        handlers.tui = (await import('./commands/tui.js')).default;
-        break;
+    // Special inline handler for tui (avoids hash filename issues)
+    if (command === 'tui') {
+      const { SynthTUI } = await import('../tui/index.js');
+      const tui = new SynthTUI({ workspace: options.workspace, session: options.sessionId });
+      await tui.init();
+      tui.start();
+      return;
     }
 
     const handler = handlers[command];

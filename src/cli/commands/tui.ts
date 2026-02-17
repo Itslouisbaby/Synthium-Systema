@@ -22,5 +22,5 @@ export async function handleTui(args: string[]): Promise<void> {
 
   const tui = new SynthTUI(config);
   await tui.init();
-  tui.render();
+  tui.start();
 }
