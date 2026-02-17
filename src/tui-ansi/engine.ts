@@ -2,6 +2,7 @@
 
 import { Terminal, KeyPress } from './terminal.js';
 import { performance } from 'node:perf_hooks';
+import UpdateManager from 'stdout-update';
 import { Component } from './component.js';
 import { Container } from './container.js';
 
@@ -27,6 +28,10 @@ export class TUIEngine {
   private keyUnsub: (() => void) | null = null;
   private keyCallbacks: Set<(key: KeyPress) => void> = new Set();
   private exitOnCtrlC: boolean = true;
+
+  // Single frame sink (prevents double writers)
+  private updateManager: UpdateManager | null = null;
+  private resizeUnsub: (() => void) | null = null;
 
   constructor(terminal?: Terminal) {
     this.terminal = terminal ?? new Terminal();
@@ -61,6 +66,19 @@ export class TUIEngine {
     }
 
     this.isRunning = true;
+
+    // Single output manager hooks stdout/stderr so we own the frame sink
+    this.updateManager = new UpdateManager(process.stdout, process.stderr);
+    this.updateManager.hook();
+
+    // Resize invalidation (force full rerender on dimension changes)
+    const onResize = () => {
+      if (!this.isRunning) return;
+      this.forceFullRender();
+    };
+    process.stdout.on('resize', onResize);
+    this.resizeUnsub = () => process.stdout.off('resize', onResize);
+
     this.inputCleanup = this.terminal.setupRawMode();
     this.terminal.resumeInput();
     this.terminal.hideCursor();
@@ -114,6 +132,11 @@ export class TUIEngine {
       this.renderInterval = null;
     }
 
+    if (this.resizeUnsub) {
+      this.resizeUnsub();
+      this.resizeUnsub = null;
+    }
+
     if (this.keyUnsub) {
       this.keyUnsub();
       this.keyUnsub = null;
@@ -126,6 +149,13 @@ export class TUIEngine {
 
     this.terminal.pauseInput();
     this.terminal.showCursor();
+
+    if (this.updateManager) {
+      this.updateManager.clear();
+      this.updateManager.unhook();
+      this.updateManager = null;
+    }
+
     this.terminal.cleanup();
   }
 
@@ -171,6 +201,9 @@ export class TUIEngine {
       ? newRender.length
       : this.differentialUpdate(this.previousRender, newRender);
 
+    // Flush the current frame through the single frame sink
+    this.updateManager?.update(newRender.join('\n'));
+
     // Mark root as clean
     this.rootContainer.markClean();
 
@@ -204,40 +237,9 @@ export class TUIEngine {
       }
     }
 
-    // Batch update: move cursor to first changed line, then write sequentially
+    // Count changes only; actual screen update is handled by UpdateManager
     if (updates.length > 0) {
-      // Move to first different line
-      this.terminal.moveTo(updates[0].row, 1);
-
-      // Write each changed line, moving down
-      for (let i = 0; i < updates.length; i++) {
-        const update = updates[i];
-        const line = update.line.padEnd(this.terminal.getSize().cols);
-
-        // Clear line and write new content
-        this.terminal.write(Terminal.ANSI.clearLine);
-        this.terminal.write(line);
-        changesWritten++;
-
-        // Move to next line unless it's the last update
-        if (i < updates.length - 1) {
-          const nextRow = updates[i + 1].row;
-          const currentRow = update.row;
-          const rowDiff = nextRow - currentRow;
-
-          if (rowDiff === 1) {
-            // Adjacent, just move down
-            this.terminal.write(Terminal.ANSI.cursorDown(1));
-          } else {
-            // Non-adjacent, jump directly
-            this.terminal.moveTo(nextRow, 1);
-          }
-        }
-      }
-
-      // Move cursor back to desired position (usually bottom or where input happens)
-      const size = this.terminal.getSize();
-      this.terminal.moveTo(size.rows, 1);
+      changesWritten = updates.length;
     }
 
     return changesWritten;
