@@ -90,7 +90,55 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
   // Initialize engine with root container
   engine.init(rootContainer);
 
-  // Set up keyboard input (engine handles key dispatch)
+  // Set up global keyboard shortcuts (handled before components)
+  // Ctrl+S toggles Safe Mode; Ctrl+K opens Kill Switch confirmation (Y/N/Esc)
+  let safeMode = false;
+  let killSwitch = false;
+  let killConfirmOpen = false;
+
+  const setSafeMode = (enabled: boolean) => {
+    safeMode = enabled;
+    statusBar.setStatus(safeMode ? 'safe' : 'idle', safeMode ? 'Safe mode enabled' : 'Ready');
+  };
+
+  const setKillSwitch = (enabled: boolean) => {
+    killSwitch = enabled;
+    statusBar.setStatus(killSwitch ? 'error' : safeMode ? 'safe' : 'idle', killSwitch ? 'KILL SWITCH ACTIVE' : undefined);
+  };
+
+  engine.onKey((key) => {
+    const keyName = key.name ?? '';
+
+    // If confirm modal is open, swallow Y/N/Esc
+    if (killConfirmOpen) {
+      if (keyName === 'y' || keyName === 'Y') {
+        setKillSwitch(!killSwitch);
+        killConfirmOpen = false;
+        return true;
+      }
+      if (keyName === 'n' || keyName === 'N' || keyName === 'escape') {
+        statusBar.setStatus(safeMode ? 'safe' : 'idle');
+        killConfirmOpen = false;
+        return true;
+      }
+      return true;
+    }
+
+    // Ctrl+S
+    if (key.ctrl && (keyName === 's' || key.sequence === '\x13')) {
+      setSafeMode(!safeMode);
+      return true;
+    }
+
+    // Ctrl+K
+    if (key.ctrl && (keyName === 'k' || key.sequence === '\x0b')) {
+      killConfirmOpen = true;
+      statusBar.setStatus('awaiting', `Confirm ${killSwitch ? 'DEACTIVATE' : 'ACTIVATE'} kill switch? (Y/N)`);
+      return true;
+    }
+
+    return false;
+  });
 
   // Enable Ctrl+C to exit
   engine.enableExitOnCtrlC(true);

@@ -113,6 +113,8 @@ export class StatusBar extends BaseComponent {
       shortcuts.push('^C=Cancel');
     } else {
       shortcuts.push('^C=Exit');
+      shortcuts.push('^S=Safe');
+      shortcuts.push('^K=Kill');
       shortcuts.push('PgUp/Dn=Scroll');
     }
 

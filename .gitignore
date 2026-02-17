@@ -7,3 +7,8 @@ coverage/
 .idea/
 *.swp
 *.swo
+
+# Local synth runtime / TUI state
+.synth/
+.synth-tui-state.json
+.synth-tui-flag-ansi

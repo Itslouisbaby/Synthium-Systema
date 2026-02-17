@@ -35,6 +35,9 @@ export class BlessedTUI {
   private stateStore: ReturnType<typeof getStateStore>;
   private unsubscribe: (() => void) | null;
 
+  // Kill switch confirmation modal (prevents accidental activation)
+  private killSwitchConfirmBox: blessed.Widgets.BoxElement | null = null;
+
   constructor() {
     // Get state store singleton
     this.stateStore = getStateStore();
@@ -834,7 +837,7 @@ export class BlessedTUI {
       left: 0,
       width: '100%',
       height: 2,
-      content: ' [1] Sessions  [2] Memory  [3] Run  [4] Audit  [5] Cognitive  [s] Safe Mode  [k] Kill Switch  [q] Quit ',
+      content: ' [1] Sessions  [2] Memory  [3] Run  [4] Audit  [5] Cognitive  [^S] Safe Mode  [^K] Kill Switch  [q] Quit ',
       style: {
         fg: COLORS.gray,
         bg: COLORS.bg,
@@ -849,6 +852,60 @@ export class BlessedTUI {
   }
 
   /**
+   * Confirm kill switch toggle (Ctrl+K)
+   */
+  private openKillSwitchConfirmModal(): void {
+    if (this.killSwitchConfirmBox) return;
+
+    const { killSwitch } = this.stateStore.getState();
+    const verb = killSwitch ? 'DEACTIVATE' : 'ACTIVATE';
+
+    const box = blessed.box({
+      top: 'center',
+      left: 'center',
+      width: '60%',
+      height: 7,
+      border: { type: 'line' },
+      style: {
+        fg: COLORS.text,
+        bg: COLORS.bg,
+        border: { fg: COLORS.red },
+      },
+      tags: true,
+      content:
+        `{red-fg}[KILL SWITCH]{/red-fg} Confirm ${verb}?
+
+` +
+        `Press {green-fg}Y{/green-fg} to confirm, {gray-fg}N{/gray-fg} or {gray-fg}Esc{/gray-fg} to cancel.`,
+    });
+
+    this.killSwitchConfirmBox = box;
+    this.screen.append(box);
+    box.focus();
+    this.screen.render();
+
+    const cleanup = () => {
+      try {
+        this.screen.remove(box);
+      } catch {}
+      this.killSwitchConfirmBox = null;
+      this.screen.unkey(['y', 'Y'], onYes);
+      this.screen.unkey(['n', 'N', 'escape'], onNo);
+      this.screen.render();
+    };
+
+    const onYes = () => {
+      this.stateStore.setKillSwitch(!killSwitch);
+      cleanup();
+    };
+
+    const onNo = () => cleanup();
+
+    this.screen.key(['y', 'Y'], onYes);
+    this.screen.key(['n', 'N', 'escape'], onNo);
+  }
+
+  /**
    * Setup global keybindings
    */
   private setupKeybindings(): void {
@@ -857,14 +914,14 @@ export class BlessedTUI {
       this.stop();
     });
 
-    // Toggle safe mode with 's'
-    this.screen.key(['s'], () => {
+    // Toggle safe mode with Ctrl+S (prevents accidental toggles while typing)
+    this.screen.key(['C-s'], () => {
       this.stateStore.toggleSafeMode();
     });
 
-    // Toggle kill switch with 'k'
-    this.screen.key(['k'], () => {
-      this.stateStore.toggleKillSwitch();
+    // Kill switch requires Ctrl+K + confirmation (Y/N)
+    this.screen.key(['C-k'], () => {
+      this.openKillSwitchConfirmModal();
     });
 
     // Arrow key navigation (placeholder for future implementation)

@@ -26,7 +26,9 @@ export class TUIEngine {
   private renderInterval: NodeJS.Timeout | null = null;
   private inputCleanup: (() => void) | null = null;
   private keyUnsub: (() => void) | null = null;
-  private keyCallbacks: Set<(key: KeyPress) => void> = new Set();
+  // Global key handlers. If a handler returns true, the key is considered handled and
+  // will not be propagated to the component tree.
+  private keyCallbacks: Set<(key: KeyPress) => boolean | void> = new Set();
   private exitOnCtrlC: boolean = true;
 
   // Single frame sink (prevents double writers)
@@ -98,11 +100,18 @@ export class TUIEngine {
           process.exit(0);
         }
 
-        // Engine-level callbacks
-        for (const cb of this.keyCallbacks) cb(key);
+        // Engine-level callbacks (may stop propagation)
+        let handled = false;
+        for (const cb of this.keyCallbacks) {
+          try {
+            if (cb(key) === true) handled = true;
+          } catch {
+            // Ignore handler errors; never break input loop
+          }
+        }
 
-        // Route to root container
-        if (this.rootContainer) this.rootContainer.handleInput(key);
+        // Route to root container unless handled globally
+        if (!handled && this.rootContainer) this.rootContainer.handleInput(key);
       });
     }
 
@@ -162,7 +171,7 @@ export class TUIEngine {
   /**
    * Listen for keyboard input
    */
-  onKey(callback: (key: KeyPress) => void): () => void {
+  onKey(callback: (key: KeyPress) => boolean | void): () => void {
     this.keyCallbacks.add(callback);
     return () => this.keyCallbacks.delete(callback);
   }
