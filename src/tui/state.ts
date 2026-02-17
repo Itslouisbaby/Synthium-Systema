@@ -243,9 +243,32 @@ export class TUIStateStore {
   private loadArtifactData(): void {
     try {
       const workspacePath = this.state.workspacePath;
+      const neuronwavesPath = path.join(workspacePath, '.synth', 'neuronwaves');
+
+      // Resolve session to load (selected session first, then first available session)
+      let sessionId = this.state.selectedSession;
+      if (!sessionId && fs.existsSync(neuronwavesPath)) {
+        const sessions = fs.readdirSync(neuronwavesPath, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && entry.name !== 'memory' && entry.name !== 'audit')
+          .map((entry) => entry.name)
+          .sort();
+
+        if (sessions.length > 0) {
+          sessionId = sessions[0];
+          this.state.selectedSession = sessionId;
+        }
+      }
+
+      if (!sessionId) {
+        this.state.artifactData.active = null;
+        this.state.artifactData.plans = [];
+        this.state.artifactData.approvals = [];
+        this.state.lastUpdate = Date.now();
+        return;
+      }
 
       // Load active.json
-      const activePath = path.join(workspacePath, 'active.json');
+      const activePath = path.join(neuronwavesPath, sessionId, 'state', 'active.json');
       if (fs.existsSync(activePath)) {
         const activeData = fs.readFileSync(activePath, 'utf-8');
         this.state.artifactData.active = JSON.parse(activeData);
@@ -254,7 +277,7 @@ export class TUIStateStore {
       }
 
       // Load plans.jsonl
-      const plansPath = path.join(workspacePath, 'plans.jsonl');
+      const plansPath = path.join(neuronwavesPath, sessionId, 'plans.jsonl');
       if (fs.existsSync(plansPath)) {
         const plansContent = fs.readFileSync(plansPath, 'utf-8');
         this.state.artifactData.plans = plansContent
@@ -266,10 +289,15 @@ export class TUIStateStore {
       }
 
       // Load approvals.json
-      const approvalsPath = path.join(workspacePath, 'approvals.json');
+      const approvalsPath = path.join(neuronwavesPath, sessionId, 'state', 'approvals.json');
       if (fs.existsSync(approvalsPath)) {
         const approvalsData = fs.readFileSync(approvalsPath, 'utf-8');
-        this.state.artifactData.approvals = JSON.parse(approvalsData);
+        const parsed = JSON.parse(approvalsData);
+        this.state.artifactData.approvals = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed?.approvals)
+            ? parsed.approvals
+            : [];
       } else {
         this.state.artifactData.approvals = [];
       }

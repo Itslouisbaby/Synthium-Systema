@@ -29,6 +29,11 @@ const ICONS = {
   killSwitch: '[KILL SWITCH]',
 };
 
+export interface BlessedTUIOptions {
+  workspace?: string;
+  session?: string;
+}
+
 export class BlessedTUI {
   private screen: blessed.Widgets.Screen;
   private boxes: { [key: string]: blessed.Widgets.BoxElement };
@@ -38,7 +43,7 @@ export class BlessedTUI {
   // Kill switch confirmation modal (prevents accidental activation)
   private killSwitchConfirmBox: blessed.Widgets.BoxElement | null = null;
 
-  constructor() {
+  constructor(options: BlessedTUIOptions = {}) {
     // Get state store singleton
     this.stateStore = getStateStore();
     this.unsubscribe = null;
@@ -62,8 +67,20 @@ export class BlessedTUI {
     // Subscribe to state changes
     this.subscribeToState();
 
-    // Prompt for workspace/session selection
-    this.promptWorkspaceSelection();
+    // Apply CLI-provided workspace/session defaults
+    if (options.workspace) {
+      this.stateStore.setWorkspacePath(options.workspace);
+    }
+    if (options.session) {
+      this.stateStore.setSelectedSession(options.session);
+    }
+
+    // Prompt only when no explicit workspace/session was provided
+    if (!options.workspace && !options.session) {
+      this.promptWorkspaceSelection();
+    } else {
+      this.startStateRefresh();
+    }
   }
 
   /**

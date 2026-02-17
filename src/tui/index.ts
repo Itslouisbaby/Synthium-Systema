@@ -53,7 +53,10 @@ export class SynthTUI {
       workspace: config.workspace || process.cwd(),
       session: config.session,
     };
-    this.blessedTUI = new BlessedTUI();
+    this.blessedTUI = new BlessedTUI({
+      workspace: this.config.workspace,
+      session: this.config.session,
+    });
   }
 
   // Initialize the TUI
