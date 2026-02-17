@@ -2,11 +2,13 @@
 
 import { TUIEngine } from './engine.js';
 import { Container } from './container.js';
-import { Header } from './components/Header.js';
-import { ChatLog } from './components/ChatLog.js';
-import { Editor } from './components/Editor.js';
-import { StatusBar } from './components/StatusBar.js';
-import { Terminal, KeyPress } from './terminal.js';
+import { Header } from './components/header.js';
+import { ChatLog } from './components/chatlog.js';
+import { Editor } from './components/editor.js';
+import { StatusBar } from './components/statusbar.js';
+import { Terminal } from './terminal.js';
+import { randomUUID } from 'node:crypto';
+import type { Message } from './types.js';
 
 export interface TUIConfig {
   session?: string;
@@ -41,48 +43,36 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
     title: config.title || 'Synthium Systema',
   });
 
-  const chatLog = new ChatLog('chatlog', {
-    maxHeight: Math.max(5, terminalSize.rows - 6), // Leave space for header, editor, status
-  });
+  const chatLog = new ChatLog('chatlog');
 
-  const editor = new Editor('editor', {
+  const mk = (m: any): Message => ({
+    id: randomUUID(),
+    timestamp: Date.now(),
+    ...m,
+  }) as Message;
+
+  const editor = new Editor('editor', undefined, {
     prompt: '> ',
-    maxHeight: 3,
-    multiline: true,
-    events: {
-      onSubmit: (text: string) => {
-        // Handle user input
-        const trimmedText = text.trim();
-        if (trimmedText) {
-          chatLog.addMessage({
-            role: 'user',
-            text: trimmedText,
-          });
+    onEvent: (event) => {
+      if (event.type === 'submit') {
+        const trimmedText = event.content.trim();
+        if (!trimmedText) return;
 
-          // Update status to thinking
-          statusBar.setStatus('thinking', 'Processing your request...');
+        chatLog.addMessage(mk({ type: 'user', content: trimmedText }));
+        statusBar.setStatus('thinking', 'Processing your request...');
 
-          // In a real implementation, you would send to LLM here
-          // For now, simulate a response
-          setTimeout(() => {
-            chatLog.addMessage({
-              role: 'synth',
-              text: `I received: ${trimmedText}`,
-            });
-            statusBar.setStatus('idle');
-          }, 1000);
-        }
-      },
-      onCancel: () => {
-        statusBar.setStatus('idle');
-      },
-      onChange: (text: string) => {
-        if (text.trim()) {
-          statusBar.setStatus('awaiting', 'Press Enter to send');
-        } else {
+        // Stub response (replaced in Phase 5 NeuronWaves wiring)
+        setTimeout(() => {
+          chatLog.addMessage(mk({ type: 'synth', content: `I received: ${trimmedText}` }));
           statusBar.setStatus('idle');
-        }
-      },
+        }, 250);
+      } else if (event.type === 'abort') {
+        statusBar.setStatus('idle');
+      } else if (event.type === 'clear') {
+        statusBar.setStatus('idle');
+      } else if (event.type === 'autocomplete') {
+        statusBar.setStatus('awaiting', 'Autocomplete (stub)');
+      }
     },
   });
 
@@ -100,13 +90,7 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
   // Initialize engine with root container
   engine.init(rootContainer);
 
-  // Set up keyboard input
-  engine.onKey((key: KeyPress) => {
-    // Engine-level key handling
-    if (key.ctrl && key.name === 'c') {
-      // Let engine handle Ctrl+C for exit
-    }
-  });
+  // Set up keyboard input (engine handles key dispatch)
 
   // Enable Ctrl+C to exit
   engine.enableExitOnCtrlC(true);
@@ -115,10 +99,11 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
   engine.start(16); // ~60 FPS (16ms intervals)
 
   // Add welcome message
-  chatLog.addMessage({
-    role: 'system',
-    text: `Welcome to ${config.title || 'Synthium Systema'}! Type your message below.`,
-  });
+  chatLog.addMessage(mk({
+    type: 'system_event',
+    level: 'info',
+    content: `Welcome to ${config.title || 'Synthium Systema'}! Type your message below.`,
+  }));
 
   return {
     engine,

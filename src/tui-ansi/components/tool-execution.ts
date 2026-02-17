@@ -283,8 +283,8 @@ export class ToolExecution extends BaseComponent {
 
     // Combine header and time info, truncate if needed
     const headerWithTime = statusBg + statusFg + ANSI.bold + headerText + ANSI.reset + timeInfo;
-    constHeader = TextStyler.truncate(headerWithTime, maxWidth);
-    outputLines.push(theHeader.padEnd(maxWidth));
+    const header = TextStyler.truncate(headerWithTime, maxWidth);
+    outputLines.push(header.padEnd(maxWidth));
 
     // Tool name (dimmed)
     const toolNameLine = ANSI.dim + '  Tool: ' + this.renderToolName() + ANSI.reset;

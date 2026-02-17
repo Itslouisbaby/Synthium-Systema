@@ -24,6 +24,9 @@ importers:
       '@types/blessed':
         specifier: ^0.1.21
         version: 0.1.27
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
       tsdown:
         specifier: ^0.20.3
         version: 0.20.3(typescript@5.9.3)

@@ -12,7 +12,7 @@ export interface HeaderConfig {
  * Header component - displays session info, mode, and title
  */
 export class Header extends BaseComponent {
-  private config: HeaderConfig;
+  private config: Required<HeaderConfig>;
 
   constructor(id: string = 'header', config: HeaderConfig = {}) {
     super(id);
@@ -28,7 +28,11 @@ export class Header extends BaseComponent {
    * Update header configuration
    */
   updateConfig(config: Partial<HeaderConfig>): void {
-    this.config = { ...this.config, ...config };
+    this.config = {
+      session: config.session ?? this.config.session,
+      mode: config.mode ?? this.config.mode,
+      title: config.title ?? this.config.title,
+    };
     this.invalidate();
   }
 

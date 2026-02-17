@@ -1,6 +1,7 @@
 // component.ts - Base interface and class for all TUI components
 
 import { Terminal, KeyPress } from './terminal.js';
+export type { KeyPress } from './terminal.js';
 
 export interface Bounds {
   row: number;

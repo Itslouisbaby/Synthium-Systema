@@ -1,6 +1,7 @@
 // engine.ts - TUI engine with differential rendering
 
 import { Terminal, KeyPress } from './terminal.js';
+import { performance } from 'node:perf_hooks';
 import { Component } from './component.js';
 import { Container } from './container.js';
 

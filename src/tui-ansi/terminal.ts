@@ -1,6 +1,8 @@
 // terminal.ts - Low-level stdout writer, cursor management
 // Pure ANSI escape sequences for terminal control
 
+import readline from 'node:readline';
+
 export interface TerminalSize {
   rows: number;
   cols: number;
@@ -174,7 +176,6 @@ export class Terminal {
       this.stdin.setRawMode?.(true);
     } else {
       // Unix raw mode using readline
-      const readline = require('readline');
       readline.emitKeypressEvents(this.stdin);
       this.stdin.setRawMode(true);
     }
