@@ -1,7 +1,7 @@
 // Synth TUI v1.1 - Cognitive Control Console (Blessed Framework)
 // Main TUI application with Blessed screens and layout
 
-import * as blessed from 'blessed';
+import blessed from 'blessed';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getStateStore, TUIState } from './state.js';
