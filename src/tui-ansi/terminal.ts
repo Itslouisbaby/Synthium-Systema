@@ -168,33 +168,28 @@ export class Terminal {
 
   // Setup raw mode for input
   setupRawMode(): () => void {
-    // Windows vs Unix raw mode setup
-    const isWindows = process.platform === 'win32';
+    // Ensure Node emits keypress events on stdin
+    readline.emitKeypressEvents(this.stdin);
 
-    if (isWindows) {
-      // Windows raw mode
-      this.stdin.setRawMode?.(true);
-    } else {
-      // Unix raw mode using readline
-      readline.emitKeypressEvents(this.stdin);
-      this.stdin.setRawMode(true);
-    }
+    const stdinAny = this.stdin as unknown as { isRaw?: boolean; setRawMode?: (v: boolean) => void };
+    const hadRaw = Boolean(stdinAny.isRaw);
 
-    // Return cleanup function
+    // Enable raw mode if supported
+    stdinAny.setRawMode?.(true);
+
+    // Return cleanup function (restore prior state)
     return () => {
-      if (isWindows) {
-        this.stdin.setRawMode?.(false);
-      } else {
-        this.stdin.setRawMode(false);
-      }
+      if (!hadRaw) stdinAny.setRawMode?.(false);
     };
   }
 
-  // Listen for keypress events
-  onKey(callback: (key: KeyPress) => void): void {
-    this.stdin.on('keypress', (str: string, key: KeyPress) => {
-      callback(key);
-    });
+  // Listen for keypress events (returns unsubscribe)
+  onKey(callback: (key: KeyPress) => void): () => void {
+    const handler = (_str: string, key: KeyPress) => callback(key);
+    this.stdin.on('keypress', handler);
+    return () => {
+      this.stdin.off('keypress', handler);
+    };
   }
 
   // Resume stdin
@@ -207,17 +202,7 @@ export class Terminal {
     this.stdin.pause();
   }
 
-  // Enable exit on Ctrl+C
-  enableExitOnCtrlC(shouldExit: boolean = true): void {
-    if (shouldExit) {
-      this.stdin.on('keypress', (str: string, key: KeyPress) => {
-        if (key.ctrl && key.name === 'c') {
-          this.cleanup();
-          this.process.exit(0);
-        }
-      });
-    }
-  }
+  // Note: Ctrl+C handling is owned by the Engine/CLI (not Terminal)
 
   // Cleanup and restore terminal state
   cleanup(): void {

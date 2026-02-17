@@ -24,6 +24,9 @@ export class TUIEngine {
   private isRunning: boolean = false;
   private renderInterval: NodeJS.Timeout | null = null;
   private inputCleanup: (() => void) | null = null;
+  private keyUnsub: (() => void) | null = null;
+  private keyCallbacks: Set<(key: KeyPress) => void> = new Set();
+  private exitOnCtrlC: boolean = true;
 
   constructor(terminal?: Terminal) {
     this.terminal = terminal ?? new Terminal();
@@ -58,10 +61,32 @@ export class TUIEngine {
     }
 
     this.isRunning = true;
-    this.terminal.setupRawMode();
+    this.inputCleanup = this.terminal.setupRawMode();
     this.terminal.resumeInput();
     this.terminal.hideCursor();
     this.terminal.clearScreen();
+
+    // Subscribe to keys once per start
+    if (!this.keyUnsub) {
+      this.keyUnsub = this.terminal.onKey((key: KeyPress) => {
+        // Engine-owned Ctrl+C (ensures teardown symmetry)
+        const isCtrlC =
+          key.sequence === '\x03' ||
+          (key.ctrl && key.name === 'c') ||
+          key.name === 'CTRL_C';
+
+        if (this.exitOnCtrlC && isCtrlC) {
+          this.stop();
+          process.exit(0);
+        }
+
+        // Engine-level callbacks
+        for (const cb of this.keyCallbacks) cb(key);
+
+        // Route to root container
+        if (this.rootContainer) this.rootContainer.handleInput(key);
+      });
+    }
 
     // Initial render
     this.render();
@@ -89,6 +114,11 @@ export class TUIEngine {
       this.renderInterval = null;
     }
 
+    if (this.keyUnsub) {
+      this.keyUnsub();
+      this.keyUnsub = null;
+    }
+
     if (this.inputCleanup) {
       this.inputCleanup();
       this.inputCleanup = null;
@@ -102,27 +132,16 @@ export class TUIEngine {
   /**
    * Listen for keyboard input
    */
-  onKey(callback: (key: KeyPress) => void): void {
-    this.terminal.onKey((key: KeyPress) => {
-      // Always route to callback first (for engine-level handling)
-      callback(key);
-
-      // Then route to root container
-      if (this.rootContainer) {
-        const handled = this.rootContainer.handleInput(key);
-        // If handled, invalidate and re-render
-        if (handled) {
-          // Re-render will happen on next interval tick
-        }
-      }
-    });
+  onKey(callback: (key: KeyPress) => void): () => void {
+    this.keyCallbacks.add(callback);
+    return () => this.keyCallbacks.delete(callback);
   }
 
   /**
    * Enable Ctrl+C to exit
    */
   enableExitOnCtrlC(shouldExit: boolean = true): void {
-    this.terminal.enableExitOnCtrlC(shouldExit);
+    this.exitOnCtrlC = shouldExit;
   }
 
   /**
