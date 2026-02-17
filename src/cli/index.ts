@@ -222,7 +222,7 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
       
       if (tuiImpl === 'ansi') {
         // Launch ANSI TUI (built artifact under dist/tui-ansi)
-        const modUrl = new URL('../tui-ansi/main.mjs', import.meta.url);
+        const modUrl = new URL('../tui-ansi/index.mjs', import.meta.url);
         const { startANSITUI } = await import(modUrl.href);
         startANSITUI({
           session: options.sessionId || 'synth',
