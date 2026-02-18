@@ -12,6 +12,47 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { Message, ApprovalCardMessage, MemoryRecallMessage, ToolExecutionMessage } from './types.js';
 import { runNeuronWavesLoop, type PlanStep } from './neuronwaves-types.js';
+import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+
+interface Approval {
+  stepId: string;
+  decision: 'approved' | 'denied';
+  decidedAtMs: number;
+}
+
+/**
+ * Write approval atomically to disk
+ */
+function writeApproval(workspace: string, sessionId: string, stepId: string, decision: 'approved' | 'denied'): void {
+  const stateDir = join(workspace, '.synth', 'neuronwaves', sessionId, 'state');
+  const approvalPath = join(stateDir, 'approvals.json');
+  
+  // Ensure state directory exists
+  fs.mkdirSync(stateDir, { recursive: true });
+  
+  // Load existing approvals
+  let approvals: Approval[] = [];
+  if (existsSync(approvalPath)) {
+    try {
+      const content = readFileSync(approvalPath, 'utf-8');
+      const data = JSON.parse(content);
+      approvals = data.approvals || [];
+    } catch {
+      // File malformed, start fresh
+    }
+  }
+  
+  // Add new approval
+  approvals.push({
+    stepId,
+    decision,
+    decidedAtMs: Date.now(),
+  });
+  
+  // Write approvals back to disk
+  writeFileSync(approvalPath, JSON.stringify({ approvals }, null, 2), 'utf-8');
+}
 
 export interface TUIConfig {
   session?: string;
@@ -352,15 +393,40 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
         const nextStatus: ApprovalCardMessage['status'] =
           keyName === 'y' || keyName === 'Y' ? 'approved' : 'denied';
 
-        chatLog.setApprovalStatus(pending.stepId, nextStatus);
-        chatLog.addMessage(mk({
-          type: 'system_event',
-          level: 'info',
-          content: `Approval ${nextStatus.toUpperCase()}: ${pending.intent}`,
-        }));
-        statusBar.setStatus(safeMode ? 'safe' : 'idle');
+        // Write approval to disk
+        try {
+          writeApproval(resolvedWorkspace, resolvedSession, pending.stepId, 
+            nextStatus === 'approved' ? 'approved' : 'denied');
+          
+          chatLog.setApprovalStatus(pending.stepId, nextStatus);
+          chatLog.addMessage(mk({
+            type: 'system_event',
+            level: 'info',
+            content: `Approval ${nextStatus.toUpperCase()}: ${pending.intent}`,
+          }));
+          
+          // Reload and re-process with the new approval
+          processUserInput(editor.getContent(), resolvedSession, resolvedWorkspace, artifactBaseDir)
+            .then(() => {
+              statusBar.setStatus('idle');
+            })
+            .catch((error) => {
+              chatLog.addMessage(mk({
+                type: 'system_event',
+                level: 'error',
+                content: `Error re-processing after approval: ${error.message}`,
+              }));
+              statusBar.setStatus('idle');
+            });
+        } catch (error) {
+          chatLog.addMessage(mk({
+            type: 'system_event',
+            level: 'error',
+            content: `Failed to record approval: ${error.message}`,
+          }));
+        }
         
-        // In a full implementation, we would trigger re-execution of the approved step here
+        statusBar.setStatus(safeMode ? 'safe' : 'idle');
         return true;
       }
     }
