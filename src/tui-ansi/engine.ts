@@ -210,8 +210,10 @@ export class TUIEngine {
       ? newRender.length
       : this.differentialUpdate(this.previousRender, newRender);
 
-    // Flush the current frame through the single frame sink
-    this.updateManager?.update(newRender.join('\n'));
+    // Flush the current frame through the single frame sink.
+    // stdout-update expects an array of lines (it reduces over rows); passing a string
+    // can crash with `rows.reduce is not a function`.
+    this.updateManager?.update(newRender);
 
     // Mark root as clean
     this.rootContainer.markClean();
