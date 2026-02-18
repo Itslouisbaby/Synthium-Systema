@@ -54,9 +54,27 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
   const resolvedSession = config.session || 'synth';
   const artifactBaseDir = path.join(resolvedWorkspace, '.synth', 'neuronwaves');
 
+  // Global async error hooks (startup failures may surface after initial return)
+  process.on('uncaughtException', (e) => {
+    process.stderr.write(`\n[ansi-tui] uncaughtException:\n${(e as any)?.stack || e}\n`);
+    process.exit(2);
+  });
+  process.on('unhandledRejection', (e) => {
+    process.stderr.write(`\n[ansi-tui] unhandledRejection:\n${(e as any)?.stack || e}\n`);
+    process.exit(2);
+  });
+  process.on('exit', (code) => {
+    process.stderr.write(`\n[ansi-tui] exit code=${code}\n`);
+  });
+  process.on('beforeExit', (code) => {
+    process.stderr.write(`\n[ansi-tui] beforeExit code=${code}\n`);
+  });
+
   process.stderr.write(
     `[ansi-tui] startup mode=ansi node=${process.version} workspace=${resolvedWorkspace} session=${resolvedSession} artifactBaseDir=${artifactBaseDir}\n`
   );
+  process.stderr.write(`[ansi-tui] lifecycle: input.init\n`);
+
 
   const terminal = new Terminal();
   const engine = new TUIEngine(terminal);
@@ -353,8 +371,12 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
   // Enable Ctrl+C to exit
   engine.enableExitOnCtrlC(true);
 
+  process.stderr.write(`[ansi-tui] lifecycle: render.start\n`);
+
   // Start the TUI
   engine.start(16); // ~60 FPS (16ms intervals)
+
+  process.stderr.write(`[ansi-tui] lifecycle: input.active\n`);
 
   // Add welcome message
   chatLog.addMessage(mk({
