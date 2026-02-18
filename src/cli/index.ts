@@ -218,10 +218,16 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
     // Special inline handler for tui (avoids hash filename issues)
     if (command === 'tui') {
       // Check for TUI implementation environment variable
-      const tuiImpl = process.env.SYNTH_TUI_IMPL || 'blessed';
+      const tuiImpl = process.env.SYNTH_TUI_IMPL || 'ansi';
       
-      if (tuiImpl === 'ansi') {
-        // Launch ANSI TUI (built artifact under dist/tui-ansi)
+      if (tuiImpl === 'blessed') {
+        // Launch Blessed TUI (legacy/observer mode)
+        const { SynthTUI } = await import('../tui/index.js');
+        const tui = new SynthTUI({ workspace: options.workspace, session: options.sessionId });
+        await tui.init();
+        tui.start();
+      } else {
+        // Launch ANSI TUI (default)
         const modUrl = new URL('../tui-ansi/index.mjs', import.meta.url);
         const { startANSITUI } = await import(modUrl.href);
         startANSITUI({
@@ -229,12 +235,6 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
           title: 'Synthium Systema',
           workspace: options.workspace,
         });
-      } else {
-        // Launch Blessed TUI (default)
-        const { SynthTUI } = await import('../tui/index.js');
-        const tui = new SynthTUI({ workspace: options.workspace, session: options.sessionId });
-        await tui.init();
-        tui.start();
       }
       return;
     }
