@@ -9,6 +9,7 @@ import { StatusBar } from './components/statusbar.js';
 import { Terminal } from './terminal.js';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import fs from 'node:fs';
 import type { Message, ApprovalCardMessage, MemoryRecallMessage, ToolExecutionMessage } from './types.js';
 import { runNeuronWavesLoop, type PlanStep } from './neuronwaves-types.js';
 
@@ -38,6 +39,13 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
     return _startANSITUI(config);
   } catch (err: any) {
     const msg = err?.stack || err?.message || String(err);
+    try {
+      const ws = path.resolve(config.workspace || process.cwd());
+      const logPath = path.join(ws, '.synth', 'ansi-tui-fatal.log');
+      // Best-effort durable log (survives screen clears)
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] FATAL startup error:\n${msg}\n`);
+    } catch {}
     process.stderr.write(`\n[ansi-tui] FATAL startup error:\n${msg}\n`);
     process.exit(2);
   }
@@ -55,14 +63,19 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
   const artifactBaseDir = path.join(resolvedWorkspace, '.synth', 'neuronwaves');
 
   // Global async error hooks (startup failures may surface after initial return)
-  process.on('uncaughtException', (e) => {
-    process.stderr.write(`\n[ansi-tui] uncaughtException:\n${(e as any)?.stack || e}\n`);
+  const fatal = (label: string, e: any) => {
+    const msg = e?.stack || e?.message || String(e);
+    try {
+      const logPath = path.join(resolvedWorkspace, '.synth', 'ansi-tui-fatal.log');
+      fs.mkdirSync(path.dirname(logPath), { recursive: true });
+      fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] ${label}:\n${msg}\n`);
+    } catch {}
+    process.stderr.write(`\n[ansi-tui] ${label}:\n${msg}\n`);
     process.exit(2);
-  });
-  process.on('unhandledRejection', (e) => {
-    process.stderr.write(`\n[ansi-tui] unhandledRejection:\n${(e as any)?.stack || e}\n`);
-    process.exit(2);
-  });
+  };
+
+  process.on('uncaughtException', (e) => fatal('uncaughtException', e));
+  process.on('unhandledRejection', (e) => fatal('unhandledRejection', e));
   process.on('exit', (code) => {
     process.stderr.write(`\n[ansi-tui] exit code=${code}\n`);
   });
