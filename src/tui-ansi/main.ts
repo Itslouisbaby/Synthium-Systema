@@ -8,6 +8,7 @@ import { Editor } from './components/editor.js';
 import { StatusBar } from './components/statusbar.js';
 import { Terminal } from './terminal.js';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import type { Message, ApprovalCardMessage, MemoryRecallMessage, ToolExecutionMessage } from './types.js';
 import { runNeuronWavesLoop, type PlanStep } from './neuronwaves-types.js';
 
@@ -28,8 +29,35 @@ export interface TUIHandle {
 
 /**
  * Start the ANSI TUI with a standard layout
+ *
+ * NOTE: We intentionally fail fast with a readable error (stack trace) if startup
+ * fails. This avoids silent exit(2) and makes gate evidence actionable.
  */
 export function startANSITUI(config: TUIConfig = {}): TUIHandle {
+  try {
+    return _startANSITUI(config);
+  } catch (err: any) {
+    const msg = err?.stack || err?.message || String(err);
+    process.stderr.write(`\n[ansi-tui] FATAL startup error:\n${msg}\n`);
+    process.exit(2);
+  }
+}
+
+function _startANSITUI(config: TUIConfig = {}): TUIHandle {
+  // TTY guard: ANSI TUI requires an interactive terminal.
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    process.stderr.write('[ansi-tui] ANSI TUI requires an interactive TTY (stdin/stdout must be TTY).\n');
+    process.exit(2);
+  }
+
+  const resolvedWorkspace = path.resolve(config.workspace || process.cwd());
+  const resolvedSession = config.session || 'synth';
+  const artifactBaseDir = path.join(resolvedWorkspace, '.synth', 'neuronwaves');
+
+  process.stderr.write(
+    `[ansi-tui] startup mode=ansi node=${process.version} workspace=${resolvedWorkspace} session=${resolvedSession} artifactBaseDir=${artifactBaseDir}\n`
+  );
+
   const terminal = new Terminal();
   const engine = new TUIEngine(terminal);
 
@@ -63,7 +91,7 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
         statusBar.setStatus('thinking', 'Processing your request...');
 
         // Real NeuronWaves loop execution (Phase 5 wiring)
-        processUserInput(trimmedText, config.session || 'synth', config.workspace || process.cwd())
+        processUserInput(trimmedText, resolvedSession, resolvedWorkspace, artifactBaseDir)
           .then(() => {
             statusBar.setStatus('idle');
           })
@@ -88,8 +116,7 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
   /**
    * Process user input through the NeuronWaves loop
    */
-  async function processUserInput(content: string, session: string, workspace: string): Promise<void> {
-    const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
+  async function processUserInput(content: string, session: string, workspace: string, artifactBaseDir: string): Promise<void> {
 
     try {
       // Execute the NeuronWaves loop
