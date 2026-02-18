@@ -9,6 +9,7 @@ import { Terminal } from './terminal.js';
 export type MessageType =
   | 'user'
   | 'synth'
+  | 'memory_recall'
   | 'tool_execution'
   | 'approval_card'
   | 'system_event';
@@ -35,6 +36,16 @@ export interface UserMessage extends BaseMessage {
  */
 export interface SynthMessage extends BaseMessage {
   type: 'synth';
+  content: string;
+}
+
+/**
+ * Memory recall (context surfaced to the assistant)
+ * Phase 5: render as a distinct block so the conversational loop is legible.
+ */
+export interface MemoryRecallMessage extends BaseMessage {
+  type: 'memory_recall';
+  /** Human-readable summary / list of recalled items */
   content: string;
 }
 
@@ -88,6 +99,7 @@ export interface SystemEventMessage extends BaseMessage {
 export type Message =
   | UserMessage
   | SynthMessage
+  | MemoryRecallMessage
   | ToolExecutionMessage
   | ApprovalCardMessage
   | SystemEventMessage;

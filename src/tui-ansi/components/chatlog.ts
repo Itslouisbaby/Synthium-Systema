@@ -10,6 +10,7 @@ import {
   Message,
   UserMessage,
   SynthMessage,
+  MemoryRecallMessage,
   ToolExecutionMessage,
   ApprovalCardMessage,
   SystemEventMessage,
@@ -56,6 +57,25 @@ export class ChatLog extends BaseComponent {
     this.messages = [];
     this.scrollOffset = 0;
     this.invalidate();
+  }
+
+  /**
+   * Update an approval card status by stepId
+   * (Used for inline Y/N confirmation without interfering with typing.)
+   */
+  setApprovalStatus(stepId: string, status: ApprovalCardMessage['status']): boolean {
+    const idx = this.messages.findIndex(
+      (m) => m.type === 'approval_card' && (m as ApprovalCardMessage).stepId === stepId
+    );
+    if (idx < 0) return false;
+
+    const existing = this.messages[idx] as ApprovalCardMessage;
+    this.messages[idx] = { ...existing, status };
+
+    // After a status change, keep the user at the bottom so they see the result.
+    if (this.autoScroll) this.scrollToEnd();
+    this.invalidate();
+    return true;
   }
 
   /**
@@ -271,30 +291,71 @@ export class ChatLog extends BaseComponent {
         break;
       }
 
+      case 'memory_recall': {
+        const memMsg = message as MemoryRecallMessage;
+        lines.push(
+          ANSI.dim +
+            ` │ ${TextStyler.fg('MEMORY', SemanticColors.primaryBright)} ${timestamp}` +
+            ANSI.reset
+        );
+
+        // Allow multi-line content; wrap each paragraph independently for readability.
+        const paragraphs = memMsg.content.split(/\r?\n/);
+        for (const p of paragraphs) {
+          if (!p.trim()) {
+            lines.push(' │');
+            continue;
+          }
+          const wrapped = TextStyler.wrap(p, maxWidth - 4);
+          wrapped.forEach(line => lines.push(` │ ${TextStyler.dim(line)}`));
+        }
+
+        lines.push(ANSI.dim + ' └' + '─'.repeat(Math.max(2, maxWidth - 3)) + ANSI.reset);
+        break;
+      }
+
       case 'tool_execution': {
         const toolMsg = message as ToolExecutionMessage;
         const statusColor = this.getToolStatusColor(toolMsg.status);
         const statusIcon = this.getToolStatusIcon(toolMsg.status);
 
+        const durationMs = toolMsg.endTime ? Math.max(0, toolMsg.endTime - toolMsg.startTime) : undefined;
+        const meta = durationMs !== undefined ? `${toolMsg.status} • ${durationMs}ms` : toolMsg.status;
+
         lines.push(
           ANSI.dim +
-            ` │ ${TextStyler.fg('TOOL', SemanticColors.warningBright)} ${statusColor}${statusIcon} ${TextStyler.bright(toolMsg.toolName)}${ANSI.reset} ` +
+            ` │ ${TextStyler.fg('TOOL', SemanticColors.warningBright)} ${statusColor}${statusIcon}${ANSI.reset} ${TextStyler.bright(toolMsg.toolName)} ${ANSI.dim}${meta}${ANSI.reset}` +
             ANSI.reset
         );
 
         if (toolMsg.args && Object.keys(toolMsg.args).length > 0) {
-          const argsStr = TextStyler.truncate(JSON.stringify(toolMsg.args), maxWidth - 8);
-          lines.push(ANSI.dim + ` │   ${TextStyler.dim(argsStr)}` + ANSI.reset);
+          const argsStr = JSON.stringify(toolMsg.args);
+          const wrappedArgs = TextStyler.wrap(`args: ${argsStr}`, maxWidth - 4);
+          wrappedArgs.forEach(line => lines.push(ANSI.dim + ` │ ${TextStyler.dim(line)}` + ANSI.reset));
         }
 
+        // Render output/error as an indented block. Keep it bounded so one tool doesn't flood the log.
+        const blockMaxLines = Math.max(4, Math.min(12, this.bounds.height - 4));
         if (toolMsg.status === 'error' && toolMsg.error) {
-          const errorLines = TextStyler.wrap(toolMsg.error, maxWidth - 6);
-          errorLines.forEach(line => {
-            lines.push(TextStyler.fg(` │   ${line}`, SemanticColors.error));
-          });
-        } else if (toolMsg.status === 'success' && toolMsg.output) {
-          const outputPreview = TextStyler.truncate(toolMsg.output, maxWidth / 2);
-          lines.push(ANSI.dim + ` │   ${TextStyler.dim(outputPreview)}` + ANSI.reset);
+          const errLines: string[] = [];
+          for (const rawLine of toolMsg.error.split(/\r?\n/)) {
+            errLines.push(...TextStyler.wrap(rawLine, maxWidth - 6));
+          }
+          const clipped = errLines.slice(0, blockMaxLines);
+          clipped.forEach(line => lines.push(TextStyler.fg(` │   ${line}`, SemanticColors.error)));
+          if (errLines.length > clipped.length) {
+            lines.push(TextStyler.fg(` │   … (${errLines.length - clipped.length} more)`, SemanticColors.errorBright));
+          }
+        } else if ((toolMsg.status === 'success' || toolMsg.status === 'running') && toolMsg.output) {
+          const outLines: string[] = [];
+          for (const rawLine of toolMsg.output.split(/\r?\n/)) {
+            outLines.push(...TextStyler.wrap(rawLine, maxWidth - 6));
+          }
+          const clipped = outLines.slice(0, blockMaxLines);
+          clipped.forEach(line => lines.push(ANSI.dim + ` │   ${TextStyler.dim(line)}` + ANSI.reset));
+          if (outLines.length > clipped.length) {
+            lines.push(ANSI.dim + ` │   ${TextStyler.dim(`… (${outLines.length - clipped.length} more)`)}${ANSI.reset}`);
+          }
         }
 
         lines.push(ANSI.dim + ' └' + '─'.repeat(Math.max(2, maxWidth - 3)) + ANSI.reset);
@@ -322,6 +383,10 @@ export class ChatLog extends BaseComponent {
             ` │   ${TextStyler.dim(`Action: ${approvalMsg.actionClass}`)}` +
             ANSI.reset
         );
+
+        if (approvalMsg.status === 'pending') {
+          lines.push(ANSI.dim + ` │   ${TextStyler.dim('Confirm inline: Y = approve • N = deny')}` + ANSI.reset);
+        }
 
         lines.push(ANSI.dim + ' └' + '─'.repeat(Math.max(2, maxWidth - 3)) + ANSI.reset);
         break;

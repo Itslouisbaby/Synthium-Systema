@@ -8,7 +8,7 @@ import { Editor } from './components/editor.js';
 import { StatusBar } from './components/statusbar.js';
 import { Terminal } from './terminal.js';
 import { randomUUID } from 'node:crypto';
-import type { Message } from './types.js';
+import type { Message, ApprovalCardMessage } from './types.js';
 
 export interface TUIConfig {
   session?: string;
@@ -122,6 +122,29 @@ export function startANSITUI(config: TUIConfig = {}): TUIHandle {
         return true;
       }
       return true;
+    }
+
+    // Inline approval confirmation (Y/N)
+    // Important: do NOT steal letters from normal typing. Only trigger when the editor is empty.
+    const editorEmpty = editor.getContent() === '' && !editor.isModified();
+    if (editorEmpty && (keyName === 'y' || keyName === 'Y' || keyName === 'n' || keyName === 'N')) {
+      const pending = [...chatLog.getMessages()]
+        .reverse()
+        .find((m): m is ApprovalCardMessage => m.type === 'approval_card' && m.status === 'pending');
+
+      if (pending) {
+        const nextStatus: ApprovalCardMessage['status'] =
+          keyName === 'y' || keyName === 'Y' ? 'approved' : 'denied';
+
+        chatLog.setApprovalStatus(pending.stepId, nextStatus);
+        chatLog.addMessage(mk({
+          type: 'system_event',
+          level: 'info',
+          content: `Approval ${nextStatus.toUpperCase()}: ${pending.intent}`,
+        }));
+        statusBar.setStatus(safeMode ? 'safe' : 'idle');
+        return true;
+      }
     }
 
     // Ctrl+S
