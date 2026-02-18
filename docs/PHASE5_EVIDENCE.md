@@ -6,7 +6,7 @@ Goal: prove end-to-end chat wiring is working (local-only / heuristic ok), with 
 - `phase5-wiring`
 
 ## Commit SHA
-- TBD (fill after commit)
+- ffb5795
 
 ## Smoke: build + launch + chat + approvals
 Run from repo root:
