@@ -4,7 +4,7 @@
  * Predefined system roles with their associated permissions.
  */
 
-import { Role } from './types';
+import type { Role } from './types.js';
 
 // System role identifiers
 export const ROLE_SUPER_ADMIN = 'SUPER_ADMIN';

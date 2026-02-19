@@ -1,10 +1,10 @@
 /**
  * Identity Types Module
  *
- * Core interfaces for the identity and access management system.
- *
- * NOTE: These types are intentionally permissive (many optional fields)
- * to support incremental rollout and lightweight unit tests.
+ * Canonical model: ID-based RBAC.
+ * - Roles store Permission IDs
+ * - Operators store Role IDs
+ * - Permission resolution happens via registries (maps), enabling governance/versioning.
  */
 
 export type OperatorId = string;
@@ -17,10 +17,10 @@ export type ResourceAction = 'create' | 'read' | 'update' | 'delete' | 'execute'
 /** Represents a permission in the system */
 export interface Permission {
   id: PermissionId;
-  name: string;
-  description: string;
   resource: string;
   action: ResourceAction;
+  name?: string;
+  description?: string;
   conditions?: Record<string, unknown>;
 }
 
@@ -28,9 +28,9 @@ export interface Permission {
 export interface Role {
   id: RoleId;
   name: string;
-  description: string;
-  permissions: Permission[];
-  isSystemRole: boolean;
+  permissions: PermissionId[];
+  description?: string;
+  isSystemRole?: boolean;
   tenantId?: TenantId;
 }
 
@@ -42,10 +42,9 @@ export interface Operator {
   createdAt: Date;
   lastLoginAt?: Date;
 
-  // Optional for tests / bootstrapping; required in production flows.
-  tenantId?: TenantId;
-  roleIds?: RoleId[];
-  isActive?: boolean;
+  tenantId: TenantId;
+  roleIds: RoleId[];
+  isActive: boolean;
 }
 
 /** Represents a tenant */
@@ -57,7 +56,6 @@ export interface Tenant {
   isActive: boolean;
   metadata?: Record<string, unknown>;
 
-  // Optional/advanced
   ownerId?: OperatorId;
   settings?: Record<string, unknown>;
 }
