@@ -1,31 +1,58 @@
 {
-  "name": "shadow-scheduler",
+  "name": "@synth/neuronwaves",
   "version": "1.0.0",
-  "description": "M10 Shadow Scheduler - Advanced Task Scheduling System",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "Synth platform cognitive planning system",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "bin": {
+    "synth": "dist/cli/index.mjs",
+    "synth-tui": "dist/tui/index.mjs",
+    "synth-ansi": "dist/tui-ansi/index.mjs"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc",
-    "test": "npm run build && node tests/run-tests.js",
-    "test:ts": "ts-node tests/shadow-scheduler.test.ts",
-    "demo": "npm run build && node dist/shadow-scheduler/demo.js",
-    "clean": "rm -rf dist"
+    "build": "npm run build:lib && npm run build:cli && npm run build:tui && npm run build:tui-ansi",
+    "build:lib": "tsdown src/index.ts --format esm --dts --clean",
+    "build:cli": "tsdown src/cli/index.ts --format esm --dts --clean --outDir dist/cli",
+    "build:tui": "tsdown src/tui/index.ts --format esm --dts --clean --outDir dist/tui",
+    "build:tui-ansi": "tsdown src/tui-ansi/index.ts --format esm --dts --clean --outDir dist/tui-ansi",
+    "test": "vitest run",
+    "dev": "vitest",
+    "lint": "echo \"No lint configured\""
+  },
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "chalk": "^5.6.2",
+    "stdout-update": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.21",
+    "@types/node": "^25.2.3",
+    "tsdown": "^0.20.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   },
   "keywords": [
-    "scheduler",
-    "tasks",
-    "jobs",
-    "cron",
-    "queue"
+    "synth",
+    "neuronwaves",
+    "planning"
   ],
-  "author": "M10 Team",
+  "author": "Synthium-Systema",
   "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Itslouisbaby/Synthium-Systema.git"
   }
 }

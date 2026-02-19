@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "declaration": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src/tui-ansi/**/*.ts",
+    "src/orchestrator/**/*.ts",
+    "src/types.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

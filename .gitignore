@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local synth runtime / TUI state
+.synth/
+.synth-tui-state.json
+.synth-tui-flag-ansi
