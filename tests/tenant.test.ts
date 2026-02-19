@@ -2,17 +2,21 @@
  * Tenant Module Tests
  */
 
-import type { TenantWorkspace, TenantContext } from '../src/tenant/types.js';
-import { TenantWorkspaceImpl, createTenantWorkspace } from '../src/tenant/workspace.js';
+import type { TenantContext } from '../src/tenant/types.js';
+import {
+  createTenantPathWorkspace,
+  createScopedPath,
+  isPathInScope,
+} from '../src/tenant/pathScope.js';
 import { TenantIsolationGuard } from '../src/tenant/isolation.js';
 import { SYSTEM_ROLES, ROLE_SUPER_ADMIN, ROLE_TENANT_ADMIN, ROLE_STANDARD_USER, ROLE_GUEST, ROLE_AUDITOR } from '../src/identity';
 
-describe('TenantWorkspace', () => {
+describe('TenantPathWorkspace (path scoping utilities)', () => {
   const tenantId = 'tenant-001';
   const basePath = './workspace';
 
   it('should create a tenant workspace with correct paths', () => {
-    const workspace = createTenantWorkspace(tenantId, basePath);
+    const workspace = createTenantPathWorkspace(tenantId, basePath);
 
     expect(workspace.tenantId).toBe(tenantId);
     expect(workspace.basePath).toBe(basePath);
@@ -23,48 +27,41 @@ describe('TenantWorkspace', () => {
   });
 
   it('should use default base path if not provided', () => {
-    const workspace = createTenantWorkspace(tenantId);
+    const workspace = createTenantPathWorkspace(tenantId);
 
     expect(workspace.basePath).toBe('./workspace');
   });
 
   describe('getPath', () => {
     it('should return artifacts path', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('artifacts')).toBe(`${basePath}/tenants/${tenantId}/artifacts`);
     });
 
     it('should return memory path', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('memory')).toBe(`${basePath}/tenants/${tenantId}/memory`);
     });
 
     it('should return config path', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('config')).toBe(`${basePath}/tenants/${tenantId}/config`);
     });
 
     it('should return logs path', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('logs')).toBe(`${basePath}/tenants/${tenantId}/logs`);
     });
 
     it('should return base path', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('base')).toBe(basePath);
     });
 
     it('should return custom path for unknown resource', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
       expect(workspace.getPath('custom')).toBe(`${basePath}/tenants/${tenantId}/custom`);
     });
-  });
-
-  it('should implement TenantWorkspace interface', () => {
-    const workspace: TenantWorkspace = new TenantWorkspaceImpl(tenantId, basePath);
-
-    expect(typeof workspace.getPath).toBe('function');
-    expect(workspace.tenantId).toBe(tenantId);
   });
 });
 
@@ -203,36 +200,36 @@ describe('TenantIsolationGuard', () => {
 
   describe('createScopedPath', () => {
     it('should create scoped paths for resources', () => {
-      const scopedPath = TenantIsolationGuard.createScopedPath(tenantId, 'artifacts', basePath);
+      const scopedPath = createScopedPath(tenantId, 'artifacts', basePath);
       expect(scopedPath).toBe(`${basePath}/tenants/${tenantId}/artifacts`);
     });
 
     it('should use default base path if not provided', () => {
-      const scopedPath = TenantIsolationGuard.createScopedPath(tenantId, 'memory');
+      const scopedPath = createScopedPath(tenantId, 'memory');
       expect(scopedPath).toBe(`./workspace/tenants/${tenantId}/memory`);
     });
   });
 
   describe('isPathInScope', () => {
     it('should return true for paths within tenant scope', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
 
-      expect(TenantIsolationGuard.isPathInScope(`${basePath}/tenants/${tenantId}/artifacts/file.txt`, workspace)).toBe(true);
-      expect(TenantIsolationGuard.isPathInScope(`${basePath}/tenants/${tenantId}/memory/data.json`, workspace)).toBe(true);
+      expect(isPathInScope(`${basePath}/tenants/${tenantId}/artifacts/file.txt`, workspace)).toBe(true);
+      expect(isPathInScope(`${basePath}/tenants/${tenantId}/memory/data.json`, workspace)).toBe(true);
     });
 
     it('should return false for paths outside tenant scope', () => {
-      const workspace = createTenantWorkspace(tenantId, basePath);
+      const workspace = createTenantPathWorkspace(tenantId, basePath);
 
-      expect(TenantIsolationGuard.isPathInScope(`${basePath}/tenants/${otherTenantId}/artifacts/file.txt`, workspace)).toBe(false);
-      expect(TenantIsolationGuard.isPathInScope(`${basePath}/other/path/file.txt`, workspace)).toBe(false);
+      expect(isPathInScope(`${basePath}/tenants/${otherTenantId}/artifacts/file.txt`, workspace)).toBe(false);
+      expect(isPathInScope(`${basePath}/other/path/file.txt`, workspace)).toBe(false);
     });
 
     it('should handle Windows-style paths', () => {
-      const workspace = createTenantWorkspace(tenantId, './workspace');
+      const workspace = createTenantPathWorkspace(tenantId, './workspace');
       const windowsPath = '.\\workspace\\tenants\\tenant-001\\artifacts\\file.txt';
 
-      expect(TenantIsolationGuard.isPathInScope(windowsPath, workspace)).toBe(true);
+      expect(isPathInScope(windowsPath, workspace)).toBe(true);
     });
   });
 });
@@ -243,8 +240,8 @@ describe('Acceptance Criteria: Artifact and Memory Directories Are Tenant Scoped
   const basePath = './workspace';
 
   it('should have unique artifacts paths per tenant', () => {
-    const workspace1 = createTenantWorkspace(tenantId, basePath);
-    const workspace2 = createTenantWorkspace(otherTenantId, basePath);
+    const workspace1 = createTenantPathWorkspace(tenantId, basePath);
+    const workspace2 = createTenantPathWorkspace(otherTenantId, basePath);
 
     expect(workspace1.artifactsPath).not.toBe(workspace2.artifactsPath);
     expect(workspace1.artifactsPath).toBe(`${basePath}/tenants/${tenantId}/artifacts`);
@@ -252,8 +249,8 @@ describe('Acceptance Criteria: Artifact and Memory Directories Are Tenant Scoped
   });
 
   it('should have unique memory paths per tenant', () => {
-    const workspace1 = createTenantWorkspace(tenantId, basePath);
-    const workspace2 = createTenantWorkspace(otherTenantId, basePath);
+    const workspace1 = createTenantPathWorkspace(tenantId, basePath);
+    const workspace2 = createTenantPathWorkspace(otherTenantId, basePath);
 
     expect(workspace1.memoryPath).not.toBe(workspace2.memoryPath);
     expect(workspace1.memoryPath).toBe(`${basePath}/tenants/${tenantId}/memory`);
@@ -261,21 +258,21 @@ describe('Acceptance Criteria: Artifact and Memory Directories Are Tenant Scoped
   });
 
   it('should enforce tenant isolation for artifacts', () => {
-    const workspace1 = createTenantWorkspace(tenantId, basePath);
-    const workspace2 = createTenantWorkspace(otherTenantId, basePath);
+    const workspace1 = createTenantPathWorkspace(tenantId, basePath);
+    const workspace2 = createTenantPathWorkspace(otherTenantId, basePath);
 
     // Workspace1 should only allow access to its own tenant's artifacts
-    expect(TenantIsolationGuard.isPathInScope(workspace1.artifactsPath, workspace1)).toBe(true);
-    expect(TenantIsolationGuard.isPathInScope(workspace2.artifactsPath, workspace1)).toBe(false);
+    expect(isPathInScope(workspace1.artifactsPath, workspace1)).toBe(true);
+    expect(isPathInScope(workspace2.artifactsPath, workspace1)).toBe(false);
   });
 
   it('should enforce tenant isolation for memory', () => {
-    const workspace1 = createTenantWorkspace(tenantId, basePath);
-    const workspace2 = createTenantWorkspace(otherTenantId, basePath);
+    const workspace1 = createTenantPathWorkspace(tenantId, basePath);
+    const workspace2 = createTenantPathWorkspace(otherTenantId, basePath);
 
     // Workspace1 should only allow access to its own tenant's memory
-    expect(TenantIsolationGuard.isPathInScope(workspace1.memoryPath, workspace1)).toBe(true);
-    expect(TenantIsolationGuard.isPathInScope(workspace2.memoryPath, workspace1)).toBe(false);
+    expect(isPathInScope(workspace1.memoryPath, workspace1)).toBe(true);
+    expect(isPathInScope(workspace2.memoryPath, workspace1)).toBe(false);
   });
 });
 
@@ -289,7 +286,7 @@ function createMockContext(tenantId: string): TenantContext {
       createdAt: new Date(),
       isActive: true
     },
-    workspace: createTenantWorkspace(tenantId, './workspace'),
+    workspace: createTenantPathWorkspace(tenantId, './workspace'),
     isActive: true,
     isValid() {
       return this.isActive && this.tenant.isActive;
