@@ -1,17 +1,16 @@
 # USER.md - About Your Human
 
-_Learn about the person you're helping. Update this as you go._
+- **Name:** Luis (also Louis)
+- **What to call them:** Luis (default; use Louis if he prefers in a given context)
+- **Pronouns:** _(not specified)_
+- **Timezone:** America/Los_Angeles
+- **Notes:** Duty Manager at Aeroméxico (LAX). 10 years at Delta Air Lines (ops/CX/frontline leadership). Systems thinker. Outcome/accountability driven.
 
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
-- **Timezone:**
-- **Notes:**
+## Operating profile (high-signal)
+- Prefers: direct, structured communication; explicit next steps; thoughtful challenge over agreement.
+- Dislikes: unstructured thinking, activity without progress, solutions without governance, repeated mistakes without systemic fixes.
+- Humor: dry, situational; irony/sarcasm; absurd bureaucracy.
 
-## Context
+## Current strategic lever
+- Delta Air Lines CTO access → potential enterprise customer path ($25K+ MRR target).
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
-
----
-
-The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.

@@ -167,8 +167,9 @@ function calculateRetryDelay(
     config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt),
     config.maxDelayMs
   );
-  // Add jitter to prevent thundering herd
-  return delay + Math.random() * 1000;
+  // Add jitter to prevent thundering herd, but never exceed maxDelayMs
+  const jitter = Math.random() * Math.min(1000, config.maxDelayMs);
+  return Math.min(delay + jitter, config.maxDelayMs);
 }
 
 /**
@@ -183,7 +184,7 @@ async function fetchWithTimeout(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const response = await globalThis.fetch(url, {
       ...options,
       signal: controller.signal,
     });
@@ -480,7 +481,13 @@ export async function http_get(
 
       // Don't retry on certain errors
       if (error instanceof FetchError) {
+        // URL/option validation and size limit errors should not be retried
         if (['INVALID_URL', 'TIMEOUT_TOO_LARGE', 'SIZE_LIMIT_EXCEEDED'].includes(error.code)) {
+          throw error;
+        }
+
+        // Client errors (4xx) should not be retried
+        if (error.code.startsWith('HTTP_4')) {
           throw error;
         }
       }
