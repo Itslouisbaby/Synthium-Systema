@@ -208,8 +208,8 @@ describe('Audit Logging', () => {
       expect(entry.integrityHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
-    it('should generate different hash for different timestamps', async () => {
-      // Log same data twice - timestamps will differ
+    it('should generate consistent hash regardless of timestamp', async () => {
+      // Log same data twice - timestamps will differ but hash should be same
       const data = {
         operation: 'fetch',
         requestId: 'test-1',
@@ -226,8 +226,8 @@ describe('Audit Logging', () => {
       const entry1 = JSON.parse(lines[0]);
       const entry2 = JSON.parse(lines[1]);
 
-      // Hashes should be different due to different timestamps
-      expect(entry1.integrityHash).not.toBe(entry2.integrityHash);
+      // Hashes should be the same because data is identical (timestamp excluded from hash)
+      expect(entry1.integrityHash).toBe(entry2.integrityHash);
     });
 
     it('should generate different hash for different data', async () => {
