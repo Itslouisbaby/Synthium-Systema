@@ -59,10 +59,10 @@ export class SchedulerUI {
     return [
       '║',
       `  Total: ${this.pad(stats.totalTasks, 3)}`,
-      `  Pending: ${this.colorize(this.pad(stats.pendingTasks, 3), 'warning')}`,
-      `  Running: ${this.colorize(this.pad(stats.runningTasks, 3), 'primary')}`,
-      `  Completed: ${this.colorize(this.pad(stats.completedTasks, 3), 'success')}`,
-      `  Failed: ${this.colorize(this.pad(stats.failedTasks, 3), 'error')}`,
+      `  Pending: ${this.colorize(this.pad(stats.pendingTasks, 3), 'warningColor')}`,
+      `  Running: ${this.colorize(this.pad(stats.runningTasks, 3), 'primaryColor')}`,
+      `  Completed: ${this.colorize(this.pad(stats.completedTasks, 3), 'successColor')}`,
+      `  Failed: ${this.colorize(this.pad(stats.failedTasks, 3), 'errorColor')}`,
       '  '.padEnd(3),
       '║',
     ].join('');

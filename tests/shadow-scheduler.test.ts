@@ -180,15 +180,22 @@ async function runTests(): Promise<void> {
     
     scheduler.registerHandler('test', async () => {
       attempts++;
-      return { success: false, error: new Error('Fail') };
+      if (attempts < 2) {
+        const error = new Error('Fail') as Error & { retryAfterMs?: number };
+        error.retryAfterMs = 50;
+        throw error;
+      }
+      return { success: true };
     });
     
     const task = scheduler.scheduleOnce('test', { name: 'Retry Test', maxRetries: 2 });
     scheduler.start();
     
-    await delay(1000);
+    await delay(600);
     scheduler.stop();
     
+    const updated = scheduler.getTask(task.id);
+    if (updated?.status !== 'completed') throw new Error(`Task not completed after retry: ${updated?.status}`);
     if (attempts < 2) throw new Error(`Only ${attempts} attempts made`);
   });
 

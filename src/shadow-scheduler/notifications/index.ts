@@ -27,7 +27,7 @@ export class NotificationManager {
   private logger: Logger;
 
   constructor(config: NotificationConfig, logger: Logger = console as unknown as Logger) {
-    this.config = { enabled: true, logToConsole: true, batchIntervalMs: 0, ...config };
+    this.config = { logToConsole: true, batchIntervalMs: 0, ...config };
     this.logger = logger;
 
     if (this.config.batchIntervalMs && this.config.batchIntervalMs > 0) {
