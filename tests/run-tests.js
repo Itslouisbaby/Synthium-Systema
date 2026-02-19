@@ -1,37 +1,26 @@
 /**
- * M10 Shadow Scheduler - Test Suite
- * 28+ comprehensive tests covering all functionality
+ * M10 Shadow Scheduler - Test Suite (Compiled JS version)
+ * 36+ comprehensive tests covering all functionality
  */
 
-import { 
+const { 
   ShadowScheduler, 
   SchedulerPersistence, 
   NotificationManager, 
-  SchedulerUI, 
-  SchedulerDemo,
-  Task,
-  TaskResult,
-  TaskContext,
-  ScheduleOptions,
-  TaskStatus,
-} from '../src/shadow-scheduler';
+  SchedulerUI,
+} = require('../dist/shadow-scheduler');
 
-import { promises as fs } from 'fs';
-import { join } from 'path';
+const fs = require('fs').promises;
+const path = require('path');
 
 // ==================== Test Framework ====================
 
-interface TestResult {
-  name: string;
-  passed: boolean;
-  error?: string;
-  duration: number;
-}
-
 class TestRunner {
-  private results: TestResult[] = [];
+  constructor() {
+    this.results = [];
+  }
 
-  async test(name: string, fn: () => Promise<void> | void): Promise<void> {
+  async test(name, fn) {
     const start = Date.now();
     try {
       await fn();
@@ -41,14 +30,14 @@ class TestRunner {
       this.results.push({ 
         name, 
         passed: false, 
-        error: (error as Error).message,
+        error: error.message,
         duration: Date.now() - start 
       });
       process.stdout.write('❌');
     }
   }
 
-  report(): void {
+  report() {
     console.log('\n\n═══════════════════════════════════════════════════════════════');
     console.log('                    TEST RESULTS                               ');
     console.log('═══════════════════════════════════════════════════════════════');
@@ -76,11 +65,11 @@ class TestRunner {
 
 // ==================== Delay Helper ====================
 
-const delay = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ==================== Tests ====================
 
-async function runTests(): Promise<void> {
+async function runTests() {
   const runner = new TestRunner();
   const testFile = './test-scheduler-state.json';
 
@@ -362,7 +351,7 @@ async function runTests(): Promise<void> {
 
   await runner.test('UI: should render task list', () => {
     const ui = new SchedulerUI();
-    const tasks: Task[] = [{
+    const tasks = [{
       id: 'test-1',
       name: 'Test Task',
       status: 'pending',
@@ -385,7 +374,7 @@ async function runTests(): Promise<void> {
 
   await runner.test('UI: should render task detail', () => {
     const ui = new SchedulerUI();
-    const task: Task = {
+    const task = {
       id: 'test-1',
       name: 'Detailed Task',
       description: 'A test task',
@@ -430,7 +419,7 @@ async function runTests(): Promise<void> {
 
   await runner.test('Integration: full task lifecycle', async () => {
     const scheduler = new ShadowScheduler({ checkIntervalMs: 50 });
-    const events: string[] = [];
+    const events = [];
     
     scheduler.on('taskScheduled', () => events.push('scheduled'));
     scheduler.on('taskStarted', () => events.push('started'));
@@ -454,7 +443,7 @@ async function runTests(): Promise<void> {
       notificationsEnabled: true 
     });
     
-    const notifications: string[] = [];
+    const notifications = [];
     scheduler.onNotification((event) => {
       notifications.push(event.type);
     });
@@ -475,7 +464,7 @@ async function runTests(): Promise<void> {
     // Create and save
     const scheduler1 = new ShadowScheduler();
     scheduler1.registerHandler('test', async () => ({ success: true }));
-    const task = scheduler1.scheduleOnce('test', { name: 'Persistence Test' });
+    scheduler1.scheduleOnce('test', { name: 'Persistence Test' });
     await persistence.save(scheduler1.getTasksForPersistence());
     
     // Load into new scheduler
@@ -493,10 +482,10 @@ async function runTests(): Promise<void> {
 
   await runner.test('Integration: priority ordering', async () => {
     const scheduler = new ShadowScheduler({ checkIntervalMs: 50, maxConcurrentTasks: 1 });
-    const order: string[] = [];
+    const order = [];
     
     scheduler.registerHandler('test', async (ctx) => {
-      order.push(ctx.metadata.priority as string);
+      order.push(ctx.metadata.priority);
       return { success: true };
     });
     
@@ -538,6 +527,12 @@ async function runTests(): Promise<void> {
   } catch {}
 
   runner.report();
+  
+  // Force exit to clean up any dangling handles
+  process.exit(0);
 }
 
-runTests().catch(console.error);
+runTests().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

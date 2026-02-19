@@ -6,8 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "ts-node tests/shadow-scheduler.test.ts",
-    "demo": "ts-node src/shadow-scheduler/demo.ts",
+    "test": "npm run build && node tests/run-tests.js",
+    "test:ts": "ts-node tests/shadow-scheduler.test.ts",
+    "demo": "npm run build && node dist/shadow-scheduler/demo.js",
     "clean": "rm -rf dist"
   },
   "keywords": [
