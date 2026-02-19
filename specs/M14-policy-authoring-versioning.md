@@ -154,10 +154,16 @@ A release bundle is a directory or single file containing:
 5. Implement diff
 6. Implement bundle + signing + verification
 
-## Open Questions (need Luis decision)
-1. Canonical policy path:
-   - `./policy.yaml` OR `./config/policy.yaml`?
-2. Signing method:
+## Locked Decisions (per Apex)
+1. **Canonical policy path:** `./config/policy.yaml`
+   - `./policy.yaml` may exist only as a **deprecated fallback alias** during migration.
+   - Loader must emit a warning when the alias is used.
+2. **Review workflow enforcement:** **Synth approvals queue** (not Git PR-only)
+   - Git PR review is optional/auxiliary documentation.
+   - Runtime enforcement for sensitive changes is handled via approvals.
+
+## Open Questions
+1. Signing method:
    - Ed25519 (recommended) using Node `crypto`? or external tooling?
-3. Review workflow:
-   - Is “review” implemented as an approvals queue inside Synth (M9.5 approvals), or git PR-style only?
+2. Which action classes require approval by default:
+   - Identity/tenant boundary changes, external write, irreversible ops, money movement, etc.
