@@ -1,0 +1,30 @@
+{
+  "name": "shadow-scheduler",
+  "version": "1.0.0",
+  "description": "M10 Shadow Scheduler - Advanced Task Scheduling System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "ts-node tests/shadow-scheduler.test.ts",
+    "demo": "ts-node src/shadow-scheduler/demo.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "scheduler",
+    "tasks",
+    "jobs",
+    "cron",
+    "queue"
+  ],
+  "author": "M10 Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
