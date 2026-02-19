@@ -4,7 +4,7 @@
  * Core interfaces for tenant management and isolation.
  */
 
-import { Tenant } from '../identity/types';
+import type { Tenant } from '../identity/types.js';
 
 /**
  * Represents a tenant workspace with scoped paths

@@ -2,19 +2,16 @@
  * Identity Module Tests
  */
 
+import type { Operator, Tenant, Role, Permission } from '../src/identity/types.js';
 import {
-  Operator,
-  Tenant,
-  Role,
-  Permission,
-  PermissionChecker,
   ROLE_SUPER_ADMIN,
   ROLE_TENANT_ADMIN,
   ROLE_STANDARD_USER,
   ROLE_GUEST,
   ROLE_AUDITOR,
   SYSTEM_ROLES
-} from '../src/identity';
+} from '../src/identity/roles.js';
+import { PermissionChecker } from '../src/identity/PermissionChecker.js';
 
 describe('Identity Types', () => {
   describe('Operator', () => {
@@ -23,12 +20,17 @@ describe('Identity Types', () => {
         id: 'op-001',
         name: 'John Doe',
         email: 'john@example.com',
-        createdAt: new Date()
+        createdAt: new Date(),
+        tenantId: 'tenant-001',
+        roleIds: ['role-user'],
+        isActive: true,
       };
-      
+
       expect(operator.id).toBe('op-001');
       expect(operator.name).toBe('John Doe');
       expect(operator.email).toBe('john@example.com');
+      expect(operator.tenantId).toBe('tenant-001');
+      expect(operator.isActive).toBe(true);
     });
 
     it('should allow optional lastLoginAt field', () => {
@@ -37,9 +39,12 @@ describe('Identity Types', () => {
         name: 'John Doe',
         email: 'john@example.com',
         createdAt: new Date(),
-        lastLoginAt: new Date()
+        lastLoginAt: new Date(),
+        tenantId: 'tenant-001',
+        roleIds: ['role-user'],
+        isActive: true,
       };
-      
+
       expect(operator.lastLoginAt).toBeDefined();
     });
   });
@@ -75,7 +80,7 @@ describe('Identity Types', () => {
   });
 
   describe('Role and Permission', () => {
-    it('should create a role with permissions', () => {
+    it('should create a role with permission ids', () => {
       const readPermission: Permission = {
         id: 'read-files',
         name: 'Read Files',
@@ -88,13 +93,12 @@ describe('Identity Types', () => {
         id: 'custom-role',
         name: 'Custom Role',
         description: 'A custom role',
-        permissions: [readPermission],
+        permissions: [readPermission.id],
         isSystemRole: false
       };
 
       expect(role.permissions).toHaveLength(1);
-      expect(role.permissions[0].resource).toBe('files');
-      expect(role.permissions[0].action).toBe('read');
+      expect(role.permissions[0]).toBe('read-files');
     });
   });
 });
@@ -124,7 +128,7 @@ describe('System Roles', () => {
   });
 });
 
-describe('PermissionChecker', () => {
+describe('PermissionChecker (canonical instance API)', () => {
   const readPermission: Permission = {
     id: 'read-files',
     name: 'Read Files',
@@ -141,96 +145,52 @@ describe('PermissionChecker', () => {
     action: 'write'
   };
 
-  describe('hasPermission', () => {
-    it('should return true for SUPER_ADMIN for any permission', () => {
-      const superAdmin = SYSTEM_ROLES[ROLE_SUPER_ADMIN];
-      expect(PermissionChecker.hasPermission(superAdmin, readPermission)).toBe(true);
-      expect(PermissionChecker.hasPermission(superAdmin, writePermission)).toBe(true);
-    });
+  const permissions = new Map<string, Permission>([
+    [readPermission.id, readPermission],
+    [writePermission.id, writePermission],
+  ]);
 
-    it('should check permission for regular roles', () => {
-      const roleWithRead: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission]
-      };
+  it('SUPER_ADMIN (admin wildcard) should allow any action', () => {
+    const roles = new Map<string, Role>([
+      ['super', { ...SYSTEM_ROLES[ROLE_SUPER_ADMIN], permissions: ['perm-admin'] }]
+    ]);
+    permissions.set('perm-admin', { id: 'perm-admin', resource: '*', action: 'admin' });
 
-      expect(PermissionChecker.hasPermission(roleWithRead, readPermission)).toBe(true);
-      expect(PermissionChecker.hasPermission(roleWithRead, writePermission)).toBe(false);
-    });
+    const checker = new PermissionChecker(roles, permissions);
+
+    const operator: Operator = {
+      id: 'op-1',
+      name: 'SA',
+      email: 'sa@example.com',
+      createdAt: new Date(),
+      tenantId: 'tenant-1',
+      roleIds: ['super'],
+      isActive: true,
+    };
+
+    const result = checker.check(operator, 'anything', 'delete');
+    expect(result.allowed).toBe(true);
   });
 
-  describe('hasResourcePermission', () => {
-    it('should return true for SUPER_ADMIN for any resource', () => {
-      const superAdmin = SYSTEM_ROLES[ROLE_SUPER_ADMIN];
-      expect(PermissionChecker.hasResourcePermission(superAdmin, 'files')).toBe(true);
-      expect(PermissionChecker.hasResourcePermission(superAdmin, 'config')).toBe(true);
-    });
+  it('should allow/deny based on resolved permission ids', () => {
+    const roles = new Map<string, Role>([
+      ['user', { id: 'user', name: 'User', permissions: [readPermission.id] }],
+    ]);
 
-    it('should check resource-specific permissions', () => {
-      const roleWithFilesRead: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission]
-      };
+    const checker = new PermissionChecker(roles, permissions);
 
-      expect(PermissionChecker.hasResourcePermission(roleWithFilesRead, 'files')).toBe(true);
-      expect(PermissionChecker.hasResourcePermission(roleWithFilesRead, 'config')).toBe(false);
-    });
+    const operator: Operator = {
+      id: 'op-1',
+      name: 'User',
+      email: 'u@example.com',
+      createdAt: new Date(),
+      tenantId: 'tenant-1',
+      roleIds: ['user'],
+      isActive: true,
+    };
 
-    it('should check resource with specific action', () => {
-      const roleWithFilesRead: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission]
-      };
-
-      expect(PermissionChecker.hasResourcePermission(roleWithFilesRead, 'files', 'read')).toBe(true);
-      expect(PermissionChecker.hasResourcePermission(roleWithFilesRead, 'files', 'write')).toBe(false);
-    });
-  });
-
-  describe('getPermissions', () => {
-    it('should return a copy of permissions', () => {
-      const role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission, writePermission]
-      };
-
-      const permissions = PermissionChecker.getPermissions(role);
-      expect(permissions).toHaveLength(2);
-      
-      // Verify it's a copy, not the original array
-      permissions.push({} as Permission);
-      expect(PermissionChecker.getPermissions(role)).toHaveLength(2);
-    });
-  });
-
-  describe('hasAnyPermission', () => {
-    it('should return true if role has any of the permissions', () => {
-      const role: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission]
-      };
-
-      expect(PermissionChecker.hasAnyPermission(role, [readPermission, writePermission])).toBe(true);
-      expect(PermissionChecker.hasAnyPermission(role, [writePermission])).toBe(false);
-    });
-  });
-
-  describe('hasAllPermissions', () => {
-    it('should return true if role has all permissions', () => {
-      const roleWithBoth: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission, writePermission]
-      };
-
-      const roleWithReadOnly: Role = {
-        ...SYSTEM_ROLES[ROLE_STANDARD_USER],
-        permissions: [readPermission]
-      };
-
-      expect(PermissionChecker.hasAllPermissions(roleWithBoth, [readPermission, writePermission])).toBe(true);
-      expect(PermissionChecker.hasAllPermissions(roleWithReadOnly, [readPermission])).toBe(true);
-      expect(PermissionChecker.hasAllPermissions(roleWithReadOnly, [writePermission])).toBe(false);
-    });
+    expect(checker.check(operator, 'files', 'read').allowed).toBe(true);
+    expect(checker.check(operator, 'files', 'write').allowed).toBe(false);
   });
 });
 

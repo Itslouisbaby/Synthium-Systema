@@ -1,7 +1,8 @@
 /**
- * Permissions Module
- * 
- * Handles permission checking and validation for users and roles.
+ * Permissions Module (LEGACY)
+ *
+ * Deprecated: prefer the instance-based PermissionChecker in `src/identity/PermissionChecker.ts`.
+ * This file remains temporarily for transition.
  */
 
 import { Permission, Role } from './types';

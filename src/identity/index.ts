@@ -1,9 +1,11 @@
 /**
  * Identity Module Public API
+ *
+ * Canonical API exports the instance-based PermissionChecker for auditability + governance.
  */
 
 export * from './types.js';
 export * from './roles.js';
-export * from './permissions.js';
-// NOTE: We intentionally do not export ./PermissionChecker.js here.
-// The canonical PermissionChecker API (static helpers) lives in permissions.ts and is what tests + callers import.
+export * from './PermissionChecker.js';
+
+// Legacy static helpers (deprecated): import directly from ./permissions.js if needed.

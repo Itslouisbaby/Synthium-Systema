@@ -2,11 +2,10 @@
  * Tenant Module Tests
  */
 
-import { TenantWorkspace, TenantContext } from '../src/tenant';
-import { TenantWorkspaceImpl, createTenantWorkspace } from '../src/tenant/workspace';
-import { TenantIsolationGuard } from '../src/tenant/isolation';
-import { SYSTEM_ROLES } from '../src/identity';
-import { ROLE_SUPER_ADMIN, ROLE_TENANT_ADMIN, ROLE_STANDARD_USER, ROLE_GUEST, ROLE_AUDITOR } from '../src/identity';
+import type { TenantWorkspace, TenantContext } from '../src/tenant/types.js';
+import { TenantWorkspaceImpl, createTenantWorkspace } from '../src/tenant/workspace.js';
+import { TenantIsolationGuard } from '../src/tenant/isolation.js';
+import { SYSTEM_ROLES, ROLE_SUPER_ADMIN, ROLE_TENANT_ADMIN, ROLE_STANDARD_USER, ROLE_GUEST, ROLE_AUDITOR } from '../src/identity';
 
 describe('TenantWorkspace', () => {
   const tenantId = 'tenant-001';
