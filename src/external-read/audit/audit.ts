@@ -104,8 +104,14 @@ export class AuditLogger {
   /**
    * Calculate SHA-256 hash of log entry
    */
-  private calculateHash(entry: Omit<AuditLogEntry, 'integrityHash'>): string {
-    const data = JSON.stringify(entry, Object.keys(entry).sort());
+  private calculateHash(entry: Omit<AuditLogEntry, 'integrityHash' | 'timestamp'>): string {
+    // Sort keys for consistent hashing
+    const sortedKeys = Object.keys(entry).sort() as Array<keyof typeof entry>;
+    const sortedEntry: Record<string, unknown> = {};
+    for (const key of sortedKeys) {
+      sortedEntry[key] = entry[key];
+    }
+    const data = JSON.stringify(sortedEntry);
     return createHash('sha256').update(data).digest('hex');
   }
 
@@ -126,13 +132,13 @@ export class AuditLogger {
       }
     }
 
+    // Calculate integrity hash BEFORE adding timestamp (for consistency)
+    if (this.config.enableIntegrity) {
+      entryWithDomain.integrityHash = this.calculateHash(entryWithDomain as Omit<AuditLogEntry, 'integrityHash' | 'timestamp'>);
+    }
+
     // Add timestamp
     entryWithDomain.timestamp = new Date().toISOString();
-
-    // Calculate integrity hash if enabled
-    if (this.config.enableIntegrity) {
-      entryWithDomain.integrityHash = this.calculateHash(entryWithDomain);
-    }
 
     // Check if rotation is needed
     await this.checkRotation();
@@ -338,9 +344,15 @@ export function verifyLogIntegrity(entry: AuditLogEntry): boolean {
     return false; // No hash to verify
   }
 
-  const { integrityHash, ...data } = entry;
+  const { integrityHash, timestamp, ...data } = entry;
+  // Sort keys for consistent hashing
+  const sortedKeys = Object.keys(data).sort() as Array<keyof typeof data>;
+  const sortedEntry: Record<string, unknown> = {};
+  for (const key of sortedKeys) {
+    sortedEntry[key] = data[key];
+  }
   const calculated = createHash('sha256')
-    .update(JSON.stringify(data, Object.keys(data).sort()))
+    .update(JSON.stringify(sortedEntry))
     .digest('hex');
 
   return calculated === integrityHash;
