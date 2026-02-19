@@ -1,24 +1,40 @@
-// Operator, Tenant, Role, Permission types
+/**
+ * Identity Types
+ *
+ * Core interfaces for the identity and access management system.
+ */
 
 export type OperatorId = string & { __brand: 'OperatorId' };
 export type TenantId = string & { __brand: 'TenantId' };
 export type RoleId = string & { __brand: 'RoleId' };
 export type PermissionId = string & { __brand: 'PermissionId' };
 
-export type ResourceAction = 'create' | 'read' | 'update' | 'delete' | 'execute' | 'admin';
+export type ResourceAction =
+  | 'create'
+  | 'read'
+  | 'update'
+  | 'delete'
+  | 'execute'
+  | 'admin';
 
 export interface Permission {
   id: PermissionId;
   resource: string;
   action: ResourceAction;
+  name?: string;
+  description?: string;
   conditions?: Record<string, unknown>;
 }
 
 export interface Role {
   id: RoleId;
   name: string;
+  description?: string;
+  /** Permission IDs (resolved via registry / map) */
   permissions: PermissionId[];
-  tenantId?: TenantId; // undefined for global roles
+  /** undefined for global/system roles */
+  tenantId?: TenantId;
+  isSystemRole?: boolean;
 }
 
 export interface Operator {
@@ -32,6 +48,13 @@ export interface Operator {
   lastLoginAt?: Date;
 }
 
+export interface TenantSettings {
+  maxUsers: number;
+  maxWorkspaces: number;
+  allowedFeatures: string[];
+  dataRetentionDays: number;
+}
+
 export interface Tenant {
   id: TenantId;
   name: string;
@@ -40,11 +63,5 @@ export interface Tenant {
   settings: TenantSettings;
   isActive: boolean;
   createdAt: Date;
-}
-
-export interface TenantSettings {
-  maxUsers: number;
-  maxWorkspaces: number;
-  allowedFeatures: string[];
-  dataRetentionDays: number;
+  metadata?: Record<string, unknown>;
 }
