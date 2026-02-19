@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { PolicyGate, Autonomy, ActionClass, HARD_BLOCKED_CLASSES } from '../src/index.js';
 import type { PolicyStep, PolicyConfig } from '../src/index.js';
+// Note: This test validates core policy enforcement logic
+// No TUI dependencies - pure core functionality test
 
 describe('Milestone 2: Policy Gate', () => {
   const baseConfig: PolicyConfig = {

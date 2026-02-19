@@ -1,7 +1,7 @@
 # MILESTONES - Synth Project Status
 
-**Last Updated:** 2026-02-18  
-**Verified By:** Apex Subagent (M11-Verification)
+**Last Updated:** 2026-02-19  
+**Verified By:** Apex Subagent (M11-Final-Push)
 
 ---
 
@@ -25,23 +25,24 @@
 
 ## M11: External Read Tools v1
 
-**Status:** ✅ COMPLETE (Verified 2026-02-18)
+**Status:** ✅ COMPLETE (Verified 2026-02-19)
 
 **Git Status:**
-- Branch: `main` (merged from `m11-external-reads`)
+- Branch: `main` (single branch workflow)
 - Commits on origin/main:
-  - `63d6d9d` Merge M11 External Read Tools to main
+  - `72a8341` test: Mock external HTTP calls in fetch tests for CI stability
+  - `93f9c3e` feat: Merge M11 External Read Tools
+  - `e20f755` feat: Merge M10 Shadow Scheduler
   - `a18ee88` fix(audit): improve hash consistency
-  - `46e8c74` fix(audit): improve hash consistency  
   - `96797de` M11: External Read Tools - Policy Engine, Fetch Engine, Audit Logging
 
 **Test Results:**
 ```
-Total Tests: 252 passing (non-network)
+Total Tests: 298 passing (all tests including mocked fetch)
 M11 Breakdown:
-├── external-read-policy.test.ts: 63 tests ✓
-├── external-read-audit.test.ts: 37 tests ✓
-└── external-read-fetch.test.ts: 46 tests ✓ (network dependent)
+├── external-read-policy.test.ts: 63 tests ✅
+├── external-read-audit.test.ts: 37 tests ✅
+└── external-read-fetch.test.ts: 46 tests ✅ (now mocked for CI)
 ```
 
 ### Task Breakdown
@@ -60,10 +61,10 @@ M11 Breakdown:
 - Retry logic with exponential backoff
 - Timeout handling (default 30s)
 - Response validation
-- 46 tests passing (requires network to httpbin.org)
+- 46 tests passing (now with mocked HTTP calls for CI stability)
 
 #### Task 3: Audit Logging ✅ COMPLETE (VERIFIED)
-> ⚠️ **Previous status conflict resolved** - Confirmed complete via test verification
+> ✅ **Previous status conflict resolved** - Confirmed complete via test verification
 
 **Implementation:**
 - ✅ JSONL log format (`src/external-read/audit/audit.ts`)
@@ -104,17 +105,11 @@ interface AuditLogEntry {
 
 ## Test Summary
 
-### Quick Run (No Network)
-```bash
-npx vitest run --exclude "test/external-read-fetch.test.ts"
-# Result: 252 tests passing (16 files)
-```
-
-### Full Run (With Network)
+### Full Run (All Tests - No Network Required)
 ```bash
 npx vitest run
 # Result: 298 tests passing (17 files)
-# Note: external-read-fetch tests require httpbin.org access
+# Note: external-read-fetch tests now use mocks (no network dependency)
 ```
 
 ### M11 Specific
@@ -135,17 +130,17 @@ npx vitest run test/external-read-*.test.ts
 
 **New Tests:**
 - `test/external-read-policy.test.ts`
-- `test/external-read-fetch.test.ts`
+- `test/external-read-fetch.test.ts` (updated with mocks)
 - `test/external-read-audit.test.ts`
 
 ---
 
 ## Ready for Louis
 
-✅ M11 is **test-ready**:
-1. All commits pushed to origin/main
-2. 252 tests passing (local), 298 with network
-3. Task 3 Audit Logging fully verified complete
+✅ M11 is **COMPLETE on main**:
+1. All commits merged to origin/main (single branch workflow)
+2. 298 tests passing (all mocked, no network required)
+3. Fetch tests now use vitest mocks for CI stability
 4. No blockers identified
 
 **To test:**
