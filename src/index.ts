@@ -89,3 +89,6 @@ export async function synthesize(options: WaveOptions) {
 export { SynthTUI, type TUIConfig } from './tui/index.js';
 export { theme } from './tui/theme.js';
 export { panels, TUIpanels, type SessionData, type MemoryData, type RunStep, type AuditData, type CognitiveNode } from './tui/panels.js';
+
+// M14 Policy artifact system (authoring/versioning)
+export * as PolicyArtifacts from './policy-artifacts/index.js';
