@@ -4,12 +4,11 @@
  * Canonical API exports:
  * - TenantWorkspace (workspace entities)
  * - TenantIsolationGuard (runtime enforcement)
+ *
+ * Supplemental utilities:
+ * - pathScope helpers for tenant-scoped filesystem paths
  */
 
 export * from './TenantWorkspace.js';
 export * from './TenantIsolationGuard.js';
-
-// Legacy/utility modules (deprecated): import directly if needed.
-// - ./workspace.js (path-scoped workspace paths)
-// - ./isolation.js (static checks + path scoping helpers)
-// - ./types.js (path-scoped tenant context types)
+export * from './pathScope.js';
