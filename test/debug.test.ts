@@ -1,5 +1,7 @@
 import { test, expect } from 'vitest';
 import { ActionClass, Autonomy } from '../src/index.js';
+// Note: This test validates core ActionClass and Autonomy enums
+// No TUI dependencies - these are pure core types
 
 test('debug action classes', () => {
   console.log('ActionClass:', ActionClass);

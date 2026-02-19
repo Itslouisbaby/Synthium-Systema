@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { rm, mkdir, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { runNeuronWavesLoop, type LoopConfig, type LoopInput } from '../src/index.js';
+// Note: This test validates core loop artifact generation
+// No TUI dependencies - pure core functionality test
 
 const TEST_DIR = join(process.cwd(), '.test-artifacts');
 const TEST_SESSION = 'test-session-m1';

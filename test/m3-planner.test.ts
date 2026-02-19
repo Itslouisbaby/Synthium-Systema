@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { HeuristicPlanner } from '../src/planning/heuristic-planner.js';
 import { PolicyGate, Autonomy } from '../src/index.js';
 import type { PolicyStep, PolicyConfig, Plan, PlanStep } from '../src/index.js';
+// Note: This test validates core planning and heuristic logic
+// No TUI dependencies - pure core functionality test
 
 describe('Milestone 3: Planner + Heuristic', () => {
   const baseConfig: PolicyConfig = {
