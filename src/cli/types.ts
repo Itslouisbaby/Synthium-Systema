@@ -24,6 +24,17 @@ export interface CLIOptions {
   tailStream?: 'observations' | 'plans' | 'evaluations' | 'audit';
   // For 'approve'/'deny' commands
   stepId?: string;
+  // For 'policy' command
+  policyAction?: 'simulate' | 'diff' | 'bundle' | 'verify-bundle';
+  policyPath?: string;
+  inputPath?: string;
+  fromPath?: string;
+  toPath?: string;
+  outPath?: string;
+  bundlePath?: string;
+  privateKeyPath?: string;
+  publicKeyPath?: string;
+  keyId?: string;
 }
 
 /**

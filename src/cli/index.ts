@@ -10,6 +10,7 @@
  *   synth tail observations|plans|evaluations|audit --session <id> --workspace <path>
  *   synth approve|deny --session <id> --step <stepId> --workspace <path>
  *   synth sessions --workspace <path>
+ *   synth policy simulate|diff|bundle|verify-bundle ...
  */
 
 import type { CLIOptions, CLIResult } from './types.js';
@@ -80,6 +81,42 @@ function parseArgs(argv: string[]): ParsedCommand {
         options.stepId = args[++i];
         break;
 
+      case '--policy':
+        options.policyPath = args[++i];
+        break;
+
+      case '--input':
+        options.inputPath = args[++i];
+        break;
+
+      case '--from':
+        options.fromPath = args[++i];
+        break;
+
+      case '--to':
+        options.toPath = args[++i];
+        break;
+
+      case '--out':
+        options.outPath = args[++i];
+        break;
+
+      case '--bundle':
+        options.bundlePath = args[++i];
+        break;
+
+      case '--private-key':
+        options.privateKeyPath = args[++i];
+        break;
+
+      case '--public-key':
+        options.publicKeyPath = args[++i];
+        break;
+
+      case '--key-id':
+        options.keyId = args[++i];
+        break;
+
       default:
         // Handle positional arguments based on command
         if (command === 'run' && !options.text) {
@@ -97,6 +134,13 @@ function parseArgs(argv: string[]): ParsedCommand {
             process.exit(EXIT_USER_ERROR);
           }
           options.tailStream = arg;
+        } else if (command === 'policy' && !options.policyAction) {
+          const validPolicyActions = ['simulate', 'diff', 'bundle', 'verify-bundle'];
+          if (!validPolicyActions.includes(arg)) {
+            console.error(`Error: policy action must be one of: ${validPolicyActions.join(', ')}`);
+            process.exit(EXIT_USER_ERROR);
+          }
+          options.policyAction = arg as CLIOptions['policyAction'];
         } else {
           console.error(`Error: Unexpected argument: ${arg}`);
           process.exit(EXIT_USER_ERROR);
@@ -170,6 +214,13 @@ function validateCommandOptions(command: string, options: CLIOptions): void {
       // TUI command - no additional validation needed
       break;
 
+    case 'policy':
+      if (!options.policyAction) {
+        console.error('Error: policy action is required: simulate | diff | bundle | verify-bundle');
+        process.exit(EXIT_USER_ERROR);
+      }
+      break;
+
     default:
       console.error(`Error: Unknown command: ${command}`);
       printUsage();
@@ -212,6 +263,9 @@ async function routeCommand(command: string, options: CLIOptions): Promise<void>
         break;
       case 'sessions':
         handlers.sessions = (await import('./commands/sessions.js')).default;
+        break;
+      case 'policy':
+        handlers.policy = (await import('./commands/policy.js')).default;
         break;
     }
 
@@ -295,12 +349,33 @@ Usage:
   synth sessions [--workspace <path>]
     List all sessions
 
+  synth policy simulate --policy <path> --input <json>
+    Simulate a policy decision for a provided input case
+
+  synth policy diff --from <old-policy> --to <new-policy>
+    Generate a policy diff report (JSON)
+
+  synth policy bundle --policy <path> --out <dir> --private-key <pem> --key-id <id>
+    Create signed policy bundle
+
+  synth policy verify-bundle --bundle <dir> --public-key <pem>
+    Verify signed policy bundle
+
 Options:
   --workspace, -w <path>   Workspace directory (default: current directory)
   --session, -s <id>       Session identifier
   --level, -l <1|2|3>      Autonomy level (1-3)
   --json                   Output in JSON format
   --step <id>              Step identifier (for approve/deny)
+  --policy <path>          Policy yaml path
+  --input <path>           Simulation input JSON path
+  --from <path>            Diff source policy path
+  --to <path>              Diff target policy path
+  --out <dir>              Bundle output directory
+  --bundle <dir>           Bundle directory for verification
+  --private-key <path>     Private key PEM path (Ed25519)
+  --public-key <path>      Public key PEM path (Ed25519)
+  --key-id <id>            Key identifier to store in manifest
 
 Session ID format:
   Must match: ^[a-zA-Z0-9_-]+$ (alphanumeric, underscores, hyphens)

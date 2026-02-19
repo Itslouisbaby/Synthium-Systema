@@ -176,13 +176,18 @@ npm run build              # Build project
   - `createSignedPolicyBundle(...)`
   - `verifySignedPolicyBundle(...)`
   - Ed25519 signatures via Node `crypto`, fail closed on hash/signature mismatch
-- ✅ New M14 test suite:
+- ✅ CLI shipped for end-to-end usage:
+  - `synth policy simulate --policy <path> --input <case.json>`
+  - `synth policy diff --from <old> --to <new>`
+  - `synth policy bundle --policy <path> --out <dir> --private-key <pem> --key-id <id>`
+  - `synth policy verify-bundle --bundle <dir> --public-key <pem>`
+- ✅ New M14 test suites:
   - `test/m14-policy-versioning.test.ts` (3 tests)
+  - `test/m14-policy-cli.test.ts` (1 test)
 
 ### Left
-- ⬜ Optional: wire explicit `synth policy ...` CLI subcommands for simulate/diff/bundle/verify.
-- ⬜ Optional: improve human-readable diff formatter (currently machine-oriented structure).
+- ⬜ Optional follow-up: improve human-readable diff formatter (currently machine-oriented JSON report).
 
 ### Validation
 - Latest run: `npm test`
-- Result: **424 passing / 0 failing**
+- Result: **425 passing / 0 failing**
