@@ -29,6 +29,8 @@ import { LocalMemoryAdapter } from '../memory/adapter-local.js';
 import type { ContextBundle } from '../memory/types.js';
 import { ToolExecutor, createDefaultRegistry } from '../tools/index.js';
 import { Consolidator } from '../memory/semantic/consolidator.js';
+import { loadPolicy } from '../policy-artifacts/load.js';
+import { PolicyError } from '../policy-artifacts/errors.js';
 
 /**
  * Approval record stored in approvals.json
@@ -188,10 +190,34 @@ export async function runNeuronWavesLoop(
   // Load approvals from disk (Milestone 5)
   const approvalsMap = loadApprovals(config.artifactBaseDir);
 
+  // Load policy artifact (M14) for versioned audit metadata
+  let policyMetadata: {
+    policyId?: string;
+    policyVersion?: string;
+    policyEffectiveAt?: string;
+    policyHash?: string;
+  } = {};
+
+  try {
+    const loadedPolicy = await loadPolicy();
+    policyMetadata = {
+      policyId: loadedPolicy.policy.policyId,
+      policyVersion: loadedPolicy.policy.version,
+      policyEffectiveAt: loadedPolicy.policy.effectiveAt,
+      policyHash: loadedPolicy.policyHash,
+    };
+  } catch (error) {
+    // No policy artifact is non-fatal for runtime compatibility in existing tests/environments.
+    if (!(error instanceof PolicyError) || error.code !== 'POLICY_NOT_FOUND') {
+      throw error;
+    }
+  }
+
   // Create Policy Gate instance (default to Level 1 for safety)
   const gate = new PolicyGate(autonomyLevel, {
     baseDir: config.artifactBaseDir,
     allowlist: [],
+    ...policyMetadata,
   });
 
   // Policy audit events
@@ -215,7 +241,6 @@ export async function runNeuronWavesLoop(
         const auditEvent = gate.createAuditEvent(step.stepId, {
           decision: status === 'allowed' ? 'allow' : 'block',
           reason: `Pre-approved via approvals.json (decision: ${approval.decision} at ${new Date(approval.decidedAtMs).toISOString()})`,
-          autonomyLevel,
         }, approval.decidedAtMs);
         policyAuditEvents.push(auditEvent);
       }
@@ -376,6 +401,10 @@ export async function runNeuronWavesLoop(
         decision: pe.decision,
         reason: pe.reason,
         autonomyLevel: pe.autonomyLevel,
+        policyId: pe.policyId,
+        policyVersion: pe.policyVersion,
+        policyEffectiveAt: pe.policyEffectiveAt,
+        policyHash: pe.policyHash,
       },
     })),
     {

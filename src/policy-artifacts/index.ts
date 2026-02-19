@@ -3,3 +3,8 @@ export * from './errors.js';
 export * from './canonicalize.js';
 export * from './validate.js';
 export * from './load.js';
+export * from './simulate.js';
+export * from './diff.js';
+export * from './signing.js';
+export * from './bundle.js';
+export * from './runtime.js';

@@ -20,6 +20,7 @@
 | M9 | ✅ COMPLETE | 20 | main |
 | M10 | ✅ COMPLETE | - | main |
 | **M11** | **✅ COMPLETE** | **146** | **main** |
+| **M14** | **🟨 IN PROGRESS (Execution Owner: Apex)** | **5** | **main** |
 
 ---
 
@@ -148,3 +149,40 @@ npx vitest run test/external-read-*.test.ts
 npm test                    # Run all tests
 npm run build              # Build project
 ```
+
+---
+
+## M14: Policy Authoring + Versioning
+
+**Status:** 🟨 In Progress (core deliverables implemented locally on `main`)
+
+### Done (this execution slice)
+- ✅ Policy audit payload now includes policy metadata:
+  - `policyId`
+  - `policyVersion` (AC)
+  - `policyEffectiveAt`
+  - `policyHash`
+- ✅ Runtime loop now attempts policy artifact load and propagates metadata into policy decision audit events.
+- ✅ Policy simulation mode (library):
+  - `simulatePolicyDecision(...)`
+  - decision + reason + matched rule + explanation chain
+- ✅ Policy reload/simulate workflow (AC):
+  - `PolicyRuntime.reload()` + `PolicyRuntime.simulate(...)`
+  - tested by changing YAML only (no code change)
+- ✅ Policy diff tooling (library):
+  - `diffPolicies(from, to)`
+  - changed sections + added/removed domains + toggles
+- ✅ Signed policy bundles + verify:
+  - `createSignedPolicyBundle(...)`
+  - `verifySignedPolicyBundle(...)`
+  - Ed25519 signatures via Node `crypto`, fail closed on hash/signature mismatch
+- ✅ New M14 test suite:
+  - `test/m14-policy-versioning.test.ts` (3 tests)
+
+### Left
+- ⬜ Optional: wire explicit `synth policy ...` CLI subcommands for simulate/diff/bundle/verify.
+- ⬜ Optional: improve human-readable diff formatter (currently machine-oriented structure).
+
+### Validation
+- Latest run: `npm test`
+- Result: **424 passing / 0 failing**

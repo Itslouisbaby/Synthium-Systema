@@ -10,7 +10,6 @@ import type {
   PolicyGateStats,
   PolicyStep,
   PolicyAuditEvent,
-  ActionClassType,
 } from './types.js';
 import {
   Autonomy,
@@ -237,6 +236,10 @@ export class PolicyGate {
       decision: decision.decision,
       reason: decision.reason,
       autonomyLevel: this.autonomy,
+      policyId: this.config.policyId,
+      policyVersion: this.config.policyVersion,
+      policyEffectiveAt: this.config.policyEffectiveAt,
+      policyHash: this.config.policyHash,
       stats: this.getStats(),
       timestampMs,
     };

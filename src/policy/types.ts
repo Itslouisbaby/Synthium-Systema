@@ -36,6 +36,11 @@ export interface PolicyConfig {
   readonly baseDir: string;
   /** Allowed external_read destinations */
   readonly allowlist?: readonly string[];
+  /** Loaded policy metadata for audit traceability */
+  readonly policyId?: string;
+  readonly policyVersion?: string;
+  readonly policyEffectiveAt?: string;
+  readonly policyHash?: string;
 }
 
 /** Autonomy limits (enforced by policy gate) */
@@ -129,6 +134,10 @@ export interface PolicyAuditEvent {
   readonly decision: PolicyDecision['decision'];
   readonly reason: string;
   readonly autonomyLevel: AutonomyLevel;
+  readonly policyId?: string;
+  readonly policyVersion?: string;
+  readonly policyEffectiveAt?: string;
+  readonly policyHash?: string;
   readonly stats: PolicyGateStats;
   readonly timestampMs: number;
 }
