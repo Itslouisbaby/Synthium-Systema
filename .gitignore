@@ -12,3 +12,7 @@ coverage/
 .synth/
 .synth-tui-state.json
 .synth-tui-flag-ansi
+
+# Secrets (local only)
+secrets/
+*.env.local
