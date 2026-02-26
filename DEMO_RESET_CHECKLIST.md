@@ -1,4 +1,4 @@
-# Delta Demo Reset Checklist (Blessed TUI)
+# Demo Reset Checklist (Blessed TUI)
 
 **Binding demo posture**
 - Planner: **HeuristicPlanner only**
@@ -9,7 +9,7 @@
 ## 0) Pre-flight
 From repo root:
 ```powershell
-cd C:\Users\louis\.openclaw\workspace\synthium-systema
+cd /workspace/Synthium-Systema
 ```
 
 ## 1) Build (fresh)
