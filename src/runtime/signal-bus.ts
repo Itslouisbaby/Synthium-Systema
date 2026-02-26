@@ -343,7 +343,7 @@ export class SignalBuilder {
     this.sourceLoop = sourceLoop;
   }
 
-  inputReceived(content: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  inputReceived(content: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'INPUT_RECEIVED',
       { content },
@@ -354,7 +354,7 @@ export class SignalBuilder {
     );
   }
 
-  planCreated(planId: string, steps: unknown[], options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  planCreated(planId: string, steps: unknown[], options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'PLAN_CREATED',
       { planId, steps },
@@ -365,7 +365,7 @@ export class SignalBuilder {
     );
   }
 
-  policyDecision(stepId: string, decision: string, reason: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  policyDecision(stepId: string, decision: string, reason: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'POLICY_DECISION_EMITTED',
       { stepId, decision, reason },
@@ -376,7 +376,7 @@ export class SignalBuilder {
     );
   }
 
-  stepExecuted(stepId: string, result: unknown, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  stepExecuted(stepId: string, result: unknown, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'STEP_EXECUTED',
       { stepId, result },
@@ -387,7 +387,7 @@ export class SignalBuilder {
     );
   }
 
-  stepFailed(stepId: string, error: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  stepFailed(stepId: string, error: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'STEP_FAILED',
       { stepId, error },
@@ -398,7 +398,7 @@ export class SignalBuilder {
     );
   }
 
-  outputReady(content: string, chainId: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  outputReady(content: string, chainId: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'OUTPUT_READY',
       { content, chainId },
@@ -409,7 +409,7 @@ export class SignalBuilder {
     );
   }
 
-  uncertaintyHigh(question: string, severity: 'low' | 'medium' | 'high' | 'critical', options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  uncertaintyHigh(question: string, severity: 'low' | 'medium' | 'high' | 'critical', options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'UNCERTAINTY_HIGH',
       { question, severity },
@@ -420,7 +420,7 @@ export class SignalBuilder {
     );
   }
 
-  modelErrorDetected(error: string, context: unknown, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  modelErrorDetected(error: string, context: unknown, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'MODEL_ERROR_DETECTED',
       { error, context },
@@ -431,7 +431,7 @@ export class SignalBuilder {
     );
   }
 
-  focusSet(chainId: string, objective: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> {
+  focusSet(chainId: string, objective: string, options?: { causedBy?: SignalId[] }): Omit<Signal, 'signalId'> & { signalId?: string }{
     return SignalBus.createSignal(
       'FOCUS_SET',
       { chainId, objective },

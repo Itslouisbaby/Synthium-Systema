@@ -27,7 +27,7 @@ async function runSynthDemo() {
   console.log('▶ INITIALIZING SYNTH RUNTIME\n');
 
   const llm = new MockLLMProvider(4096);
-  
+
   // Set up some mock responses
   llm.setResponse('hello', 'Hello! I am Synth, an autonomous cognitive system. How can I assist you today?');
   llm.setResponse('what are you', 'I am Synth, a signal-driven AGI system with hierarchical memory, continuous learning, and autonomous goal pursuit capabilities.');
@@ -78,7 +78,7 @@ async function runSynthDemo() {
   for (let i = 0; i < inputs.length; i++) {
     const input = inputs[i];
     console.log(`  Test ${3 + i}: Process input "${input.slice(0, 40)}..."`);
-    
+
     try {
       const response = await synth.processInput(input);
       console.log(`  ✅ Response: ${response.slice(0, 60)}...`);
@@ -87,7 +87,7 @@ async function runSynthDemo() {
       console.log(`  ❌ Input processing failed: ${error}`);
       results.push(`Input ${i + 1}: FAIL`);
     }
-    
+
     // Small delay between inputs
     await new Promise(r => setTimeout(r, 100));
   }
@@ -122,7 +122,7 @@ async function runSynthDemo() {
   // Let it run briefly for autonomous behavior
   // ============================================================================
   console.log('\n▶ AUTONOMOUS OPERATION (3 seconds)\n');
-  
+
   console.log('  Allowing autonomous goal pursuit...');
   await new Promise(r => setTimeout(r, 3000));
   console.log('  ✅ Autonomous cycle complete');

@@ -241,7 +241,7 @@ export class ConceptTagger {
   createSignal(
     detections: ConceptDetection[],
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string }{
     return {
       sessionKey,
       type: 'CONCEPTS_DETECTED',

@@ -3,10 +3,10 @@
  * Section 3: Wraps the existing NeuronWaves v1 loop unchanged
  */
 
-import type { 
-  MicroLoop, 
-  TickResult, 
-  Signal, 
+import type {
+  MicroLoop,
+  TickResult,
+  Signal,
   SignalType,
   WorkingState,
   SessionKey,
@@ -83,14 +83,14 @@ export class CortexLoop implements MicroLoop {
   }): Promise<TickResult> {
     const { signals, workingState, sessionKey } = input;
     const signalBuilder = new SignalBuilder(sessionKey, this.name);
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas = [];
 
     // Process each input signal
     for (const signal of signals) {
       if (signal.type === 'INPUT_RECEIVED') {
         const payload = signal.payload as { content: string };
-        
+
         try {
           // Execute v1 loop
           const result = await this.executeV1Loop(payload.content, sessionKey);
@@ -153,16 +153,16 @@ export class CortexLoop implements MicroLoop {
 
           // Add execution ledger entry
           stateDeltas.push({
-            section: 'executionLedger',
+            section: 'executionLedger' as keyof WorkingState,
             path: '',
             value: {
-              entryId: `cortex-${Date.now()}`,
+              entryId: `ctx-eval-${Date.now()}`,
               timestampMs: Date.now(),
-              type: 'tool_result',
-              description: `v1 loop completed: ${result.evaluation.summary}`,
-              chainId: workingState.focus.activeChainId ?? undefined,
+              type: 'output' as const,
+              description: `Evaluated chain ${result.plan.id}: ${result.evaluation.result}`,
+              chainId: result.plan.id,
             },
-            operation: 'push',
+            operation: 'push' as const,
           });
 
           // Emit OUTPUT_CANDIDATE_READY if there's output
@@ -183,7 +183,7 @@ export class CortexLoop implements MicroLoop {
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          
+
           signalsOut.push(signalBuilder.stepFailed(
             'v1-loop',
             errorMessage,
@@ -201,11 +201,11 @@ export class CortexLoop implements MicroLoop {
       // Handle replan requests
       if (signal.type === 'EXEC_REQUEST_REPLAN') {
         const payload = signal.payload as { content: string; reason: string };
-        
+
         // Re-execute v1 loop with the replan content
         try {
           const result = await this.executeV1Loop(payload.content, sessionKey);
-          
+
           signalsOut.push(signalBuilder.planCreated(
             result.plan.id,
             result.plan.steps,

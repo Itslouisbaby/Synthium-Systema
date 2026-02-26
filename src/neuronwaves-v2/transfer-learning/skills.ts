@@ -99,7 +99,7 @@ export class SkillsManager {
         steps: trace.planSteps.map(step => ({
           intent: step.intent,
           actionClass: step.actionClass,
-          toolName: step.toolName,
+          toolName: (step as any).toolName,
           placeholders: {},
         })),
       },
@@ -169,40 +169,40 @@ export class SkillsManager {
     }
   ): Promise<SkillActivation> {
     const skill = await this.loadSkill(skillId, version);
-    
+
     if (!skill) {
       return { activated: false, reason: 'Skill not found' };
     }
 
     // Check status
     if (skill.status !== 'active') {
-      return { 
-        activated: false, 
-        reason: `Skill status is ${skill.status}, not active` 
+      return {
+        activated: false,
+        reason: `Skill status is ${skill.status}, not active`
       };
     }
 
     // Check concept match
-    const conceptMatch = skill.trigger.concepts.every(c => 
+    const conceptMatch = skill.trigger.concepts.every(c =>
       context.concepts.includes(c)
     );
 
     if (!conceptMatch) {
-      return { 
-        activated: false, 
-        reason: 'Concept requirements not met' 
+      return {
+        activated: false,
+        reason: 'Concept requirements not met'
       };
     }
 
     // Check schema readiness
-    const schemaReady = skill.trigger.schemaReadiness.every(s => 
+    const schemaReady = skill.trigger.schemaReadiness.every(s =>
       context.filledSlots.includes(s)
     );
 
     if (!schemaReady) {
-      return { 
-        activated: false, 
-        reason: 'Schema readiness not met' 
+      return {
+        activated: false,
+        reason: 'Schema readiness not met'
       };
     }
 
@@ -229,7 +229,7 @@ export class SkillsManager {
     for (let i = 0; i < testTraces.length; i++) {
       const trace = testTraces[i];
       const result = this.evaluateAgainstTrace(skill, trace);
-      
+
       testResults.push({
         testId: `test-${i + 1}`,
         passed: result.passed,
@@ -262,7 +262,7 @@ export class SkillsManager {
     const checks: string[] = [];
 
     // Check 1: All steps execute
-    const allStepsExecuted = trace.planSteps.every(s => 
+    const allStepsExecuted = trace.planSteps.every(s =>
       s.status === 'executed'
     );
     if (allStepsExecuted) {
@@ -271,7 +271,7 @@ export class SkillsManager {
     }
 
     // Check 2: No policy violations
-    const noViolations = trace.policyDecisions.every(d => 
+    const noViolations = trace.policyDecisions.every(d =>
       d.decision !== 'block'
     );
     if (noViolations) {
@@ -410,7 +410,7 @@ export class SkillsManager {
     const applicable: Skill[] = [];
 
     for (const skill of this.activeSkills.values()) {
-      const conceptMatch = skill.trigger.concepts.some(c => 
+      const conceptMatch = skill.trigger.concepts.some(c =>
         context.concepts.includes(c)
       );
 
