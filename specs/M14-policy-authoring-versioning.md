@@ -1,17 +1,17 @@
 # M14 — Policy Authoring & Versioning
 
-**Owner:** Lucas (with Apex for engineering execution)
+**Owner:** Product Team (engineering execution support)
 
 ## Goal
 Make policy a **first-class artifact** with **versioning** and a **review workflow**, suitable for agentic infrastructure.
 
-## Core Deliverables (as defined by Luis)
+## Core Deliverables (as defined by product requirements)
 1. Policy file format with **version**, **effective date**, and **change log**
 2. **Policy simulation mode** that explains decisions
 3. **Policy diff report** tooling
 4. **Signed policy bundles** for release builds
 
-## Acceptance Criteria (as defined by Luis)
+## Acceptance Criteria (as defined by product requirements)
 1. Policy decisions include **policy version** in audit
 2. A policy change can be **tested without changing code**
 
@@ -28,7 +28,7 @@ apiVersion: synth.policy/v1
 policyId: "default"              # string
 version: "1.4.0"                 # semver (string)
 effectiveAt: "2026-02-19T00:00:00Z"  # ISO 8601
-createdBy: "luis"                # optional string
+createdBy: "operator"                # optional string
 changelog:
   - version: "1.4.0"
     at: "2026-02-19T00:00:00Z"
