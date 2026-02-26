@@ -16,3 +16,12 @@ coverage/
 # Secrets (local only)
 secrets/
 *.env.local
+# Workspace-only assistant state (not part of product source)
+/memory/
+/SOUL.md
+/USER.md
+/IDENTITY.md
+/HEARTBEAT.md
+/TOOLS.md
+/AGENTS.md
+/MEMORY.md
