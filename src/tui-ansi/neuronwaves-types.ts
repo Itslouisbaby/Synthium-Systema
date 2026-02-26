@@ -1,15 +1,14 @@
 // NeuronWaves types for TUI integration
-// Importing actual types from the orchestrator
 
-export type { 
+export type {
   LoopInput,
   PlanStep,
   Plan,
   Evaluation,
   LoopOutput,
-  LoopConfig,
-  ContextBundle
+  ContextBundle,
 } from '../types.js';
 
-// Import the actual NeuronWaves loop implementation
-export { runNeuronWavesLoop } from '../orchestrator/loop.js';
+// v2 runtime — replaces runNeuronWavesLoop
+export { createSynthRuntime } from '../orchestrator/runtime.js';
+export type { SynthRuntimeConfig, SynthResult } from '../orchestrator/runtime.js';

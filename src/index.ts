@@ -27,6 +27,8 @@ export { ArtifactStore, type StoreConfig, type SessionPaths } from './artifacts/
 
 // Orchestrator
 export { runNeuronWavesLoop, type LoopConfig } from './orchestrator/loop.js';
+export { SynthRuntime, createSynthRuntime } from './orchestrator/runtime.js';
+export type { SynthRuntimeConfig, SynthResult } from './orchestrator/runtime.js';
 
 // Policy (Milestone 2)
 export { PolicyGate } from './policy/gate.js';
@@ -66,7 +68,7 @@ export type {
 } from './memory/types.js';
 
 // Convenience wrapper
-import { runNeuronWavesLoop, type LoopConfig, type LoopInput } from './orchestrator/loop.js';
+import { runNeuronWavesLoop, type LoopInput } from './orchestrator/loop.js';
 
 export interface WaveOptions {
   content: string;
@@ -75,13 +77,8 @@ export interface WaveOptions {
 }
 
 export async function synthesize(options: WaveOptions) {
-  const config: LoopConfig = {
-    artifactBaseDir: options.artifactDir || '.synth/neuronwaves',
-  };
-  const input: LoopInput = {
-    content: options.content,
-    sessionKey: options.sessionKey,
-  };
+  const config = { artifactBaseDir: options.artifactDir || '.synth/neuronwaves' };
+  const input: LoopInput = { content: options.content, sessionKey: options.sessionKey };
   return runNeuronWavesLoop(input, config);
 }
 

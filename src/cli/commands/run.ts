@@ -1,10 +1,16 @@
 /**
  * CLI Run Command - Milestone 5
  * synth run --session <id> "<text>" --level 1|2|3 --workspace <path>
+ *
+ * Feature flag: SYNTH_NEURONWAVES_RUNTIME=v2 routes input into NeuronWaves v2 runtime.
+ * Default is v1 (stable). v2 is opt-in until CI gates pass.
  */
-import { runNeuronWavesLoop } from '../../orchestrator/loop.js';
+import { createSynthRuntime } from '../../orchestrator/runtime.js';
+import { createRuntime as createV2Runtime } from '../../neuronwaves-v2/index.js';
 import { validateSessionId } from '../types.js';
 import type { CLIOptions, CLIResult } from '../types.js';
+
+const USE_V2_RUNTIME = process.env['SYNTH_NEURONWAVES_RUNTIME'] === 'v2';
 
 /**
  * Validate that level is a valid autonomy level (1, 2, or 3)
@@ -50,17 +56,27 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
   const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
 
   try {
-    // Execute the NeuronWaves loop
-    const result = await runNeuronWavesLoop(
-      {
-        content: text,
-        sessionKey: sessionId,
-      },
-      {
-        artifactBaseDir,
+    if (USE_V2_RUNTIME) {
+      // v2 runtime path (feature-flagged, off by default)
+      const runtime = createV2Runtime({
+        baseDir: artifactBaseDir,
+        sessionKey: sessionId as any,
         autonomyLevel: level,
-      }
-    );
+      });
+      await runtime.startSession();
+      await runtime.pushInput(text);
+      await runtime.runForTicks(10);
+      await runtime.stop();
+      return {
+        exitCode: 0,
+        output: `[v2] Session ${sessionId}: input processed`,
+      };
+    }
+
+    // v1 runtime path (stable default)
+    const runtime = createSynthRuntime({ artifactBaseDir, autonomyLevel: level });
+    const result = await runtime.submitInput(sessionId, text);
+    runtime.stop();
 
     // Success: print summary and exit 0
     return {
