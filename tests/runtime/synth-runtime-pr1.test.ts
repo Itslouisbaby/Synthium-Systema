@@ -96,4 +96,53 @@ describe('SynthRuntime PR1 E2E', () => {
     expect(response).toContain('Blocked by policy');
     expect(response).toContain('external_read');
   });
+
+  it('allows external-read at autonomy level 2 for allowlisted domain', async () => {
+    const baseDir = await mkdtemp(join(tmpdir(), 'synth-pr10-autonomy2-'));
+    const runtime = new SynthRuntime({
+      baseDir,
+      llm: new RuntimeStubLLM(),
+      enableAutonomy: false,
+      enableLearning: false,
+      enableMemory: true,
+      autonomyLevel: 2,
+    });
+
+    await runtime.initialize();
+    await runtime.start();
+
+    const response = await runtime.processInput('read https://example.com and summarize');
+
+    runtime.stop();
+
+    expect(response).toContain('OK:read https://example.com');
+    expect(response).not.toContain('Blocked by policy');
+  });
+
+  it('records policy load warning when configured policy file is invalid', async () => {
+    const baseDir = await mkdtemp(join(tmpdir(), 'synth-pr10-policywarn-'));
+    const runtime = new SynthRuntime({
+      baseDir,
+      llm: new RuntimeStubLLM(),
+      enableAutonomy: false,
+      enableLearning: false,
+      enableMemory: true,
+      policyPath: join(baseDir, 'missing-policy.yaml'),
+    });
+
+    await runtime.initialize();
+    await runtime.start();
+
+    const response = await runtime.processInput('summarize this local note with missing policy');
+
+    runtime.stop();
+
+    expect(response).toContain('Policy load warning');
+
+    const signalDirs = await readdir(join(baseDir, 'signals'));
+    const runRaw = await readFile(join(baseDir, 'artifacts', signalDirs[0], 'runs', 'latest.json'), 'utf8');
+    const manifest = JSON.parse(runRaw) as { policyLoadError?: string };
+    expect(typeof manifest.policyLoadError).toBe('string');
+  });
+
 });

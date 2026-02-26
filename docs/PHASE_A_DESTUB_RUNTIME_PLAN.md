@@ -8,11 +8,11 @@ Objective: replace synthetic/stubbed behavior in the runtime path with a real, a
 - Keep public CLI contract stable while replacing internals
 - Do not claim AGI/GA promotion until acceptance tests pass
 
-## Current blockers to non-stub E2E
+## Remaining blockers to production hardening
 
-1. `CortexLoop` in `SynthRuntime` is wired with a synthetic `v1Loop` response.
-2. `processInput()` currently bypasses loop/policy/tool orchestration and directly calls LLM generation.
-3. Test coverage is heavy on routing/session components but lacks full reasoning pipeline E2E scenarios.
+1. Planner decomposition is still heuristic and needs stronger intent/action extraction quality gates.
+2. Signal ownership for `OUTPUT_READY` should move from `processInput()` convenience emission to loop-orchestrated completion path.
+3. Policy artifact load failures now surface as warnings, but should be promoted into explicit operational telemetry/alerts.
 
 ## File-by-file implementation plan
 

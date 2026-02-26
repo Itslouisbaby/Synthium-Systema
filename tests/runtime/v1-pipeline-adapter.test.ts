@@ -62,9 +62,9 @@ describe('v1 pipeline adapter', () => {
       { artifactBaseDir: '.synth/test', autonomyLevel: 2 }
     );
 
-    expect(result.plan.steps.length).toBe(2);
+    expect(result.plan.steps.length).toBeGreaterThanOrEqual(2);
     expect(result.plan.steps[0].status).toBe('executed');
-    expect(result.plan.steps[1].actionClass).toBe('external_read');
+    expect(result.plan.steps.some(step => step.actionClass === 'external_read')).toBe(true);
   });
 
   it('blocks external-read inputs at autonomy level 1', async () => {
@@ -129,6 +129,34 @@ rules:
     expect(result.plan.steps[0].status).toBe('awaiting_approval');
     expect(result.evaluation.result).toBe('partial');
     expect(result.artifactPaths.policyAuditEvents[0].decision).toBe('awaiting_approval');
+  });
+
+
+  it('parses chained intents beyond simple and-split', async () => {
+    const adapter = createV1PipelineAdapter(new StubLLM());
+
+    const result = await adapter(
+      { content: 'summarize local note, then read https://example.com; also delete temp files', sessionKey: 's-chain' },
+      { artifactBaseDir: '.synth/test', autonomyLevel: 2 }
+    );
+
+    expect(result.plan.steps.length).toBeGreaterThanOrEqual(3);
+    expect(result.plan.steps.some(step => step.actionClass === 'local_only')).toBe(true);
+    expect(result.plan.steps.some(step => step.actionClass === 'external_read')).toBe(true);
+    expect(result.plan.steps.some(step => step.actionClass === 'irreversible')).toBe(true);
+  });
+
+  it('surfaces policy load errors in artifact metadata when policy path is invalid', async () => {
+    const adapter = createV1PipelineAdapter(new StubLLM());
+
+    const result = await adapter(
+      { content: 'summarize local note', sessionKey: 's-policy-load-error' },
+      { artifactBaseDir: '.synth/test', autonomyLevel: 1, policyPath: '/nonexistent/policy.yaml' }
+    );
+
+    expect(result.artifactPaths.policyLoadError).toBeDefined();
+    expect(result.evaluation.summary).toContain('Policy load warning');
+    expect(result.plan.steps[0].status).toBe('executed');
   });
 
   it('returns failure and replan trace when execution errors', async () => {

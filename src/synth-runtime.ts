@@ -29,7 +29,7 @@ import { VectorStore } from './vector/vector-store.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
 import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
-import { Autonomy } from './policy/types.js';
+import { Autonomy, type AutonomyLevel } from './policy/types.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -41,6 +41,8 @@ export interface SynthRuntimeConfig {
   enableLearning: boolean;
   enableMemory: boolean;
   tickRate: number;
+  autonomyLevel: AutonomyLevel;
+  policyPath: string;
 }
 
 /**
@@ -93,6 +95,8 @@ export class SynthRuntime {
       enableLearning: config.enableLearning ?? true,
       enableMemory: config.enableMemory ?? true,
       tickRate: config.tickRate ?? 10,
+      autonomyLevel: config.autonomyLevel ?? Autonomy.Level1,
+      policyPath: config.policyPath ?? join(config.baseDir ?? '.synth/runtime', 'policy.yaml'),
     };
 
     this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
@@ -288,12 +292,12 @@ export class SynthRuntime {
     const signalCursor = this.signalBus.getTailOffset(sessionKey);
 
     const pipelineResult = await this.v1Pipeline(
-      { content: input, sessionKey },
+      { content: input, sessionKey, memoryContext },
       {
         artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-        autonomyLevel: Autonomy.Level1,
+        autonomyLevel: this.config.autonomyLevel,
         enableMemory: this.config.enableMemory,
-        policyPath: join(this.config.baseDir, 'policy.yaml'),
+        policyPath: this.config.policyPath,
       }
     );
 
@@ -338,6 +342,7 @@ export class SynthRuntime {
         decision: e.decision,
         reason: e.reason,
       })),
+      policyLoadError: pipelineResult.artifactPaths.policyLoadError,
     });
 
     // 4. Store response
@@ -411,6 +416,7 @@ export class SynthRuntime {
     planId: string;
     evaluation: { result: string; summary: string };
     policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+    policyLoadError?: string;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
     await mkdir(runDir, { recursive: true });

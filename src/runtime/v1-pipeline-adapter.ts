@@ -7,6 +7,7 @@ import type { Evaluation, Plan, PlanStep } from '../types.js';
 interface PipelineInput {
   content: string;
   sessionKey: string;
+  memoryContext?: string[];
 }
 
 export interface PlannedAction {
@@ -41,6 +42,7 @@ interface PipelineResult {
     policySource?: string;
     policyVersion?: string;
     policyHash?: string;
+    policyLoadError?: string;
   };
 }
 
@@ -56,20 +58,32 @@ function detectActionClass(content: string): { actionClass: PlanStep['actionClas
     return { actionClass: ActionClass.ExternalRead, target: urlMatch[1] };
   }
 
-  if (/\b(web|http|url|site)\b/.test(normalized)) {
+  if (/\b(web|http|url|site|fetch|read)\b/.test(normalized)) {
     return { actionClass: ActionClass.ExternalRead, target: 'unknown' };
   }
 
   return { actionClass: ActionClass.LocalOnly };
 }
 
+function normalizeIntent(intent: string): string {
+  return intent
+    .replace(/^\s*(then|also|next)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitIntoIntents(content: string): string[] {
+  return content
+    .split(/\b(?:and then|then|and|also|next)\b|;/i)
+    .map(normalizeIntent)
+    .filter(Boolean);
+}
+
 function defaultPlanner(input: PipelineInput): PlannedAction[] {
-  return input.content
-    .split(/\s+and\s+/i)
-    .map(part => part.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(intent => ({ intent, ...detectActionClass(intent) }));
+  const intents = splitIntoIntents(input.content);
+  const pickedIntents = intents.length > 0 ? intents : [normalizeIntent(input.content)];
+
+  return pickedIntents.slice(0, 5).map(intent => ({ intent, ...detectActionClass(intent) }));
 }
 
 export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanner = { plan: defaultPlanner }) {
@@ -79,9 +93,16 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
     const evalId = `eval-${now}`;
 
     const plannedActions = planner.plan(input);
-    const policy = config.policyPath
-      ? await loadPolicy({ canonicalPath: config.policyPath, deprecatedFallbackPath: config.policyPath }).catch(() => null)
-      : null;
+
+    let policy: Awaited<ReturnType<typeof loadPolicy>> | null = null;
+    let policyLoadError: string | undefined;
+    if (config.policyPath) {
+      try {
+        policy = await loadPolicy({ canonicalPath: config.policyPath, deprecatedFallbackPath: config.policyPath });
+      } catch (error) {
+        policyLoadError = error instanceof Error ? error.message : String(error);
+      }
+    }
 
     const policyGate = new PolicyGate((config.autonomyLevel as 1 | 2 | 3) ?? Autonomy.Level1, {
       baseDir: config.artifactBaseDir,
@@ -125,6 +146,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         try {
           const response = await llm.generateWithContext(action.intent, [
             'You are executing a policy-approved reasoning step.',
+            ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
           ]);
           steps.push({
             stepId,
@@ -188,7 +210,8 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
     const summary = steps
       .map(s => String(s.outputSummary ?? s.intent))
       .join(' | ')
-      .concat(replanRequested ? '. Replan suggested.' : '');
+      .concat(replanRequested ? '. Replan suggested.' : '')
+      .concat(policyLoadError ? ` [Policy load warning: ${policyLoadError}]` : '');
 
     const plan: Plan = {
       id: planId,
@@ -214,6 +237,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         replanRequested,
         ...(replanReason ? { replanReason } : {}),
         ...(policy ? { policySource: policy.source, policyVersion: policy.policy.version, policyHash: policy.policyHash } : {}),
+        ...(policyLoadError ? { policyLoadError } : {}),
       },
     };
   };
