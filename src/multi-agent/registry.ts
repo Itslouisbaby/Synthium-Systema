@@ -203,7 +203,11 @@ export class AgentRegistryImpl implements AgentRegistry {
         this.updateStats();
       }
     } catch (error) {
-      // If config file doesn't exist or is invalid, continue with defaults
+      // Missing config is expected in many local/test environments.
+      if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return;
+      }
+      // If config file is invalid or unreadable, continue with defaults.
       console.warn(`Failed to load agent registry from ${this.configPath}:`, error);
     }
   }
