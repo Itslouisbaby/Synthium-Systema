@@ -32,37 +32,37 @@ export interface AgentPolicyContext {
 export interface AgentProfile {
   /** Unique identifier (e.g., "researcher", "coder", "reviewer") */
   readonly id: string;
-  
+
   /** Human-readable display name */
   readonly name: string;
-  
+
   /** Description of what this agent does */
   readonly description: string;
-  
+
   /** Capability tags for routing (e.g., ["web_search", "code_review"]) */
   readonly capabilities: readonly string[];
-  
+
   /** Model alias or provider/model string */
   readonly model: string;
-  
+
   /** Agent-specific system prompt */
   readonly systemPrompt: string;
-  
+
   /** Token budget per turn (default: 4000) */
   readonly maxTokensPerTurn: number;
-  
+
   /** Optional tool allowlist (restricts to these tools only) */
   readonly allowedTools?: readonly string[];
-  
+
   /** Tool blocklist (agent cannot use these) */
   readonly forbiddenTools?: readonly string[];
-  
+
   /** If true, cannot run standalone (must be child of parent session) */
   readonly parentSessionOnly: boolean;
-  
+
   /** Visual badge configuration for transcript */
   readonly badge: AgentBadge;
-  
+
   /** Default routing priority (higher = preferred for capability matches) */
   readonly routingPriority: number;
 }
@@ -73,13 +73,13 @@ export interface AgentProfile {
 export interface AgentBadge {
   /** Display name (may differ from profile.name) */
   readonly displayName: string;
-  
+
   /** Single emoji character */
   readonly emoji: string;
-  
+
   /** Hex color for UI rendering (e.g., "#4A90D9") */
   readonly color: string;
-  
+
   /** Short abbreviation for compact display (max 3 chars) */
   readonly abbreviation: string;
 }
@@ -91,22 +91,22 @@ export interface AgentBadge {
 export interface AgentRegistry {
   /** Get a profile by ID */
   getProfile(agentId: string): AgentProfile | undefined;
-  
+
   /** Get all profiles matching a capability */
   findByCapability(capability: string): AgentProfile[];
-  
+
   /** Get all registered profiles */
   getAllProfiles(): readonly AgentProfile[];
-  
+
   /** Check if profile exists */
   hasProfile(agentId: string): boolean;
-  
+
   /** Reload profiles from disk (hot-reload support) */
   reload(): Promise<void>;
-  
+
   /** Validate a profile without registering it */
   validateProfile(profile: unknown): ValidationResult;
-  
+
   /** Get registry statistics */
   getStats(): RegistryStats;
 }
@@ -131,10 +131,10 @@ export interface RegistryStats {
 export interface TaskRouter {
   /** Route a task to the most appropriate agent */
   route(task: TaskDescription, context: RoutingContext): RoutingDecision;
-  
+
   /** Add a routing strategy */
   addStrategy(strategy: RoutingStrategy): void;
-  
+
   /** Get current strategy chain */
   getStrategies(): readonly RoutingStrategy[];
 }
@@ -145,16 +145,16 @@ export interface TaskRouter {
 export interface TaskDescription {
   /** Normalized intent (from LLM extraction or explicit) */
   readonly intent: string;
-  
+
   /** Required capabilities for this task */
   readonly requiredCapabilities: readonly string[];
-  
+
   /** Estimated complexity for load balancing */
   readonly estimatedComplexity: ComplexityLevel;
-  
+
   /** Explicitly requested agent from @mention */
   readonly preferredAgent?: string;
-  
+
   /** Original user input for context */
   readonly originalInput: string;
 }
@@ -167,19 +167,19 @@ export type ComplexityLevel = 'low' | 'medium' | 'high';
 export interface RoutingContext {
   /** Parent session identifier */
   readonly parentSessionId: string;
-  
+
   /** Current tenant context */
   readonly tenantContext: TenantContext;
-  
+
   /** Operator identity */
   readonly operator: Operator;
-  
+
   /** Current agent session (if any) */
   readonly currentAgentSession?: AgentSession;
-  
+
   /** History of recent routing decisions */
   readonly routingHistory: readonly RoutingDecision[];
-  
+
   /** Maximum agents allowed in this session */
   readonly maxAgents: number;
 }
@@ -190,22 +190,22 @@ export interface RoutingContext {
 export interface RoutingDecision {
   /** Selected agent profile ID */
   readonly agentId: string;
-  
+
   /** Which strategy made the decision */
   readonly strategy: string;
-  
+
   /** Confidence score (0.0 - 1.0) */
   readonly confidence: number;
-  
+
   /** Human-readable reasoning */
   readonly reasoning: string;
-  
+
   /** Whether this is a handoff from another agent */
   readonly isHandoff: boolean;
-  
+
   /** Previous agent (if handoff) */
   readonly handoffFrom?: string;
-  
+
   /** Timestamp of decision */
   readonly decidedAt: Date;
 }
@@ -216,7 +216,7 @@ export interface RoutingDecision {
 export interface RoutingStrategy {
   readonly name: string;
   readonly priority: number;
-  
+
   /** 
    * Attempt to route the task
    * @returns RoutingDecision if this strategy can handle, undefined otherwise
@@ -231,51 +231,51 @@ export interface RoutingStrategy {
 export interface AgentSession {
   /** Unique identifier for this agent session (UUID) */
   readonly id: string;
-  
+
   /** Parent session identifier */
   readonly parentSessionId: string;
-  
+
   /** Agent profile being used */
   readonly agentId: string;
-  
+
   /** When this agent was activated */
   readonly startedAt: Date;
-  
+
   /** When this agent completed (undefined if active) */
-  readonly completedAt?: Date;
-  
+  completedAt?: Date;
+
   /** Previous agent session (if handoff) */
   readonly handoffFrom?: string;
-  
+
   /** Reason for this handoff/activation */
   readonly handoffReason: string;
-  
+
   /** Routing decision that led to this agent */
   readonly routingDecision: RoutingDecision;
-  
+
   /** Tenant context (inherited from parent) */
   readonly tenantId: string;
-  
+
   /** Operator context (inherited from parent) */
   readonly operatorId: string;
-  
+
   /** Policy context with agent-specific fields */
   readonly policyContext: AgentPolicyContext;
-  
+
   /** Agent's isolated working memory */
-  readonly workingMemory: WorkingMemory;
-  
+  workingMemory: WorkingMemory;
+
   /** Handoff packet received (if any) */
   readonly receivedHandoff?: HandoffPacket;
-  
+
   /** Status of this agent session */
   status: AgentSessionStatus;
-  
+
   /** Tool call statistics */
   stats: AgentSessionStats;
 }
 
-export type AgentSessionStatus = 
+export type AgentSessionStatus =
   | 'initializing'
   | 'active'
   | 'handoff_pending'
@@ -296,13 +296,13 @@ export interface AgentSessionStats {
 export interface WorkingMemory {
   /** Short-term context window */
   readonly contextWindow: readonly MemoryFragment[];
-  
+
   /** Agent's notes/scratchpad */
   readonly scratchpad: string;
-  
+
   /** Key artifacts produced */
   readonly artifacts: readonly string[];
-  
+
   /** Maximum fragments to retain */
   readonly maxFragments: number;
 }
@@ -321,28 +321,28 @@ export interface MemoryFragment {
 export interface HandoffPacket {
   /** Unique identifier for this handoff */
   readonly handoffId: string;
-  
+
   /** Source agent session */
   readonly fromAgentSessionId: string;
-  
+
   /** Target agent profile */
   readonly toAgentId: string;
-  
+
   /** Timestamp */
   readonly createdAt: Date;
-  
+
   /** Summary of work completed by source agent */
   readonly workSummary: WorkSummary;
-  
+
   /** Key findings/artifacts to transfer */
   readonly keyFindings: readonly KeyFinding[];
-  
+
   /** Open questions or blockers */
   readonly openQuestions: readonly string[];
-  
+
   /** Relevant context fragments from source */
   readonly contextTransfer: readonly ContextTransferItem[];
-  
+
   /** Routing decision that triggered this handoff */
   readonly routingDecision: RoutingDecision;
 }
@@ -380,28 +380,28 @@ export interface AgentSessionManager {
     parentSessionId: string,
     handoffPacket?: HandoffPacket
   ): Promise<AgentSession>;
-  
+
   /** Get active session (if any) */
   getActiveSession(): AgentSession | undefined;
-  
+
   /** Get session by ID */
   getSession(sessionId: string): AgentSession | undefined;
-  
+
   /** Get all sessions for parent */
   getAllSessions(): readonly AgentSession[];
-  
+
   /** Complete current session and create handoff */
   initiateHandoff(
     reason: string,
     workSummary: WorkSummary
   ): Promise<HandoffPacket>;
-  
+
   /** Mark session as complete */
   completeSession(sessionId: string, output: AgentOutput): Promise<void>;
-  
+
   /** Terminate session with error */
   failSession(sessionId: string, error: Error): Promise<void>;
-  
+
   /** Get session history in chronological order */
   getSessionHistory(): readonly AgentSession[];
 }
@@ -418,13 +418,13 @@ export interface AgentOutput {
  */
 export interface AgentTranscriptEntry {
   // ... existing transcript fields ...
-  
+
   /** Agent attribution (undefined for operator messages) */
   readonly agentAttribution?: AgentAttribution;
-  
+
   /** Type of entry for rendering decisions */
   readonly entryType: TranscriptEntryType;
-  
+
   /** Visual rendering hints */
   readonly renderingHints: RenderingHints;
 }
@@ -432,24 +432,24 @@ export interface AgentTranscriptEntry {
 export interface AgentAttribution {
   /** Agent profile ID */
   readonly agentId: string;
-  
+
   /** Agent session ID (specific activation) */
   readonly agentSessionId: string;
-  
+
   /** Display badge */
   readonly badge: AgentBadge;
-  
+
   /** Why this agent was chosen */
   readonly routingReason: string;
-  
+
   /** Previous agent (if handoff) */
   readonly handoffFrom?: string;
-  
+
   /** Time agent became active for this message */
   readonly activatedAt: Date;
 }
 
-export type TranscriptEntryType = 
+export type TranscriptEntryType =
   | 'operator_input'
   | 'agent_response'
   | 'handoff_transition'
@@ -496,10 +496,10 @@ export interface AgentContext {
 export interface MultiAgentTenantContext extends TenantContext {
   /** Maximum agents allowed per session for this tenant */
   readonly maxAgentsPerSession: number;
-  
+
   /** Allowed agent profiles for this tenant */
   readonly allowedAgentProfiles?: readonly string[];
-  
+
   /** Tenant-specific agent profile overrides */
   readonly agentProfileOverrides?: Record<string, Partial<AgentProfile>>;
 }
@@ -510,22 +510,22 @@ export interface MultiAgentTenantContext extends TenantContext {
 export interface AgentWorkspace {
   /** Base tenant workspace */
   readonly tenantWorkspace: TenantWorkspace;
-  
+
   /** Agent session identifier */
   readonly agentSessionId: string;
-  
+
   /** Agent-scoped path for artifacts */
   readonly agentArtifactsPath: string;
-  
+
   /** Agent-scoped path for temporary files */
   readonly agentTempPath: string;
-  
+
   /** Agent-scoped path for working memory */
   readonly agentMemoryPath: string;
-  
+
   /** Check if path is within agent scope */
   isPathAllowed(path: string): boolean;
-  
+
   /** Resolve path within agent scope */
   resolvePath(subPath: string): string;
 }

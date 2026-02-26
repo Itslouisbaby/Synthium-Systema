@@ -26,7 +26,7 @@ export class ExplicitMentionStrategy implements RoutingStrategy {
   readonly name = 'explicit_mention';
   readonly priority = 100; // Highest priority
 
-  constructor(private readonly registry: AgentRegistry) {}
+  constructor(private readonly registry: AgentRegistry) { }
 
   route(task: TaskDescription, context: RoutingContext): RoutingDecision | undefined {
     if (!task.preferredAgent) return undefined;
@@ -63,14 +63,14 @@ export class CapabilityMatchStrategy implements RoutingStrategy {
   readonly name = 'capability_match';
   readonly priority = 80;
 
-  constructor(private readonly registry: AgentRegistry) {}
+  constructor(private readonly registry: AgentRegistry) { }
 
   route(task: TaskDescription, context: RoutingContext): RoutingDecision | undefined {
     if (task.requiredCapabilities.length === 0) return undefined;
 
     // Find all agents that match at least one capability
     const candidateAgents: Array<{ profile: AgentProfile; matchScore: number }> = [];
-    
+
     for (const capability of task.requiredCapabilities) {
       const agents = this.registry.findByCapability(capability);
       for (const agent of agents) {
@@ -116,7 +116,7 @@ export class StickySessionStrategy implements RoutingStrategy {
   readonly name = 'sticky_session';
   readonly priority = 60;
 
-  constructor(private readonly registry: AgentRegistry) {}
+  constructor(private readonly registry: AgentRegistry) { }
 
   route(task: TaskDescription, context: RoutingContext): RoutingDecision | undefined {
     // Only apply if there's a current agent session
@@ -150,10 +150,10 @@ export class StickySessionStrategy implements RoutingStrategy {
 export class RoundRobinStrategy implements RoutingStrategy {
   readonly name = 'round_robin';
   readonly priority = 40;
-  
+
   private static agentCounters: Map<string, number> = new Map(); // Global counter for round-robin
 
-  constructor(private readonly registry: AgentRegistry) {}
+  constructor(private readonly registry: AgentRegistry) { }
 
   route(task: TaskDescription, context: RoutingContext): RoutingDecision | undefined {
     if (task.requiredCapabilities.length === 0) return undefined;
@@ -175,12 +175,12 @@ export class RoundRobinStrategy implements RoutingStrategy {
     matchingAgents.sort((a, b) => b.routingPriority - a.routingPriority);
 
     // Get or initialize counter for this capability set
-    const capabilityKey = task.requiredCapabilities.sort().join(',');
+    const capabilityKey = [...task.requiredCapabilities].sort().join(',');
     let counter = RoundRobinStrategy.agentCounters.get(capabilityKey) || 0;
-    
+
     // Select agent using round-robin
     const selectedAgent = matchingAgents[counter % matchingAgents.length];
-    
+
     // Update counter for next time
     RoundRobinStrategy.agentCounters.set(capabilityKey, counter + 1);
 
@@ -203,7 +203,7 @@ export class OrchestratorFallbackStrategy implements RoutingStrategy {
   readonly name = 'orchestrator_fallback';
   readonly priority = 10; // Lowest priority
 
-  constructor(private readonly registry: AgentRegistry) {}
+  constructor(private readonly registry: AgentRegistry) { }
 
   route(task: TaskDescription, context: RoutingContext): RoutingDecision {
     return {
@@ -228,7 +228,7 @@ export class TaskRouterImpl implements TaskRouter {
   constructor(registry?: AgentRegistry) {
     // Use provided registry or create default one
     this.registry = registry || new AgentRegistryImpl();
-    
+
     // Register default strategies
     this.addStrategy(new ExplicitMentionStrategy(this.registry));
     this.addStrategy(new CapabilityMatchStrategy(this.registry));
@@ -243,7 +243,7 @@ export class TaskRouterImpl implements TaskRouter {
   route(task: TaskDescription, context: RoutingContext): RoutingDecision {
     // Try each strategy in priority order
     const sortedStrategies = [...this.strategies].sort((a, b) => b.priority - a.priority);
-    
+
     for (const strategy of sortedStrategies) {
       const decision = strategy.route(task, context);
       if (decision) {
@@ -252,7 +252,7 @@ export class TaskRouterImpl implements TaskRouter {
         return decision;
       }
     }
-    
+
     // This should never happen due to fallback strategy, but just in case
     const fallbackDecision: RoutingDecision = {
       agentId: 'orchestrator',
@@ -263,7 +263,7 @@ export class TaskRouterImpl implements TaskRouter {
       handoffFrom: context.currentAgentSession?.agentId,
       decidedAt: new Date()
     };
-    
+
     this.logRoutingDecision(fallbackDecision, task, context);
     return fallbackDecision;
   }
@@ -290,7 +290,7 @@ export class TaskRouterImpl implements TaskRouter {
     console.debug(`[ROUTER] Task routed to ${decision.agentId} via ${decision.strategy} (confidence: ${decision.confidence})`);
     console.debug(`[ROUTER] Reason: ${decision.reasoning}`);
     console.debug(`[ROUTER] Task: ${task.intent.substring(0, 100)}...`);
-    
+
     // Additional structured logging could go here
     // For example: writing to a database, sending to a logging service, etc.
   }

@@ -191,10 +191,13 @@ export class SemanticStore {
     const words = this.extractKeywords(fact.statement);
     for (const word of words) {
       if (!this.index[word]) {
-        this.index[word] = [];
+        this.index = { ...this.index, [word]: [] };
       }
       if (!this.index[word].includes(fact.factId)) {
-        this.index[word].push(fact.factId);
+        this.index = {
+          ...this.index,
+          [word]: [...this.index[word], fact.factId]
+        };
       }
     }
   }

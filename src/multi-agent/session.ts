@@ -5,9 +5,9 @@
  * including creation, retrieval, termination, and timeout handling.
  */
 
-import { 
-  AgentSession, 
-  AgentSessionStatus, 
+import {
+  AgentSession,
+  AgentSessionStatus,
   AgentSessionStats,
   WorkingMemory,
   MemoryFragment,
@@ -35,7 +35,7 @@ export class SessionManager {
     handoffPacket?: HandoffPacket
   ): AgentSession {
     const sessionId = randomUUID();
-    
+
     // Create initial working memory
     const workingMemory: WorkingMemory = {
       contextWindow: [],
@@ -69,7 +69,7 @@ export class SessionManager {
       sessionId: sessionId,
       tenant: {} as any, // Would be inherited from parent in real implementation
       operator: {} as any, // Would be inherited from parent in real implementation
-      autonomyLevel: 'full' // Would be inherited from parent in real implementation
+      autonomyLevel: 5 as any // Would be inherited from parent in real implementation
     };
 
     const session: AgentSession = {
@@ -79,8 +79,8 @@ export class SessionManager {
       startedAt: new Date(),
       completedAt: undefined,
       handoffFrom: handoffPacket?.fromAgentSessionId,
-      handoffReason: handoffPacket 
-        ? `Handoff from ${handoffPacket.fromAgentSessionId}` 
+      handoffReason: handoffPacket
+        ? `Handoff from ${handoffPacket.fromAgentSessionId}`
         : 'Initial session creation',
       routingDecision,
       tenantId: '', // Would be inherited from parent in real implementation
@@ -94,19 +94,19 @@ export class SessionManager {
 
     // Store the session
     this.sessions.set(sessionId, session);
-    
+
     // Track parent-child relationship
     if (!this.parentChildMap.has(parentSessionId)) {
       this.parentChildMap.set(parentSessionId, new Set());
     }
     this.parentChildMap.get(parentSessionId)?.add(sessionId);
-    
+
     // Initialize transcript
     this.transcripts.set(sessionId, []);
-    
+
     // Set timeout for automatic closure
     this.setTimeout(sessionId);
-    
+
     // Log session creation to transcript
     this.logToTranscript(sessionId, {
       timestamp: new Date(),
@@ -114,7 +114,7 @@ export class SessionManager {
       content: `Session created for agent ${agentId}`,
       metadata: { sessionId, parentSessionId, agentId }
     });
-    
+
     return session;
   }
 
@@ -137,7 +137,7 @@ export class SessionManager {
   getChildSessions(parentSessionId: string): AgentSession[] {
     const childIds = this.parentChildMap.get(parentSessionId);
     if (!childIds) return [];
-    
+
     const sessions: AgentSession[] = [];
     for (const childId of childIds) {
       const session = this.sessions.get(childId);
@@ -154,27 +154,27 @@ export class SessionManager {
   endSession(sessionId: string, output?: AgentOutput): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    
+
     // Update session status
     session.completedAt = new Date();
     session.status = 'completed';
-    
+
     // Log session completion to transcript
     this.logToTranscript(sessionId, {
       timestamp: new Date(),
       type: 'system',
       content: `Session ended for agent ${session.agentId}`,
-      metadata: { 
-        sessionId, 
-        agentId: session.agentId, 
+      metadata: {
+        sessionId,
+        agentId: session.agentId,
         duration: session.completedAt.getTime() - session.startedAt.getTime(),
         output: output ? { content: output.content.substring(0, 100) + '...' } : undefined
       }
     });
-    
+
     // Clear timeout
     this.clearTimeout(sessionId);
-    
+
     // Archive transcript (in real implementation, this would be persisted)
     const transcript = this.transcripts.get(sessionId) || [];
     console.debug(`[SESSION] Archived transcript for session ${sessionId} (${transcript.length} entries)`);
@@ -194,7 +194,7 @@ export class SessionManager {
     if (!this.transcripts.has(sessionId)) {
       this.transcripts.set(sessionId, []);
     }
-    
+
     const transcript = this.transcripts.get(sessionId);
     if (transcript) {
       transcript.push(entry);
@@ -207,15 +207,15 @@ export class SessionManager {
   updateWorkingMemory(sessionId: string, fragment: MemoryFragment): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    
+
     // Add fragment to context window
     const newContextWindow = [...session.workingMemory.contextWindow, fragment];
-    
+
     // Trim if exceeding max fragments
     if (newContextWindow.length > session.workingMemory.maxFragments) {
       newContextWindow.shift(); // Remove oldest fragment
     }
-    
+
     // Update working memory
     session.workingMemory = {
       ...session.workingMemory,
@@ -229,7 +229,7 @@ export class SessionManager {
   updateStats(sessionId: string, updates: Partial<AgentSessionStats>): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    
+
     session.stats = {
       ...session.stats,
       ...updates
@@ -243,7 +243,7 @@ export class SessionManager {
     const timeout = setTimeout(() => {
       this.handleSessionTimeout(sessionId);
     }, DEFAULT_SESSION_TIMEOUT_MS);
-    
+
     this.timeouts.set(sessionId, timeout);
   }
 
@@ -272,11 +272,11 @@ export class SessionManager {
   private handleSessionTimeout(sessionId: string): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    
+
     // Only end active sessions
     if (session.status === 'active' || session.status === 'initializing') {
       console.debug(`[SESSION] Session ${sessionId} timed out after ${DEFAULT_SESSION_TIMEOUT_MS}ms`);
-      
+
       // Log timeout to transcript
       this.logToTranscript(sessionId, {
         timestamp: new Date(),
@@ -284,11 +284,11 @@ export class SessionManager {
         content: `Session timed out for agent ${session.agentId}`,
         metadata: { sessionId, agentId: session.agentId }
       });
-      
+
       // End session
       this.endSession(sessionId);
     }
-    
+
     // Clean up timeout reference
     this.timeouts.delete(sessionId);
   }

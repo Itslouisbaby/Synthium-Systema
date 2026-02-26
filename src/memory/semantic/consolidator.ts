@@ -3,9 +3,9 @@
  * Extracts semantic facts from tool execution results
  */
 import { randomUUID, createHash } from 'node:crypto';
-import type { UUID, TimestampMs, SessionKey, SemanticFact } from '../../types.js';
+import type { UUID, TimestampMs, SessionKey } from '../../types.js';
 import type { PlanStep } from '../../types.js';
-import type { LocalReadOutput, LocalWriteOutput, LocalSearchOutput } from '../../tools/types.js';
+import type { SemanticFact } from './types.js';
 
 /**
  * Consolidator - Extracts semantic facts from tool results
@@ -73,7 +73,7 @@ export class Consolidator {
     sessionKey: SessionKey,
     timestampMs: TimestampMs
   ): SemanticFact | null {
-    const output = step.outputSummary as LocalReadOutput;
+    const output = step.outputSummary as any;
     if (!output || typeof output.content !== 'string') {
       return null;
     }
@@ -90,10 +90,8 @@ export class Consolidator {
 
     return {
       factId: randomUUID(),
-      sessionKey,
       statement,
       statementHash,
-      toolName: 'local_read',
       evidence: [
         {
           type: 'tool_result',
@@ -118,7 +116,7 @@ export class Consolidator {
     sessionKey: SessionKey,
     timestampMs: TimestampMs
   ): SemanticFact | null {
-    const output = step.outputSummary as LocalWriteOutput;
+    const output = step.outputSummary as any;
     if (!output || typeof output.bytesWritten !== 'number') {
       return null;
     }
@@ -133,10 +131,8 @@ export class Consolidator {
 
     return {
       factId: randomUUID(),
-      sessionKey,
       statement,
       statementHash,
-      toolName: 'local_write',
       evidence: [
         {
           type: 'tool_result',
@@ -161,7 +157,7 @@ export class Consolidator {
     sessionKey: SessionKey,
     timestampMs: TimestampMs
   ): SemanticFact | null {
-    const output = step.outputSummary as LocalSearchOutput;
+    const output = step.outputSummary as any;
     if (!output || typeof output.totalMatches !== 'number') {
       return null;
     }
@@ -179,10 +175,8 @@ export class Consolidator {
 
     return {
       factId: randomUUID(),
-      sessionKey,
       statement,
       statementHash,
-      toolName: 'local_search',
       evidence: [
         {
           type: 'tool_result',
