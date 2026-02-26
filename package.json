@@ -13,8 +13,7 @@
   },
   "bin": {
     "synth": "dist/cli/index.mjs",
-    "synth-tui": "dist/tui/index.mjs",
-    "synth-ansi": "dist/tui-ansi/index.mjs"
+    "synth-tui": "dist/tui/index.mjs"
   },
   "files": [
     "dist",
@@ -22,11 +21,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:cli && npm run build:tui && npm run build:tui-ansi",
+    "build": "npm run build:lib && npm run build:cli && npm run build:tui",
     "build:lib": "tsdown src/index.ts --format esm --dts --clean",
     "build:cli": "tsdown src/cli/index.ts --format esm --dts --clean --outDir dist/cli",
     "build:tui": "tsdown src/tui/index.ts --format esm --dts --clean --outDir dist/tui",
-    "build:tui-ansi": "tsdown src/tui-ansi/index.ts --format esm --dts --clean --outDir dist/tui-ansi",
     "test": "vitest run",
     "dev": "vitest",
     "lint": "echo \"No lint configured\""
