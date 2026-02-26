@@ -30,7 +30,7 @@ import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
 import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
 import { Autonomy } from './policy/types.js';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /** Synth runtime configuration */
@@ -285,15 +285,60 @@ export class SynthRuntime {
     }
 
     // 3. Run real pipeline adapter (plan -> policy -> execution -> evaluation)
+    const signalCursor = this.signalBus.getTailOffset(sessionKey);
+
     const pipelineResult = await this.v1Pipeline(
       { content: input, sessionKey },
       {
         artifactBaseDir: join(this.config.baseDir, 'artifacts'),
         autonomyLevel: Autonomy.Level1,
         enableMemory: this.config.enableMemory,
+        policyPath: join(this.config.baseDir, 'policy.yaml'),
       }
     );
-    const response = pipelineResult.evaluation.summary;
+
+    await this.signalBus.append({
+      type: 'INPUT_RECEIVED',
+      payload: { content: input, source: 'user' },
+      sessionKey,
+      sourceLoop: 'external',
+      priority: 'palpitation',
+      emittedAtMs: Date.now(),
+      dedupeKey: `input-${sessionKey}`,
+    });
+
+    await this.signalBus.append({
+      type: 'OUTPUT_READY',
+      payload: {
+        chainId: pipelineResult.plan.id,
+        content: pipelineResult.evaluation.summary,
+        contentType: 'text',
+      },
+      sessionKey,
+      sourceLoop: 'CortexLoop',
+      priority: 'event',
+      emittedAtMs: Date.now(),
+      causedBy: [],
+    });
+
+    await this.scheduler.triggerTick(sessionKey);
+
+    const response = (await this.waitForOutputSignal(sessionKey, signalCursor)) ?? pipelineResult.evaluation.summary;
+
+    await this.writeRunManifest(sessionKey, {
+      input,
+      response,
+      planId: pipelineResult.plan.id,
+      evaluation: {
+        result: pipelineResult.evaluation.result,
+        summary: pipelineResult.evaluation.summary,
+      },
+      policyDecisions: pipelineResult.artifactPaths.policyAuditEvents.map(e => ({
+        stepId: e.stepId,
+        decision: e.decision,
+        reason: e.reason,
+      })),
+    });
 
     // 4. Store response
     if (this.config.enableMemory) {
@@ -339,6 +384,45 @@ export class SynthRuntime {
     }
 
     return response;
+  }
+
+  private async waitForOutputSignal(sessionKey: string, fromOffset: number): Promise<string | null> {
+    const timeoutMs = 5000;
+    const started = Date.now();
+
+    while (Date.now() - started < timeoutMs) {
+      const signals = await this.signalBus.readTail(sessionKey, fromOffset, 200);
+      const output = signals.find(s => s.type === 'OUTPUT_READY');
+      if (output) {
+        const payload = output.payload as { content?: string };
+        if (typeof payload.content === 'string') {
+          return payload.content;
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+
+    return null;
+  }
+
+  private async writeRunManifest(sessionKey: string, payload: {
+    input: string;
+    response: string;
+    planId: string;
+    evaluation: { result: string; summary: string };
+    policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+  }): Promise<void> {
+    const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
+    await mkdir(runDir, { recursive: true });
+
+    const manifest = {
+      runId: `run-${Date.now()}`,
+      sessionKey,
+      timestampMs: Date.now(),
+      ...payload,
+    };
+
+    await writeFile(join(runDir, 'latest.json'), JSON.stringify(manifest, null, 2), 'utf8');
   }
 
   /**

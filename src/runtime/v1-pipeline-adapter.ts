@@ -1,5 +1,6 @@
 import { PolicyGate } from '../policy/gate.js';
-import { ActionClass, Autonomy } from '../policy/types.js';
+import { ActionClass, Autonomy, type ActionClassType } from '../policy/types.js';
+import { loadPolicy, simulatePolicyDecision } from '../policy-artifacts/index.js';
 import type { LLMProvider } from '../llm/llm-provider.js';
 import type { Evaluation, Plan, PlanStep } from '../types.js';
 
@@ -8,10 +9,21 @@ interface PipelineInput {
   sessionKey: string;
 }
 
+export interface PlannedAction {
+  intent: string;
+  actionClass: ActionClassType;
+  target?: string;
+}
+
+export interface RuntimePlanner {
+  plan(input: PipelineInput): PlannedAction[];
+}
+
 interface PipelineConfig {
   artifactBaseDir: string;
   autonomyLevel?: number;
   enableMemory?: boolean;
+  policyPath?: string;
 }
 
 interface PipelineResult {
@@ -24,6 +36,11 @@ interface PipelineResult {
       reason: string;
       timestampMs: number;
     }>;
+    replanRequested: boolean;
+    replanReason?: string;
+    policySource?: string;
+    policyVersion?: string;
+    policyHash?: string;
   };
 }
 
@@ -46,71 +63,138 @@ function detectActionClass(content: string): { actionClass: PlanStep['actionClas
   return { actionClass: ActionClass.LocalOnly };
 }
 
-export function createV1PipelineAdapter(llm: LLMProvider) {
+function defaultPlanner(input: PipelineInput): PlannedAction[] {
+  return input.content
+    .split(/\s+and\s+/i)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(intent => ({ intent, ...detectActionClass(intent) }));
+}
+
+export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanner = { plan: defaultPlanner }) {
   return async function runPipeline(input: PipelineInput, config: PipelineConfig): Promise<PipelineResult> {
     const now = Date.now();
     const planId = `plan-${now}`;
     const evalId = `eval-${now}`;
 
-    const { actionClass, target } = detectActionClass(input.content);
-    const stepId = `step-${now}`;
+    const plannedActions = planner.plan(input);
+    const policy = config.policyPath
+      ? await loadPolicy({ canonicalPath: config.policyPath, deprecatedFallbackPath: config.policyPath }).catch(() => null)
+      : null;
 
     const policyGate = new PolicyGate((config.autonomyLevel as 1 | 2 | 3) ?? Autonomy.Level1, {
       baseDir: config.artifactBaseDir,
       allowlist: ['example.com', 'docs.example.com'],
-      policyId: 'runtime-default',
-      policyVersion: 'phase-a',
-      policyEffectiveAt: new Date(now).toISOString(),
-      policyHash: 'local-runtime',
+      policyId: policy?.policy.policyId ?? 'runtime-default',
+      policyVersion: policy?.policy.version ?? 'phase-a',
+      policyEffectiveAt: policy?.policy.effectiveAt ?? new Date(now).toISOString(),
+      policyHash: policy?.policyHash ?? 'local-runtime',
     });
 
-    const decision = policyGate.evaluate({ stepId, actionClass, target });
-    const audit = policyGate.createAuditEvent(stepId, decision, now);
+    const steps: PlanStep[] = [];
+    const policyAuditEvents: PipelineResult['artifactPaths']['policyAuditEvents'] = [];
+    let replanRequested = false;
+    let replanReason: string | undefined;
 
-    let status: PlanStep['status'];
-    let outputSummary: unknown;
-    let result: Evaluation['result'];
-    let summary: string;
+    for (let i = 0; i < plannedActions.length; i++) {
+      const action = plannedActions[i];
+      const stepId = `step-${now}-${i}`;
 
-    if (decision.decision === 'allow') {
-      try {
-        const response = await llm.generateWithContext(input.content, [
-          'You are executing a policy-approved local reasoning step.',
-        ]);
-        status = 'executed';
-        outputSummary = response;
-        result = 'success';
-        summary = response;
-      } catch (error) {
-        status = 'failed';
-        result = 'failure';
-        summary = `Execution failed: ${error instanceof Error ? error.message : String(error)}`;
+      let decision = policyGate.evaluate({ stepId, actionClass: action.actionClass, target: action.target });
+
+      if (policy && action.actionClass === ActionClass.ExternalRead && action.target) {
+        const sim = simulatePolicyDecision(policy.policy, { operation: 'external_read', domain: action.target });
+        if (sim.decision === 'deny') {
+          decision = {
+            decision: 'block',
+            reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
+          };
+        }
       }
-    } else if (decision.decision === 'awaiting_approval') {
-      status = 'awaiting_approval';
-      result = 'partial';
-      summary = `Awaiting approval: ${decision.reason}`;
-    } else {
-      status = 'blocked';
-      result = 'failure';
-      summary = `Blocked by policy: ${decision.reason}`;
+
+      const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
+      policyAuditEvents.push({
+        stepId: audit.stepId,
+        decision: audit.decision,
+        reason: decision.reason,
+        timestampMs: audit.timestampMs,
+      });
+
+      if (decision.decision === 'allow') {
+        try {
+          const response = await llm.generateWithContext(action.intent, [
+            'You are executing a policy-approved reasoning step.',
+          ]);
+          steps.push({
+            stepId,
+            intent: action.intent,
+            actionClass: action.actionClass,
+            status: 'executed',
+            toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
+            toolInput: { content: action.intent, target: action.target },
+            outputSummary: response,
+          });
+        } catch (error) {
+          replanRequested = true;
+          replanReason = error instanceof Error ? error.message : String(error);
+          steps.push({
+            stepId,
+            intent: action.intent,
+            actionClass: action.actionClass,
+            status: 'failed',
+            toolInput: { content: action.intent, target: action.target },
+            outputSummary: `Execution failed: ${replanReason}`,
+          });
+        }
+        continue;
+      }
+
+      if (decision.decision === 'awaiting_approval') {
+        steps.push({
+          stepId,
+          intent: action.intent,
+          actionClass: action.actionClass,
+          status: 'awaiting_approval',
+          toolInput: { content: action.intent, target: action.target },
+          outputSummary: `Awaiting approval: ${decision.reason}`,
+        });
+        continue;
+      }
+
+      steps.push({
+        stepId,
+        intent: action.intent,
+        actionClass: action.actionClass,
+        status: 'blocked',
+        toolInput: { content: action.intent, target: action.target },
+        outputSummary: `Blocked by policy: ${decision.reason}`,
+      });
     }
+
+    const hasFailed = steps.some(s => s.status === 'failed');
+    const hasBlocked = steps.some(s => s.status === 'blocked');
+    const hasAwaiting = steps.some(s => s.status === 'awaiting_approval');
+    const allExecuted = steps.length > 0 && steps.every(s => s.status === 'executed');
+
+    const result: Evaluation['result'] = allExecuted
+      ? 'success'
+      : hasFailed || hasBlocked
+        ? 'failure'
+        : hasAwaiting
+          ? 'partial'
+          : 'partial';
+
+    const summary = steps
+      .map(s => String(s.outputSummary ?? s.intent))
+      .join(' | ')
+      .concat(replanRequested ? '. Replan suggested.' : '');
 
     const plan: Plan = {
       id: planId,
       sessionKey: input.sessionKey,
       createdAtMs: now,
-      steps: [
-        {
-          stepId,
-          intent: input.content,
-          actionClass,
-          status,
-          toolName: actionClass === ActionClass.LocalOnly ? 'local_reason' : undefined,
-          toolInput: { content: input.content },
-          outputSummary,
-        },
-      ],
+      steps,
     };
 
     const evaluation: Evaluation = {
@@ -126,14 +210,10 @@ export function createV1PipelineAdapter(llm: LLMProvider) {
       plan,
       evaluation,
       artifactPaths: {
-        policyAuditEvents: [
-          {
-            stepId: audit.stepId,
-            decision: audit.decision,
-            reason: audit.reason,
-            timestampMs: audit.timestampMs,
-          },
-        ],
+        policyAuditEvents,
+        replanRequested,
+        ...(replanReason ? { replanReason } : {}),
+        ...(policy ? { policySource: policy.source, policyVersion: policy.policy.version, policyHash: policy.policyHash } : {}),
       },
     };
   };
