@@ -43,12 +43,14 @@ export interface InputLoopConfig {
  */
 export class InputLoop implements MicroLoop {
   readonly name = 'InputLoop';
-  readonly rhythm = 'palpitation' as const;
+  // heartbeat so the scheduler always runs it — necessary because InputLoop
+  // is the *source* of INPUT_RECEIVED and cannot be triggered by its own output.
+  readonly rhythm = 'heartbeat' as const;
   readonly tickBudgetMs = 50;
   readonly maxSignalsOut = 5;
   readonly reads = ['focus'] as const;
   readonly writes = ['executionLedger', 'focus'] as const;
-  readonly subscriptions: SignalType[] = ['INPUT_RECEIVED']; // Also accepts external inputs directly
+  readonly subscriptions: SignalType[] = ['INPUT_RECEIVED'];
 
   private readonly config: InputLoopConfig;
   private externalInputQueue: Map<SessionKey, ExternalInput[]> = new Map();
