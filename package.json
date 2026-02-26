@@ -27,7 +27,8 @@
     "build:tui": "tsdown src/tui/index.ts --format esm --dts --clean --outDir dist/tui",
     "test": "vitest run",
     "dev": "vitest",
-    "lint": "echo \"No lint configured\""
+    "lint": "npm run typecheck",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "blessed": "^0.1.81",
