@@ -6,10 +6,10 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { 
-  BeliefGraph, 
-  BeliefEntity, 
-  BeliefRelation, 
+import type {
+  BeliefGraph,
+  BeliefEntity,
+  BeliefRelation,
   Belief,
   SessionKey,
   TimestampMs,
@@ -94,9 +94,8 @@ export class BeliefGraphManager {
       contradictions: [],
       createdAtMs: now,
     };
-    
-    graph.versionHash = this.computeGraphHash(graph);
-    return graph;
+
+    return { ...graph, versionHash: this.computeGraphHash(graph) };
   }
 
   /**
@@ -121,10 +120,10 @@ export class BeliefGraphManager {
     provenance: { source: 'signal' | 'tool' | 'user' | 'inference'; refId: string }
   ): BeliefEntity {
     const graph = this.getGraph(sessionKey);
-    
+
     const timestamp = Date.now();
     const entityId = deterministicId.generateMemoryId('entity', timestamp, entity.type);
-    
+
     const newEntity: BeliefEntity = {
       ...entity,
       entityId,
@@ -148,10 +147,10 @@ export class BeliefGraphManager {
     provenance: { source: 'signal' | 'tool' | 'user' | 'inference'; refId: string }
   ): BeliefRelation {
     const graph = this.getGraph(sessionKey);
-    
+
     const timestamp = Date.now();
-    const relationId = deterministicId.generateMemoryId('relation', timestamp, `${relation.from}-${relation.to}`);
-    
+    const relationId = deterministicId.generateMemoryId('relation', timestamp, `${relation.sourceId}-${relation.targetId}`);
+
     const newRelation: BeliefRelation = {
       ...relation,
       relationId,
@@ -175,10 +174,10 @@ export class BeliefGraphManager {
     provenance: { source: 'signal' | 'tool' | 'user' | 'inference'; refId: string }
   ): Belief {
     const graph = this.getGraph(sessionKey);
-    
+
     const timestamp = Date.now();
-    const beliefId = deterministicId.generateMemoryId('belief', timestamp, belief.entityId || 'unknown');
-    
+    const beliefId = deterministicId.generateMemoryId('belief', timestamp, (belief as any)?.entityId || 'unknown');
+
     const newBelief: Belief = {
       ...belief,
       beliefId,
@@ -208,12 +207,12 @@ export class BeliefGraphManager {
     provenance: { source: 'signal' | 'tool' | 'user' | 'inference'; refId: string }
   ): Belief | null {
     const graph = this.getGraph(sessionKey);
-    
+
     const beliefIndex = graph.beliefs.findIndex(b => b.beliefId === beliefId);
     if (beliefIndex === -1) return null;
 
     const oldBelief = graph.beliefs[beliefIndex];
-    
+
     // Create new version instead of modifying
     const updatedBelief: Belief = {
       ...oldBelief,
@@ -243,12 +242,12 @@ export class BeliefGraphManager {
     provenance: { source: 'signal' | 'tool' | 'user' | 'inference'; refId: string }
   ): boolean {
     const graph = this.getGraph(sessionKey);
-    
+
     const beliefIndex = graph.beliefs.findIndex(b => b.beliefId === beliefId);
     if (beliefIndex === -1) return false;
 
     const oldBelief = graph.beliefs[beliefIndex];
-    
+
     // Mark as retired by setting confidence to 0 and adding retirement note
     const retiredBelief: Belief = {
       ...oldBelief,
@@ -319,11 +318,11 @@ export class BeliefGraphManager {
     // Numeric contradictions (e.g., "value is 5" vs "value is 10")
     const numMatch1 = s1.match(/(\w+)\s+is\s+(\d+)/);
     const numMatch2 = s2.match(/(\w+)\s+is\s+(\d+)/);
-    
+
     if (numMatch1 && numMatch2) {
       const [, key1, val1] = numMatch1;
       const [, key2, val2] = numMatch2;
-      
+
       if (key1 === key2 && val1 !== val2) {
         return true;
       }
@@ -348,13 +347,13 @@ export class BeliefGraphManager {
     // Track versions
     const versions = this.versions.get(sessionKey) ?? [];
     versions.push(versioned);
-    
+
     // Enforce max versions
     const maxVersions = this.config.maxVersions ?? 100;
     if (versions.length > maxVersions) {
       versions.shift();
     }
-    
+
     this.versions.set(sessionKey, versions);
   }
 
@@ -381,7 +380,7 @@ export class BeliefGraphManager {
    */
   getEntityBeliefs(sessionKey: SessionKey, entityId: string): Belief[] {
     const graph = this.getGraph(sessionKey);
-    return graph.beliefs.filter(b => 
+    return graph.beliefs.filter(b =>
       b.statement.toLowerCase().includes(entityId.toLowerCase())
     );
   }
@@ -400,7 +399,7 @@ export class BeliefGraphManager {
       if (relation.type === relationType) {
         const source = graph.entities.find(e => e.entityId === relation.sourceId);
         const target = graph.entities.find(e => e.entityId === relation.targetId);
-        
+
         if (source && target) {
           results.push({ source, relation, target });
         }
@@ -443,13 +442,13 @@ export class BeliefGraphManager {
   async loadGraph(sessionKey: SessionKey, version?: number): Promise<BeliefGraph | null> {
     try {
       const dir = this.getWorldModelDir(sessionKey);
-      
+
       if (version) {
         const filePath = join(dir, `v${version}.json`);
         const content = await readFile(filePath, 'utf-8');
         return JSON.parse(content);
       }
-      
+
       return null;
     } catch {
       return null;

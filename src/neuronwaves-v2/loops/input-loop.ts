@@ -3,14 +3,15 @@
  * Section 4.1: Input normalization
  */
 
-import type { 
-  MicroLoop, 
-  TickResult, 
-  Signal, 
+import type {
+  MicroLoop,
+  TickResult,
+  Signal,
   SignalType,
   WorkingState,
   SessionKey,
-  TimestampMs
+  TimestampMs,
+  StateDelta
 } from '../types.js';
 import { SignalBus } from '../runtime/signal-bus.js';
 
@@ -77,7 +78,7 @@ export class InputLoop implements MicroLoop {
     sessionKey: SessionKey;
   }): TickResult {
     const { workingState, sessionKey } = input;
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas: StateDelta[] = [];
 
     // Process external inputs from queue
@@ -141,8 +142,8 @@ export class InputLoop implements MicroLoop {
   /**
    * Normalize external input into signals
    */
-  private normalizeInput(input: ExternalInput, sessionKey: SessionKey): Signal[] {
-    const signals: Signal[] = [];
+  private normalizeInput(input: ExternalInput, sessionKey: SessionKey): any[] {
+    const signals: any[] = [];
     const timestampMs = input.timestampMs ?? Date.now();
 
     // Check for custom normalizer

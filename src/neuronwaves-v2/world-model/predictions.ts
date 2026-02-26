@@ -196,8 +196,8 @@ export class PredictionsManager {
   /**
    * Check all predictions and emit mismatch signals
    */
-  checkAllPredictions(sessionKey: SessionKey): Array<PredictionCheck & { signal?: Omit<Signal, 'signalId'> }> {
-    const results: Array<PredictionCheck & { signal?: Omit<Signal, 'signalId'> }> = [];
+  checkAllPredictions(sessionKey: SessionKey): Array<PredictionCheck & { signal?: Omit<Signal, 'signalId'> & { signalId?: string }}> {
+    const results: Array<PredictionCheck & { signal?: Omit<Signal, 'signalId'> & { signalId?: string }}> = [];
 
     for (const prediction of this.predictions.values()) {
       const check = this.checkPrediction(prediction.predictionId);
@@ -219,7 +219,7 @@ export class PredictionsManager {
   createMismatchSignal(
     check: PredictionCheck,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string }{
     return {
       sessionKey,
       type: 'PREDICTION_MISMATCH',
@@ -242,7 +242,7 @@ export class PredictionsManager {
   createConfirmationSignal(
     prediction: Prediction,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string }{
     return {
       sessionKey,
       type: 'BELIEF_UPDATED',

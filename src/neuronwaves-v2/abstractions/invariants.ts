@@ -400,7 +400,7 @@ export class InvariantChecker {
   createViolationSignal(
     result: InvariantCheckResult,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string }{
     return {
       sessionKey,
       type: 'INVARIANT_VIOLATION',
@@ -422,7 +422,7 @@ export class InvariantChecker {
   createRepairSignal(
     result: InvariantCheckResult,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string }{
     return {
       sessionKey,
       type: 'SUGGEST_ALTERNATIVE_PLAN',

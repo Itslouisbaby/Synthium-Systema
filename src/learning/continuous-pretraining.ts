@@ -15,6 +15,7 @@
 
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { MockLLMProvider, type LLMProvider } from '../llm/llm-provider.js';
 
 /** Configuration for continuous pre-training */
 export interface ContinuousPretrainingConfig {
@@ -29,6 +30,7 @@ export interface ContinuousPretrainingConfig {
   readonly ewcLambda: number; // Elastic Weight Consolidation strength
   readonly knowledgeDecayRate: number; // How fast unused knowledge fades
   readonly consolidationIntervalMs: number;
+  readonly llm?: LLMProvider;
 }
 
 /** A learning experience from interaction */
@@ -110,14 +112,14 @@ class MassiveEmbeddingNetwork {
   private inputDim: number;
   private hiddenDims: number[];
   private outputDim: number;
-  
+
   // Weights (stored as Float32Array for memory efficiency)
   private weights: Map<string, Float32Array> = new Map();
-  
+
   // For EWC (Elastic Weight Consolidation)
   private fisherInformation: Map<string, Float32Array> = new Map();
   private optimalWeights: Map<string, Float32Array> = new Map();
-  
+
   constructor(inputDim: number, hiddenDims: number[], outputDim: number) {
     this.inputDim = inputDim;
     this.hiddenDims = hiddenDims;
@@ -129,13 +131,13 @@ class MassiveEmbeddingNetwork {
     // Layer 1: input -> hidden[0]
     this.weights.set('W1', this.xavierInit(this.inputDim * this.hiddenDims[0]));
     this.weights.set('b1', new Float32Array(this.hiddenDims[0]));
-    
+
     // Hidden layers
     for (let i = 1; i < this.hiddenDims.length; i++) {
       this.weights.set(`W${i + 1}`, this.xavierInit(this.hiddenDims[i - 1] * this.hiddenDims[i]));
       this.weights.set(`b${i + 1}`, new Float32Array(this.hiddenDims[i]));
     }
-    
+
     // Output layer
     const lastHidden = this.hiddenDims[this.hiddenDims.length - 1];
     this.weights.set(`W${this.hiddenDims.length + 1}`, this.xavierInit(lastHidden * this.outputDim));
@@ -153,14 +155,14 @@ class MassiveEmbeddingNetwork {
 
   forward(input: Float32Array): Float32Array {
     let current = input;
-    
+
     // Forward through all layers
     for (let i = 1; i <= this.hiddenDims.length + 1; i++) {
       const W = this.weights.get(`W${i}`)!;
       const b = this.weights.get(`b${i}`)!;
       const outDim = i <= this.hiddenDims.length ? this.hiddenDims[i - 1] : this.outputDim;
       const inDim = i === 1 ? this.inputDim : this.hiddenDims[i - 2];
-      
+
       const output = new Float32Array(outDim);
       for (let j = 0; j < outDim; j++) {
         let sum = b[j];
@@ -172,7 +174,7 @@ class MassiveEmbeddingNetwork {
       }
       current = output;
     }
-    
+
     // L2 normalize output embedding
     return this.normalize(current);
   }
@@ -205,13 +207,13 @@ class MassiveEmbeddingNetwork {
     // Forward pass to get activations
     const activations: Float32Array[] = [input];
     let current = input;
-    
+
     for (let i = 1; i <= this.hiddenDims.length + 1; i++) {
       const W = this.weights.get(`W${i}`)!;
       const b = this.weights.get(`b${i}`)!;
       const outDim = i <= this.hiddenDims.length ? this.hiddenDims[i - 1] : this.outputDim;
       const inDim = i === 1 ? this.inputDim : this.hiddenDims[i - 2];
-      
+
       const output = new Float32Array(outDim);
       for (let j = 0; j < outDim; j++) {
         let sum = b[j];
@@ -223,24 +225,24 @@ class MassiveEmbeddingNetwork {
       activations.push(output);
       current = output;
     }
-    
+
     const prediction = activations[activations.length - 1];
-    
+
     // Compute loss
     const loss = this.computeLoss(prediction, target);
-    
+
     // Backward pass (simplified gradient computation)
     // Output layer gradient
     const outputGrad = new Float32Array(this.outputDim);
     for (let i = 0; i < this.outputDim; i++) {
       outputGrad[i] = 2 * (prediction[i] - target[i]);
     }
-    
+
     // Update output layer weights
     const lastHidden = activations[activations.length - 2];
     const Wout = this.weights.get(`W${this.hiddenDims.length + 1}`)!;
     const bout = this.weights.get(`b${this.hiddenDims.length + 1}`)!;
-    
+
     for (let i = 0; i < this.hiddenDims[this.hiddenDims.length - 1]; i++) {
       for (let j = 0; j < this.outputDim; j++) {
         const grad = outputGrad[j] * lastHidden[i];
@@ -248,11 +250,11 @@ class MassiveEmbeddingNetwork {
         Wout[idx] -= learningRate * grad;
       }
     }
-    
+
     for (let j = 0; j < this.outputDim; j++) {
       bout[j] -= learningRate * outputGrad[j];
     }
-    
+
     return loss;
   }
 
@@ -260,7 +262,7 @@ class MassiveEmbeddingNetwork {
   computeFisher(experiences: LearningExperience[]): void {
     for (const [name, weights] of this.weights) {
       const fisher = new Float32Array(weights.length);
-      
+
       // Approximate Fisher as squared gradient over experiences
       for (const exp of experiences.slice(0, 100)) { // Sample for efficiency
         const input = new Float32Array(exp.embedding);
@@ -269,12 +271,12 @@ class MassiveEmbeddingNetwork {
           fisher[i] += weights[i] * weights[i];
         }
       }
-      
+
       // Average
       for (let i = 0; i < fisher.length; i++) {
         fisher[i] /= Math.min(experiences.length, 100);
       }
-      
+
       this.fisherInformation.set(name, fisher);
       this.optimalWeights.set(name, new Float32Array(weights));
     }
@@ -287,7 +289,7 @@ class MassiveEmbeddingNetwork {
       const fisher = this.fisherInformation.get(name);
       const optimal = this.optimalWeights.get(name);
       if (!fisher || !optimal) continue;
-      
+
       for (let i = 0; i < weights.length; i++) {
         penalty += (fisher[i] / 2) * (weights[i] - optimal[i]) ** 2;
       }
@@ -342,6 +344,7 @@ export class ContinuousPretraining {
       ewcLambda: config.ewcLambda ?? 1000,
       knowledgeDecayRate: config.knowledgeDecayRate ?? 0.001,
       consolidationIntervalMs: config.consolidationIntervalMs ?? 3600000, // 1 hour
+      llm: config.llm ?? new MockLLMProvider(config.embeddingDimension ?? 12288),
     };
 
     // Initialize massive network: 12K -> 8K -> 4K -> 12K
@@ -357,7 +360,7 @@ export class ContinuousPretraining {
     await mkdir(this.config.baseDir, { recursive: true });
     await this.loadState();
     this.initialized = true;
-    
+
     console.log(`[ContinuousPretraining] Initialized`);
     console.log(`  Embedding dimension: ${this.config.embeddingDimension}`);
     console.log(`  Parameters: ${this.network.getParameterCount().toLocaleString()}`);
@@ -408,7 +411,7 @@ export class ContinuousPretraining {
 
     for (const word of uniqueWords) {
       const existing = this.knowledgeBase.get(word);
-      
+
       if (existing) {
         // Update existing knowledge
         const updated: KnowledgeUnit = {
@@ -453,7 +456,7 @@ export class ContinuousPretraining {
    */
   private async maybeTrain(): Promise<void> {
     const now = Date.now();
-    
+
     // Check conditions
     if (this.experienceBuffer.length < this.config.minSamplesBeforeTraining) return;
     if (now - this.lastTrainingTime < this.config.trainingIntervalMs) return;
@@ -475,10 +478,10 @@ export class ContinuousPretraining {
     // Train on each experience
     for (const experience of batch) {
       const input = new Float32Array(experience.embedding);
-      
+
       // Create target: slightly improved embedding based on feedback
       const target = this.createTarget(experience);
-      
+
       // Backward pass
       const loss = this.network.backward(input, target, this.config.learningRate);
       totalLoss += loss;
@@ -508,24 +511,24 @@ export class ContinuousPretraining {
     // Prioritize: high uncertainty, recent, with feedback
     const scored = this.experienceBuffer.map(exp => {
       let score = 1;
-      
+
       // Prioritize high uncertainty
       score += exp.metadata.uncertaintyLevel * 2;
-      
+
       // Prioritize recent
       const age = Date.now() - exp.timestamp;
       score += Math.max(0, 1 - age / (24 * 60 * 60 * 1000));
-      
+
       // Prioritize with feedback
       if (exp.feedback === 'negative') score += 3; // Learn from mistakes
       if (exp.feedback === 'positive') score += 1;
-      
+
       return { experience: exp, score };
     });
 
     // Sort by score and sample
     scored.sort((a, b) => b.score - a.score);
-    
+
     // Take top batchSize with some randomness
     const batch: LearningExperience[] = [];
     for (let i = 0; i < this.config.batchSize && i < scored.length; i++) {
@@ -542,13 +545,13 @@ export class ContinuousPretraining {
    */
   private createTarget(experience: LearningExperience): Float32Array {
     const input = new Float32Array(experience.embedding);
-    
+
     // Forward pass to get current prediction
     const prediction = this.network.forward(input);
-    
+
     // Adjust target based on feedback
     const target = new Float32Array(prediction);
-    
+
     if (experience.feedback === 'positive') {
       // Reinforce: move toward input (self-supervised)
       for (let i = 0; i < target.length; i++) {
@@ -560,7 +563,7 @@ export class ContinuousPretraining {
         target[i] = target[i] * 1.1 - input[i] * 0.1;
       }
     }
-    
+
     // Normalize
     let norm = 0;
     for (const v of target) norm += v * v;
@@ -568,7 +571,7 @@ export class ContinuousPretraining {
     for (let i = 0; i < target.length; i++) {
       target[i] /= norm;
     }
-    
+
     return target;
   }
 
@@ -588,7 +591,7 @@ export class ContinuousPretraining {
    */
   private async consolidateKnowledge(): Promise<void> {
     console.log('[Consolidation] Starting knowledge consolidation...');
-    
+
     const now = Date.now();
     let merged = 0;
     let decayed = 0;
@@ -598,11 +601,11 @@ export class ContinuousPretraining {
     for (const [concept, unit] of this.knowledgeBase) {
       const timeSinceAccess = now - unit.lastAccessed;
       const daysSinceAccess = timeSinceAccess / (24 * 60 * 60 * 1000);
-      
+
       // Exponential decay
       const decayFactor = Math.exp(-this.config.knowledgeDecayRate * daysSinceAccess);
       const newConfidence = unit.confidence * decayFactor;
-      
+
       if (newConfidence < 0.1) {
         // Remove very weak knowledge
         this.knowledgeBase.delete(concept);
@@ -617,7 +620,7 @@ export class ContinuousPretraining {
     for (let i = 0; i < concepts.length; i++) {
       for (let j = i + 1; j < concepts.length; j++) {
         const similarity = this.cosineSimilarity(concepts[i].embedding, concepts[j].embedding);
-        
+
         if (similarity > 0.95) {
           // Merge concepts
           const mergedUnit = this.mergeConcepts(concepts[i], concepts[j]);
@@ -678,23 +681,21 @@ export class ContinuousPretraining {
   }
 
   /**
-   * Get embedding for text (using the learned network)
+   * Get embedding for text (using the actual LLM embedding adapter)
    */
   async getEmbedding(text: string): Promise<number[]> {
-    // In production, this would use the actual embedding model
-    // For now, we use a hash-based deterministic embedding
-    const hash = this.hashString(text);
-    const embedding: number[] = [];
-    
+    // Generate base embedding from LLM
+    const baseEmbedding = await this.config.llm.embed(text);
+
+    // Pad or truncate to the configured embedding dimension
+    const input = new Float32Array(this.config.embeddingDimension);
     for (let i = 0; i < this.config.embeddingDimension; i++) {
-      const value = Math.sin(hash + i * 0.01) * Math.cos(hash + i * 0.005);
-      embedding.push(value);
+      input[i] = i < baseEmbedding.length ? baseEmbedding[i] : 0;
     }
 
     // Pass through network
-    const input = new Float32Array(embedding);
     const output = this.network.forward(input);
-    
+
     return Array.from(output);
   }
 
@@ -706,7 +707,7 @@ export class ContinuousPretraining {
     minConfidence?: number;
   }): Promise<KnowledgeUnit[]> {
     const queryEmbedding = await this.getEmbedding(query);
-    
+
     const results = Array.from(this.knowledgeBase.values())
       .filter(k => k.confidence >= (options?.minConfidence ?? 0.3))
       .map(k => ({
@@ -737,10 +738,10 @@ export class ContinuousPretraining {
   getStats(): LearningStats {
     const now = Date.now();
     const experiences = this.experienceBuffer;
-    
+
     const recentExperiences = experiences.filter(e => now - e.timestamp < 3600000);
     const experiencesPerHour = recentExperiences.length;
-    
+
     const knowledgeUnits = Array.from(this.knowledgeBase.values());
     const avgConfidence = knowledgeUnits.length > 0
       ? knowledgeUnits.reduce((sum, k) => sum + k.confidence, 0) / knowledgeUnits.length
@@ -842,14 +843,14 @@ export class ContinuousPretraining {
     for (const [, w] of weights) {
       totalSize += w.length;
     }
-    
+
     const serialized = new Float32Array(totalSize);
     let offset = 0;
     for (const [, w] of weights) {
       serialized.set(w, offset);
       offset += w.length;
     }
-    
+
     return serialized;
   }
 
@@ -873,7 +874,7 @@ export class ContinuousPretraining {
     try {
       const data = await readFile(join(this.config.baseDir, 'pretraining-state.json'), 'utf-8');
       const state = JSON.parse(data);
-      
+
       this.experienceBuffer = state.experienceBuffer ?? [];
       this.knowledgeBase = new Map(state.knowledgeBase);
       this.trainingStats = state.trainingStats ?? { totalBatches: 0, totalExperiences: 0, totalLoss: 0 };

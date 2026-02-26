@@ -3,10 +3,10 @@
  * Section 4.3: Executive coordination
  */
 
-import type { 
-  MicroLoop, 
-  TickResult, 
-  Signal, 
+import type {
+  MicroLoop,
+  TickResult,
+  Signal,
   SignalType,
   WorkingState,
   SessionKey,
@@ -17,7 +17,7 @@ import type {
 import { SignalBus } from '../runtime/signal-bus.js';
 
 /** Executive decision type */
-export type ExecutiveDecision = 
+export type ExecutiveDecision =
   | 'continue_primary'
   | 'switch_chain'
   | 'pause_secondary'
@@ -81,7 +81,7 @@ export class ExecutiveLoop implements MicroLoop {
     sessionKey: SessionKey;
   }): TickResult {
     const { signals, workingState, sessionKey } = input;
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas: import('../types.js').StateDelta[] = [];
 
     // Track what we need to handle
@@ -210,10 +210,10 @@ export class ExecutiveLoop implements MicroLoop {
       }
 
       case 'request_clarification': {
-        const question = highUncertainty?.question ?? 
-                        askBeforeAct?.question ?? 
-                        'I need more information to proceed.';
-        
+        const question = highUncertainty?.question ??
+          askBeforeAct?.question ??
+          'I need more information to proceed.';
+
         signalsOut.push(SignalBus.createSignal(
           'REQUEST_CLARIFICATION',
           { question },
@@ -227,7 +227,7 @@ export class ExecutiveLoop implements MicroLoop {
         if (workingState.focus.activeChainId) {
           signalsOut.push(SignalBus.createSignal(
             'CHAIN_PAUSE',
-            { 
+            {
               chainId: workingState.focus.activeChainId,
               reason: 'Awaiting clarification',
             },
@@ -241,21 +241,22 @@ export class ExecutiveLoop implements MicroLoop {
       }
 
       case 'replan': {
-        const reason = alternativePlan?.reason ?? 
-                      invariantViolation?.violation ?? 
-                      'Executive decision to replan';
-        
-        signalsOut.push(SignalBus.createSignal(
+        const reason = alternativePlan?.reason ??
+          invariantViolation?.violation ??
+          'Executive decision to replan';
+        const signals: any[] = [];
+        signals.push(SignalBus.createSignal(
           'EXEC_REQUEST_REPLAN',
-          { 
-            reason,
-            currentChainId: workingState.focus.activeChainId,
+          {
+            chainId: workingState.focus.activeChainId,
+            reason: reason,
           },
           sessionKey,
           this.name,
-          'event',
-          { causedBy: [alternativePlan?.signalId ?? invariantViolation?.signalId ?? ''].filter(Boolean) }
+          'palpitation',
+          { emittedAtMs: Date.now() }
         ));
+        signalsOut.push(...signals); // Add the signals to the main signalsOut array
         break;
       }
 
@@ -263,7 +264,7 @@ export class ExecutiveLoop implements MicroLoop {
         if (workingState.focus.activeChainId) {
           signalsOut.push(SignalBus.createSignal(
             'CHAIN_PAUSE',
-            { 
+            {
               chainId: workingState.focus.activeChainId,
               reason: 'Awaiting approval',
             },
@@ -281,7 +282,7 @@ export class ExecutiveLoop implements MicroLoop {
           // Request replan with error context
           signalsOut.push(SignalBus.createSignal(
             'EXEC_REQUEST_REPLAN',
-            { 
+            {
               reason: `Model error: ${modelError.error}`,
               currentChainId: workingState.focus.activeChainId,
               degradeMode: true,
@@ -328,15 +329,15 @@ export class ExecutiveLoop implements MicroLoop {
     askBeforeAct: { question: string; signalId: string } | null;
     workingState: WorkingState;
   }): { type: string } {
-    const { 
-      newPlanCreated, 
-      highUncertainty, 
-      riskDetected, 
+    const {
+      newPlanCreated,
+      highUncertainty,
+      riskDetected,
       invariantViolation,
       modelError,
       alternativePlan,
       askBeforeAct,
-      workingState 
+      workingState
     } = context;
 
     // Priority 1: Handle model errors
@@ -370,13 +371,13 @@ export class ExecutiveLoop implements MicroLoop {
       if (!workingState.chains.primary) {
         return { type: 'create_primary_chain' };
       }
-      
+
       // Otherwise add as secondary
       const maxSecondary = this.config.maxConcurrentChains ?? 3;
       if (workingState.chains.secondary.length < maxSecondary) {
         return { type: 'create_secondary_chain' };
       }
-      
+
       // Too many chains - need to queue or defer
       return { type: 'defer' };
     }
@@ -390,7 +391,7 @@ export class ExecutiveLoop implements MicroLoop {
   private checkChainStatus(
     workingState: WorkingState,
     stateDeltas: StateDelta[],
-    signalsOut: Signal[],
+    signalsOut: any[],
     sessionKey: SessionKey
   ): void {
     // Check if primary chain should be completed
@@ -398,7 +399,7 @@ export class ExecutiveLoop implements MicroLoop {
       // Move a secondary chain to primary if available
       if (workingState.chains.secondary.length > 0) {
         const nextPrimary = workingState.chains.secondary[0];
-        
+
         stateDeltas.push({
           section: 'chains',
           path: 'primary',

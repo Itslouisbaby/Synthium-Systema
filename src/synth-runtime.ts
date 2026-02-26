@@ -145,6 +145,7 @@ export class SynthRuntime {
     this.continuousPretraining = new ContinuousPretraining({
       baseDir: join(this.config.baseDir, 'pretraining'),
       embeddingDimension: 4096,
+      llm: this.config.llm,
     });
 
     // Initialize autonomy

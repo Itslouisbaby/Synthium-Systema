@@ -9,15 +9,16 @@ export { deterministicId, DeterministicID } from './deterministic-id.js';
 export { SignalBus, SignalBuilder } from './signal-bus.js';
 export type { SignalBusConfig } from './signal-bus.js';
 
-export { 
-  WorkingStateManager, 
-  createInitialWorkingState, 
-  computeStateHash 
+export {
+  WorkingStateManager,
+  createInitialWorkingState,
+  computeStateHash
 } from './working-state.js';
 export type { WorkingStateConfig, StateSnapshot } from './working-state.js';
 
 export { Scheduler, defaultSchedulerConfig } from './scheduler.js';
-export type { SchedulerConfig, SchedulerCallbacks } from './scheduler.js';
+export type { SchedulerConfig } from '../types.js';
+export type { SchedulerCallbacks } from './scheduler.js';
 
 export { SelfModelManager } from './self-model.js';
 export type { SelfModelConfig, SelfModelSnapshot, UpdateRule } from './self-model.js';
@@ -32,13 +33,13 @@ export type {
   LoopName,
   ChainId,
   Hash,
-  
+
   // Signal system
   SignalPriority,
   SignalType,
   Signal,
   SequencedSignal,
-  
+
   // WorkingState
   PlanChain,
   PendingApproval,
@@ -51,32 +52,32 @@ export type {
   SessionBudgets,
   WorkingState,
   StateDelta,
-  
+
   // MicroLoop
   LoopRhythm,
   TickResult,
   MicroLoop,
-  
+
   // Scheduler
   TickRecord,
   SchedulerConfig as SchedulerConfigType,
-  
+
   // World model
   BeliefEntity,
   BeliefRelation,
   Belief,
   BeliefGraph,
   Prediction,
-  
+
   // Transfer learning
   TaskTrace,
   Skill,
-  
+
   // Abstractions
   Concept,
   Schema,
   Invariant,
-  
+
   // v1 compatibility
   ActionClassType,
   PlanStep,
@@ -84,3 +85,5 @@ export type {
   Observation,
   Evaluation,
 } from '../types.js';
+
+export type { RuntimeConfig, RuntimeStatus } from '../neuronwaves-runtime.js';

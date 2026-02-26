@@ -73,7 +73,7 @@ export class MonitorLoop implements MicroLoop {
     sessionKey: SessionKey;
   }): TickResult {
     const { signals, workingState, sessionKey } = input;
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas: import('../types.js').StateDelta[] = [];
 
     // Track outcomes for self-model updates

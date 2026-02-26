@@ -36,7 +36,7 @@ export type Hash = string;
 export type SignalPriority = 'palpitation' | 'heartbeat' | 'event';
 
 /** Signal types emitted by the runtime */
-export type SignalType = 
+export type SignalType =
   // Input signals
   | 'INPUT_RECEIVED'
   | 'STREAM_CHUNK_RECEIVED'
@@ -102,7 +102,7 @@ export interface SignalPayloadMap {
     sequence: number;
     isFinal: boolean;
   };
-  
+
   // Planning signals
   'PLAN_CREATED': {
     chainId: string;
@@ -119,7 +119,7 @@ export interface SignalPayloadMap {
     alternativeSteps: PlanStep[];
     reason: string;
   };
-  
+
   // Policy signals
   'POLICY_DECISION_EMITTED': {
     decision: 'allow' | 'deny' | 'escalate';
@@ -139,7 +139,7 @@ export interface SignalPayloadMap {
     violatedBy: string;
     severity: 'warning' | 'error' | 'critical';
   };
-  
+
   // Execution signals
   'STEP_EXECUTED': {
     stepId: string;
@@ -165,7 +165,7 @@ export interface SignalPayloadMap {
     success: boolean;
     durationMs: number;
   };
-  
+
   // Output signals
   'OUTPUT_READY': {
     chainId: string;
@@ -182,7 +182,7 @@ export interface SignalPayloadMap {
     reason: string;
     originalContent?: string;
   };
-  
+
   // Executive signals
   'FOCUS_SET': {
     chainId: string;
@@ -208,7 +208,7 @@ export interface SignalPayloadMap {
     reason: string;
     failedStepId?: string;
   };
-  
+
   // Critic signals
   'UNCERTAINTY_HIGH': {
     chainId: string;
@@ -227,7 +227,7 @@ export interface SignalPayloadMap {
     action: string;
     justification: string;
   };
-  
+
   // Monitor signals
   'CONFIDENCE_RISE': {
     chainId: string;
@@ -262,7 +262,7 @@ export interface SignalPayloadMap {
     reason: string;
     currentApprover?: string;
   };
-  
+
   // Concept/Schema signals
   'CONCEPTS_DETECTED': {
     concepts: string[];
@@ -279,7 +279,7 @@ export interface SignalPayloadMap {
     missingSlots: string[];
     context: string;
   };
-  
+
   // World model signals
   'BELIEF_UPDATED': {
     entityId: string;
@@ -294,14 +294,14 @@ export interface SignalPayloadMap {
     actual: unknown;
     stepId: string;
   };
-  
+
   // Cold-start signals
   'NOVEL_DOMAIN_DETECTED': {
     domainSignature: string;
     similarityToKnown: number;
     suggestedApproach: string;
   };
-  
+
   // Memory signals
   'MEMORY_WRITE_SUGGESTED': {
     key: string;
@@ -315,7 +315,7 @@ export interface SignalPayloadMap {
     planTemplate?: unknown;
     confidence: number;
   };
-  
+
   // v1 compatibility signals
   'EVALUATION_COMPLETE': {
     chainId: string;
@@ -516,7 +516,7 @@ export type LoopRhythm = 'palpitation' | 'heartbeat' | 'event';
 /** Micro-loop tick result */
 export interface TickResult {
   /** Signals emitted by this tick */
-  readonly signalsOut: Signal[];
+  readonly signalsOut: Array<Omit<Signal, 'signalId'> & { signalId?: string }>;
   /** State deltas to apply */
   readonly stateDelta: StateDelta[];
   /** Tick metrics */
@@ -538,9 +538,9 @@ export interface MicroLoop {
   /** Maximum signals emitted per tick */
   readonly maxSignalsOut: number;
   /** WorkingState sections allowed to read */
-  readonly reads: (keyof WorkingState)[];
+  readonly reads: readonly (keyof WorkingState)[];
   /** WorkingState sections allowed to write */
-  readonly writes: (keyof WorkingState)[];
+  readonly writes: readonly (keyof WorkingState)[];
   /** Signal types this loop subscribes to */
   readonly subscriptions: SignalType[];
   /** Execute tick */

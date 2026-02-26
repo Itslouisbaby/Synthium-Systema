@@ -67,7 +67,7 @@ export class SchemaRegistry {
       const registryPath = this.getRegistryPath();
       const content = await readFile(registryPath, 'utf-8');
       const schemas: Schema[] = JSON.parse(content);
-      
+
       for (const schema of schemas) {
         this.schemas.set(schema.schemaId, schema);
       }
@@ -95,8 +95,8 @@ export class SchemaRegistry {
     await this.load();
 
     const timestamp = Date.now();
-    const schemaId = deterministicId.generateConceptId(timestamp, schema.name);
-    
+    const schemaId = deterministicId.generateConceptId(timestamp, schema.concept);
+
     const newSchema: Schema = {
       ...schema,
       schemaId,
@@ -229,7 +229,7 @@ export class SchemaFiller {
   ): unknown | undefined {
     // Check for validation rules
     const rule = schema.validationRules.find(r => r.slot === slot);
-    
+
     // Try to extract based on common patterns
     const patterns: Record<string, RegExp[]> = {
       file_path: [
@@ -262,7 +262,7 @@ export class SchemaFiller {
       const match = content.match(pattern);
       if (match) {
         const value = match[1]?.trim();
-        
+
         // Validate if rule exists
         if (rule && value) {
           const valid = this.validateValue(value, rule.rule);
@@ -300,7 +300,7 @@ export class SchemaFiller {
   createFilledSignal(
     result: SlotFillingResult,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string } {
     return {
       sessionKey,
       type: 'SLOTS_FILLED',
@@ -323,11 +323,11 @@ export class SchemaFiller {
     result: SlotFillingResult,
     schema: Schema,
     sessionKey: SessionKey
-  ): Omit<Signal, 'signalId'> {
+  ): Omit<Signal, 'signalId'> & { signalId?: string } {
     const questions: Record<string, string> = {};
-    
+
     for (const slot of result.missingSlots) {
-      questions[slot] = schema.clarifyingQuestions[slot] ?? 
+      questions[slot] = schema.clarifyingQuestions[slot] ??
         `Please provide ${slot}`;
     }
 

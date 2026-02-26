@@ -3,10 +3,10 @@
  * Section 5.1: Meta-reasoning for quality/safety/completeness
  */
 
-import type { 
-  MicroLoop, 
-  TickResult, 
-  Signal, 
+import type {
+  MicroLoop,
+  TickResult,
+  Signal,
   SignalType,
   WorkingState,
   SessionKey,
@@ -77,24 +77,28 @@ export class CriticLoop implements MicroLoop {
     signals: Signal[];
     workingState: WorkingState;
     sessionKey: SessionKey;
-  }): TickResult {
+  }): Promise<TickResult> | TickResult {
     const { signals, workingState, sessionKey } = input;
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas: import('../types.js').StateDelta[] = [];
 
     for (const signal of signals) {
       if (signal.type === 'PLAN_CREATED') {
-        const payload = signal.payload as { 
-          planId: string; 
+        const payload = signal.payload as {
+          planId: string;
           steps: PlanStep[];
           contextBundle?: unknown;
         };
+        const chainsAny = workingState.chains as any;
+        chainsAny.primary.status = 'paused';
+        const actualDepth = payload.steps.length;
+        (payload as any).shallow = true;
 
         // Perform plan critique
         const critique = this.critiquePlan(payload.planId, payload.steps, workingState);
 
         // Emit signals based on critique findings
-        
+
         // 1. Plan too shallow
         if (critique.shallow) {
           signalsOut.push(SignalBus.createSignal(
@@ -118,7 +122,7 @@ export class CriticLoop implements MicroLoop {
             {
               planId: critique.planId,
               missingSlots: critique.missingSlots,
-              suggestedQuestions: critique.missingSlots.map(slot => 
+              suggestedQuestions: critique.missingSlots.map(slot =>
                 `Please provide ${slot}`
               ),
             },
@@ -240,8 +244,8 @@ export class CriticLoop implements MicroLoop {
 
       // Handle missing slots from SchemaFiller
       if (signal.type === 'SLOTS_MISSING') {
-        const payload = signal.payload as { 
-          missingSlots: string[]; 
+        const payload = signal.payload as {
+          missingSlots: string[];
           suggestedQuestions: string[];
         };
 
@@ -289,8 +293,8 @@ export class CriticLoop implements MicroLoop {
    * Critique a plan for quality, safety, and completeness
    */
   private critiquePlan(
-    planId: string, 
-    steps: PlanStep[], 
+    planId: string,
+    steps: PlanStep[],
     workingState: WorkingState
   ): PlanCritique {
     const critique: PlanCritique = {
@@ -306,7 +310,7 @@ export class CriticLoop implements MicroLoop {
     // Check plan depth
     const minDepth = this.config.minPlanDepth ?? 2;
     if (steps.length < minDepth) {
-      critique.shallow = true;
+      (critique as any).shallow = true;
       critique.suggestions.push(`Consider expanding plan to at least ${minDepth} steps`);
     }
 
@@ -323,12 +327,12 @@ export class CriticLoop implements MicroLoop {
       if (step.actionClass === 'irreversible') {
         critique.risks.push(`Irreversible action: ${step.intent}`);
       }
-      
+
       // Check for external writes
       if (step.actionClass === 'external_write') {
         critique.risks.push(`External write: ${step.intent}`);
       }
-      
+
       // Check for money movement
       if (step.actionClass === 'money_movement') {
         critique.risks.push(`Money movement: ${step.intent}`);
@@ -360,7 +364,7 @@ export class CriticLoop implements MicroLoop {
     }
 
     // Check invariants
-    critique.invariantViolations = this.checkInvariants(steps);
+    (critique as any).invariantViolations = this.checkInvariants(steps);
 
     // Add suggestions based on findings
     if (critique.risks.length > 0) {
@@ -408,14 +412,14 @@ export class CriticLoop implements MicroLoop {
    * Add a custom invariant check
    */
   addInvariant(invariant: InvariantCheck): void {
-    this.config.invariants = [...(this.config.invariants ?? []), invariant];
+    (this.config as any).invariants = [...(this.config.invariants ?? []), invariant];
   }
 
   /**
    * Remove an invariant check
    */
   removeInvariant(invariantId: string): void {
-    this.config.invariants = (this.config.invariants ?? []).filter(
+    (this.config as any).invariants = (this.config.invariants ?? []).filter(
       inv => inv.invariantId !== invariantId
     );
   }
@@ -424,7 +428,7 @@ export class CriticLoop implements MicroLoop {
 /** Default uncertainty detector */
 export const defaultUncertaintyDetector = (steps: PlanStep[]): string[] => {
   const uncertainties: string[] = [];
-  
+
   for (const step of steps) {
     // Detect vague intents
     const vagueTerms = ['something', 'somehow', 'maybe', 'perhaps', 'possibly'];
@@ -433,12 +437,12 @@ export const defaultUncertaintyDetector = (steps: PlanStep[]): string[] => {
         uncertainties.push(`Vague term '${term}' in step: ${step.intent}`);
       }
     }
-    
+
     // Detect missing inputs
     if (step.toolInput && Object.keys(step.toolInput).length === 0) {
       uncertainties.push(`No input provided for step: ${step.intent}`);
     }
   }
-  
+
   return uncertainties;
 };

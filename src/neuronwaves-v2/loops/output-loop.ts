@@ -3,14 +3,16 @@
  * Section 4.2: Output gating
  */
 
-import type { 
-  MicroLoop, 
-  TickResult, 
-  Signal, 
+import type {
+  MicroLoop,
+  TickResult,
+  Signal,
   SignalType,
   WorkingState,
   SessionKey,
-  ChainId
+  ChainId,
+  TimestampMs,
+  StateDelta
 } from '../types.js';
 import { SignalBus } from '../runtime/signal-bus.js';
 
@@ -74,14 +76,14 @@ export class OutputLoop implements MicroLoop {
     sessionKey: SessionKey;
   }): Promise<TickResult> {
     const { signals, workingState, sessionKey } = input;
-    const signalsOut: Signal[] = [];
+    const signalsOut: any[] = [];
     const stateDeltas: StateDelta[] = [];
 
     // Process OUTPUT_READY signals
     for (const signal of signals) {
       if (signal.type === 'OUTPUT_READY') {
-        const payload = signal.payload as { 
-          content: string; 
+        const payload = signal.payload as {
+          content: string;
           chainId: ChainId | null;
           metadata?: Record<string, unknown>;
         };
@@ -159,7 +161,7 @@ export class OutputLoop implements MicroLoop {
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          
+
           signalsOut.push(SignalBus.createSignal(
             'OUTPUT_INTERRUPTED',
             {
@@ -179,7 +181,7 @@ export class OutputLoop implements MicroLoop {
       if (signal.type === 'CHAIN_PAUSE') {
         const payload = signal.payload as { chainId: ChainId; reason?: string };
         this.interruptedChains.add(payload.chainId);
-        
+
         signalsOut.push(SignalBus.createSignal(
           'OUTPUT_INTERRUPTED',
           {
@@ -212,8 +214,8 @@ export class OutputLoop implements MicroLoop {
    * Publish an output
    */
   private async publishOutput(
-    content: string, 
-    chainId: ChainId | null, 
+    content: string,
+    chainId: ChainId | null,
     sessionKey: SessionKey,
     metadata?: Record<string, unknown>
   ): Promise<void> {
