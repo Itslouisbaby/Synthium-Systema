@@ -43,6 +43,10 @@ Expectation:
 - **Experimental:** Multi-agent subsystem, external-read stack, policy artifact authoring/versioning workflows, shadow scheduler.
 - **Incubating:** `src/neuronwaves-v2/*` modules and transition surfaces gated by `SYNTH_NEURONWAVES_RUNTIME=v2`.
 
+
+Evidence:
+- GA evidence for default v1 runtime path: `docs/GA_PROMOTION_EVIDENCE_PR9.md`
+
 ## Promotion checklist
 
 A module is promoted only when all are true:
