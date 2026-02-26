@@ -11,7 +11,8 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { Message, ApprovalCardMessage, MemoryRecallMessage, ToolExecutionMessage } from './types.js';
-import { runNeuronWavesLoop, type PlanStep } from './neuronwaves-types.js';
+import { createSynthRuntime, type SynthResult } from './neuronwaves-types.js';
+import type { PlanStep } from './neuronwaves-types.js';
 import { join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -191,22 +192,18 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
   async function processUserInput(content: string, session: string, workspace: string, artifactBaseDir: string): Promise<void> {
 
     try {
-      // Execute the NeuronWaves loop
-      const result = await runNeuronWavesLoop(
-        {
-          content,
-          sessionKey: session,
-        },
-        {
-          artifactBaseDir,
-          autonomyLevel: 1, // Default to Level 1 for safety
-          enableMemory: true,
-        }
-      );
+      // Execute via the v2 SynthRuntime
+      const runtime = createSynthRuntime({
+        artifactBaseDir,
+        autonomyLevel: 1, // Default to Level 1 for safety
+        enableMemory: true,
+      });
+      const result: SynthResult = await runtime.submitInput(session, content);
+      runtime.stop();
 
       // Extract and display memory recall if available
-      if (result.plan.contextBundle) {
-        const memoryContent = formatMemoryRecall(result.plan.contextBundle);
+      if ((result as any).contextBundle) {
+        const memoryContent = formatMemoryRecall((result as any).contextBundle);
         if (memoryContent) {
           chatLog.addMessage(mk({
             type: 'memory_recall',
@@ -216,13 +213,13 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
       }
 
       // Display plan steps with appropriate formatting
-      for (const step of result.plan.steps) {
+      for (const step of result.steps) {
         // Show approval cards for steps awaiting approval
         if (step.status === 'awaiting_approval') {
           chatLog.addMessage(mk({
             type: 'approval_card',
             stepId: step.stepId,
-            intent: step.description || 'No description provided',
+            intent: step.intent || 'No description provided',
             actionClass: step.actionClass,
             status: 'pending',
           }));
@@ -230,40 +227,31 @@ function _startANSITUI(config: TUIConfig = {}): TUIHandle {
 
         // Show tool executions for executed steps
         if (step.status === 'executed' && step.toolName) {
-          // Add tool execution start message
           const toolStartMsg = mk({
             type: 'tool_execution',
             toolName: step.toolName,
             status: 'running',
-            args: step.args,
             startTime: Date.now(),
           }) as ToolExecutionMessage;
-          
-          const toolStartIndex = chatLog.getCount();
+
           chatLog.addMessage(toolStartMsg);
 
-          // Update with results when available
           setTimeout(() => {
             const toolResultMsg = mk({
               type: 'tool_execution',
               toolName: step.toolName,
-              status: step.status === 'executed' ? 'success' : 'error',
-              args: step.args,
-              output: step.result,
-              error: step.error,
+              status: 'success',
+              output: step.outputSummary,
               startTime: toolStartMsg.startTime,
               endTime: Date.now(),
             }) as ToolExecutionMessage;
-            
-            // Note: In a real implementation, we would update the existing message
-            // For now, we'll add a new message to show the result
             chatLog.addMessage(toolResultMsg);
           }, 100);
         }
       }
 
       // Generate and display synth response
-      const synthResponse = generateSynthResponse(result.plan.steps, result.evaluation);
+      const synthResponse = generateSynthResponse(result.steps as any[], result.evaluation);
       chatLog.addMessage(mk({
         type: 'synth',
         content: synthResponse,

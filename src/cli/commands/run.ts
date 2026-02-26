@@ -2,7 +2,7 @@
  * CLI Run Command - Milestone 5
  * synth run --session <id> "<text>" --level 1|2|3 --workspace <path>
  */
-import { runNeuronWavesLoop } from '../../orchestrator/loop.js';
+import { createSynthRuntime } from '../../orchestrator/runtime.js';
 import { validateSessionId } from '../types.js';
 import type { CLIOptions, CLIResult } from '../types.js';
 
@@ -50,17 +50,10 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
   const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
 
   try {
-    // Execute the NeuronWaves loop
-    const result = await runNeuronWavesLoop(
-      {
-        content: text,
-        sessionKey: sessionId,
-      },
-      {
-        artifactBaseDir,
-        autonomyLevel: level,
-      }
-    );
+    // Execute via the v2 SynthRuntime
+    const runtime = createSynthRuntime({ artifactBaseDir, autonomyLevel: level });
+    const result = await runtime.submitInput(sessionId, text);
+    runtime.stop();
 
     // Success: print summary and exit 0
     return {
