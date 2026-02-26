@@ -97,7 +97,7 @@ export class LocalMemoryStore {
       .split(/[^a-z0-9]+/)
       .filter(t => t.length > 2)
       .filter(t => !STOPWORDS.has(t)); // Amendment: Filter stopwords
-    
+
     // Return unique keywords, top 20
     return [...new Set(tokens)].slice(0, 20);
   }
@@ -142,19 +142,19 @@ export class LocalMemoryStore {
       entries: [],
       updatedAtMs: Date.now(),
     };
-    
+
     flash.entries.push(entry);
-    
+
     // Amendment: FIFO eviction if over maxFlashEntries (default 2000)
     const maxEntries = this.config.maxFlashEntries ?? 2000;
     if (flash.entries.length > maxEntries) {
       // Sort by timestamp and keep newest
-      flash.entries = flash.entries
+      (flash as any).entries = flash.entries
         .sort((a, b) => b.timestampMs - a.timestampMs)
         .slice(0, maxEntries);
     }
-    
-    flash.updatedAtMs = Date.now();
+
+    (flash as any).updatedAtMs = Date.now();
     await this.writeJson(flashPath, flash);
 
     // Amendment: Update index (stopwords already filtered in generateKeywords)
@@ -172,7 +172,7 @@ export class LocalMemoryStore {
         index.keywords[keyword].push(entry.id);
       }
     }
-    index.updatedAtMs = Date.now();
+    (this as any).updatedAtMs = Date.now();
     await this.writeJson(indexPath, index);
   }
 
@@ -182,11 +182,11 @@ export class LocalMemoryStore {
   async readFlash(sessionKey: string, cutoffMs?: number, limit?: number): Promise<MemoryEntry[]> {
     const flashPath = this.getFlashPath(sessionKey);
     const flash = await this.readJson<FlashMemoryFile>(flashPath);
-    
+
     if (!flash) return [];
 
     let entries = flash.entries;
-    
+
     if (cutoffMs) {
       entries = entries.filter(e => e.timestampMs >= cutoffMs);
     }
@@ -231,7 +231,7 @@ export class LocalMemoryStore {
   async searchKeywords(sessionKey: string, keywords: string[]): Promise<MemoryEntry[]> {
     const indexPath = this.getIndexPath(sessionKey);
     const index = await this.readJson<MemoryIndex>(indexPath);
-    
+
     if (!index) return [];
 
     const entryIds = new Set<string>();
@@ -247,3 +247,5 @@ export class LocalMemoryStore {
     return flash.filter(e => entryIds.has(e.id));
   }
 }
+
+

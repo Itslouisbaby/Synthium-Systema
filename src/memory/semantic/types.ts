@@ -39,6 +39,10 @@ export interface SemanticFact {
   readonly source: 'consolidator';
   /** Privacy level */
   readonly privacyLevel: 'private' | 'public';
+  /** Optional tool name, used for evaluation/tests */
+  readonly toolName?: string;
+  /** Optional session key, used for evaluation/tests */
+  readonly sessionKey?: string;
 }
 
 /**

@@ -1,38 +1,832 @@
 /**
- * Synth NeuronWaves - Core Types
- * Milestone 3: Planner interface
+ * NeuronWaves v2 - Core Types
+ * Signal-driven cognitive runtime system
  */
+
+// ============================================================================
+// Primitive Types
+// ============================================================================
 
 /** Timestamp in milliseconds since epoch */
 export type TimestampMs = number;
 
-/** Unique identifier */
+/** Unique identifier (UUID v4) */
 export type UUID = string;
 
 /** Session identifier */
 export type SessionKey = string;
 
-/**
- * Observation - Input to the planning system
- * Records what the system observed (user input, events, etc.)
- */
-export interface Observation {
-  /** Unique observation ID */
-  readonly id: UUID;
-  /** Session this observation belongs to */
-  readonly sessionKey: SessionKey;
-  /** Natural language description */
-  readonly content: string;
-  /** Source of observation (user, system, external) */
-  readonly source: 'user' | 'system' | 'external';
-  /** When observed */
-  readonly observedAtMs: TimestampMs;
+/** Signal identifier */
+export type SignalId = string;
+
+/** Loop identifier */
+export type LoopName = string;
+
+/** Chain identifier for plan chains */
+export type ChainId = string;
+
+/** Hash string for integrity verification */
+export type Hash = string;
+
+// ============================================================================
+// Signal System (Section 1.1)
+// ============================================================================
+
+/** Signal priority levels */
+export type SignalPriority = 'palpitation' | 'heartbeat' | 'event';
+
+/** Signal types emitted by the runtime */
+export type SignalType =
+  // Input signals
+  | 'INPUT_RECEIVED'
+  | 'STREAM_CHUNK_RECEIVED'
+  // Planning signals
+  | 'PLAN_CREATED'
+  | 'PLAN_TOO_SHALLOW'
+  | 'SUGGEST_ALTERNATIVE_PLAN'
+  // Policy signals
+  | 'POLICY_DECISION_EMITTED'
+  | 'AWAITING_APPROVAL'
+  | 'INVARIANT_VIOLATION'
+  // Execution signals
+  | 'STEP_EXECUTED'
+  | 'STEP_FAILED'
+  | 'TOOL_RESULT_RECEIVED'
+  // Output signals
+  | 'OUTPUT_READY'
+  | 'OUTPUT_SENT'
+  | 'OUTPUT_INTERRUPTED'
+  // Executive signals
+  | 'FOCUS_SET'
+  | 'CHAIN_PAUSE'
+  | 'CHAIN_RESUME'
+  | 'REQUEST_CLARIFICATION'
+  | 'EXEC_REQUEST_REPLAN'
+  // Critic signals
+  | 'UNCERTAINTY_HIGH'
+  | 'RISK_HIGH'
+  | 'ASK_BEFORE_ACT'
+  // Monitor signals
+  | 'CONFIDENCE_RISE'
+  | 'CONFIDENCE_DROP'
+  | 'TOOL_RELIABILITY_UPDATE'
+  | 'MODEL_ERROR_DETECTED'
+  | 'SCHEDULE_EXPERIMENT'
+  | 'ESCALATE_APPROVAL_SUGGESTED'
+  // Concept/Schema signals
+  | 'CONCEPTS_DETECTED'
+  | 'SLOTS_FILLED'
+  | 'SLOTS_MISSING'
+  // World model signals
+  | 'BELIEF_UPDATED'
+  | 'PREDICTION_MISMATCH'
+  // Cold-start signals
+  | 'NOVEL_DOMAIN_DETECTED'
+  // Memory signals
+  | 'MEMORY_WRITE_SUGGESTED'
+  | 'SKILL_ACTIVATED'
+  // v1 compatibility signals
+  | 'EVALUATION_COMPLETE'
+  | 'APPROVAL_DECISION_RECEIVED'
+  // Error handling signals
+  | 'LOOP_ERROR'
+  | 'LOOP_ERROR_RECOVERED'
+  | 'LOOP_FATAL_ERROR'
+  | 'LOOP_ERROR_ESCALATED'
+  | 'CIRCUIT_BREAKER_OPEN';
+
+/** Signal payload schemas - canonical contract for each signal type */
+export interface SignalPayloadMap {
+  // Input signals
+  'INPUT_RECEIVED': {
+    content: string;
+    source: 'user' | 'system' | 'api';
+    metadata?: Record<string, unknown>;
+  };
+  'STREAM_CHUNK_RECEIVED': {
+    chunk: string;
+    sequence: number;
+    isFinal: boolean;
+  };
+
+  // Planning signals
+  'PLAN_CREATED': {
+    chainId: string;
+    steps: PlanStep[];
+    estimatedDurationMs?: number;
+  };
+  'PLAN_TOO_SHALLOW': {
+    chainId: string;
+    actualDepth: number;
+    requiredDepth: number;
+  };
+  'SUGGEST_ALTERNATIVE_PLAN': {
+    originalChainId: string;
+    alternativeSteps: PlanStep[];
+    reason: string;
+  };
+
+  // Policy signals
+  'POLICY_DECISION_EMITTED': {
+    decision: 'allow' | 'deny' | 'escalate';
+    reason: string;
+    ruleId: string;
+  };
+  'AWAITING_APPROVAL': {
+    stepId: string;
+    chainId: string;
+    intent: string;
+    actionClass: string;
+    deadlineMs?: number;
+  };
+  'INVARIANT_VIOLATION': {
+    invariantId: string;
+    description: string;
+    violatedBy: string;
+    severity: 'warning' | 'error' | 'critical';
+  };
+
+  // Execution signals
+  'STEP_EXECUTED': {
+    stepId: string;
+    chainId: string;
+    result: {
+      success: boolean;
+      output?: unknown;
+      toolName?: string;
+    };
+    durationMs: number;
+  };
+  'STEP_FAILED': {
+    stepId: string;
+    chainId: string;
+    error: string;
+    errorType: 'timeout' | 'exception' | 'validation' | 'unknown';
+    recoverable: boolean;
+  };
+  'TOOL_RESULT_RECEIVED': {
+    toolName: string;
+    input: unknown;
+    output: unknown;
+    success: boolean;
+    durationMs: number;
+  };
+
+  // Output signals
+  'OUTPUT_READY': {
+    chainId: string;
+    content: string;
+    contentType: 'text' | 'json' | 'markdown';
+  };
+  'OUTPUT_SENT': {
+    chainId: string;
+    contentLength: number;
+    publishedAtMs: number;
+  };
+  'OUTPUT_INTERRUPTED': {
+    chainId: string;
+    reason: string;
+    originalContent?: string;
+  };
+
+  // Executive signals
+  'FOCUS_SET': {
+    chainId: string;
+    objective: string;
+    previousChainId?: string;
+  };
+  'CHAIN_PAUSE': {
+    chainId: string;
+    reason: string;
+    canResume: boolean;
+  };
+  'CHAIN_RESUME': {
+    chainId: string;
+    resumedAtMs: number;
+  };
+  'REQUEST_CLARIFICATION': {
+    question: string;
+    context: string;
+    requiredForStepId?: string;
+  };
+  'EXEC_REQUEST_REPLAN': {
+    chainId: string;
+    reason: string;
+    failedStepId?: string;
+  };
+
+  // Critic signals
+  'UNCERTAINTY_HIGH': {
+    chainId: string;
+    uncertaintyType: 'plan' | 'outcome' | 'context';
+    confidence: number;
+    suggestion?: string;
+  };
+  'RISK_HIGH': {
+    chainId: string;
+    riskType: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    mitigation?: string;
+  };
+  'ASK_BEFORE_ACT': {
+    stepId: string;
+    action: string;
+    justification: string;
+  };
+
+  // Monitor signals
+  'CONFIDENCE_RISE': {
+    chainId: string;
+    metric: string;
+    previousValue: number;
+    currentValue: number;
+  };
+  'CONFIDENCE_DROP': {
+    chainId: string;
+    metric: string;
+    previousValue: number;
+    currentValue: number;
+    reason?: string;
+  };
+  'TOOL_RELIABILITY_UPDATE': {
+    toolName: string;
+    successRate: number;
+    sampleSize: number;
+  };
+  'MODEL_ERROR_DETECTED': {
+    errorType: string;
+    description: string;
+    affectedChains: string[];
+  };
+  'SCHEDULE_EXPERIMENT': {
+    hypothesis: string;
+    experimentId: string;
+    priority: number;
+  };
+  'ESCALATE_APPROVAL_SUGGESTED': {
+    chainId: string;
+    reason: string;
+    currentApprover?: string;
+  };
+
+  // Concept/Schema signals
+  'CONCEPTS_DETECTED': {
+    concepts: string[];
+    confidence: number;
+    source: string;
+  };
+  'SLOTS_FILLED': {
+    schemaId: string;
+    filledSlots: Record<string, unknown>;
+    confidence: number;
+  };
+  'SLOTS_MISSING': {
+    schemaId: string;
+    missingSlots: string[];
+    context: string;
+  };
+
+  // World model signals
+  'BELIEF_UPDATED': {
+    entityId: string;
+    property: string;
+    oldValue?: unknown;
+    newValue: unknown;
+    confidence: number;
+  };
+  'PREDICTION_MISMATCH': {
+    predictionId: string;
+    expected: unknown;
+    actual: unknown;
+    stepId: string;
+  };
+
+  // Cold-start signals
+  'NOVEL_DOMAIN_DETECTED': {
+    domainSignature: string;
+    similarityToKnown: number;
+    suggestedApproach: string;
+  };
+
+  // Memory signals
+  'MEMORY_WRITE_SUGGESTED': {
+    key: string;
+    value: unknown;
+    ttl?: number;
+    reason: string;
+  };
+  'SKILL_ACTIVATED': {
+    skillId: string;
+    version: string;
+    planTemplate?: unknown;
+    confidence: number;
+  };
+
+  // v1 compatibility signals
+  'EVALUATION_COMPLETE': {
+    chainId: string;
+    result: 'success' | 'partial' | 'failure';
+    summary: string;
+  };
+  'APPROVAL_DECISION_RECEIVED': {
+    stepId: string;
+    decision: 'approved' | 'rejected';
+    approver: string;
+    reason?: string;
+  };
+
+  // Error handling signals
+  'LOOP_ERROR': {
+    component: string;
+    operation: string;
+    error: string;
+    stack?: string;
+    attempt: number;
+    severity: string;
+  };
+  'LOOP_ERROR_RECOVERED': {
+    component: string;
+    operation: string;
+    attempts: number;
+    recoveredAt: number;
+  };
+  'LOOP_FATAL_ERROR': {
+    component: string;
+    operation: string;
+    error: string;
+    stack?: string;
+    severity: string;
+    requiresRestart: boolean;
+  };
+  'LOOP_ERROR_ESCALATED': {
+    component: string;
+    operation: string;
+    reason: string;
+  };
+  'CIRCUIT_BREAKER_OPEN': {
+    component: string;
+    failures: number;
+    resetAfterMs: number;
+  };
 }
 
-/**
- * Action Classes - Milestone 6
- * Classification of action sensitivity
- */
+/** Typed signal with known payload */
+export type TypedSignal<T extends SignalType> = Signal & {
+  type: T;
+  payload: SignalPayloadMap[T];
+};
+
+/** Core Signal structure (append-only deterministic event) */
+export interface Signal {
+  /** Unique signal identifier */
+  readonly signalId: SignalId;
+  /** Session this signal belongs to */
+  readonly sessionKey: SessionKey;
+  /** Signal type */
+  readonly type: SignalType;
+  /** Typed payload */
+  readonly payload: unknown;
+  /** When signal was emitted */
+  readonly emittedAtMs: TimestampMs;
+  /** Upstream signal IDs that caused this signal */
+  readonly causedBy?: SignalId[];
+  /** Source loop that emitted this signal */
+  readonly sourceLoop: LoopName;
+  /** Signal priority */
+  readonly priority: SignalPriority;
+  /** Optional deduplication key */
+  readonly dedupeKey?: string;
+}
+
+/** Signal with sequence number for deterministic ordering */
+export interface SequencedSignal extends Signal {
+  /** Sequence number within session */
+  readonly sequence: number;
+}
+
+// ============================================================================
+// WorkingState (Section 1.2)
+// ============================================================================
+
+/** Plan chain status */
+export type ChainStatus = 'active' | 'paused' | 'completed' | 'failed';
+
+/** Plan chain for multi-chain cognition */
+export interface PlanChain {
+  readonly chainId: ChainId;
+  readonly objective: string;
+  readonly priority: number;
+  readonly status: ChainStatus;
+  readonly createdAtMs: TimestampMs;
+  readonly parentChainId?: ChainId;
+}
+
+/** Pending approval record */
+export interface PendingApproval {
+  readonly stepId: string;
+  readonly chainId: ChainId;
+  readonly intent: string;
+  readonly actionClass: string;
+  readonly requestedAtMs: TimestampMs;
+}
+
+/** Uncertainty record */
+export interface Uncertainty {
+  readonly id: string;
+  readonly question: string;
+  readonly severity: 'low' | 'medium' | 'high' | 'critical';
+  readonly cause: string;
+  readonly createdAtMs: TimestampMs;
+}
+
+/** Self-model confidence state */
+export interface ConfidenceState {
+  readonly overall: number;
+  readonly topUncertaintyDrivers: string[];
+}
+
+/** Tool reliability tracking */
+export interface ToolReliability {
+  readonly toolName: string;
+  readonly successCount: number;
+  readonly failureCount: number;
+  readonly rollingSuccessRate: number;
+}
+
+/** Self-model (Section 6.1) */
+export interface SelfModel {
+  /** Available capabilities */
+  readonly capabilities: {
+    readonly tools: string[];
+    readonly actionClasses: string[];
+    readonly autonomyLevel: number;
+  };
+  /** Reliability tracking per tool */
+  readonly reliability: ToolReliability[];
+  /** Known failure modes */
+  readonly knownFailureModes: {
+    readonly pattern: string;
+    readonly risk: string;
+    readonly mitigation: string;
+  }[];
+  /** Cost model estimates */
+  readonly costModel: {
+    readonly toolName: string;
+    readonly estimatedCost: number;
+    readonly estimatedLatencyMs: number;
+  }[];
+  /** Current confidence state */
+  readonly confidenceState: ConfidenceState;
+}
+
+/** Active schema with slot filling */
+export interface ActiveSchema {
+  readonly schemaId: string;
+  readonly concept: string;
+  readonly filledSlots: Record<string, unknown>;
+  readonly missingSlots: string[];
+  readonly confidence: number;
+}
+
+/** Execution ledger entry */
+export interface ExecutionLedgerEntry {
+  readonly entryId: string;
+  readonly timestampMs: TimestampMs;
+  readonly type: 'tool_call' | 'tool_result' | 'error' | 'output';
+  readonly description: string;
+  readonly chainId?: ChainId;
+}
+
+/** Session budgets */
+export interface SessionBudgets {
+  readonly toolCallsRemaining: number;
+  readonly memoryWritesRemaining: number;
+  readonly reflectionPassesRemaining: number;
+}
+
+/** WorkingState - Bounded short-term consciousness */
+export interface WorkingState {
+  /** Focus section */
+  readonly focus: {
+    readonly activeChainId: ChainId | null;
+    readonly currentObjective: string | null;
+    readonly salienceStack: string[];
+  };
+  /** Plan chains */
+  readonly chains: {
+    readonly primary: PlanChain | null;
+    readonly secondary: PlanChain[];
+    readonly background: PlanChain[];
+  };
+  /** Pending approvals */
+  readonly pendingApprovals: PendingApproval[];
+  /** Uncertainties */
+  readonly uncertainties: Uncertainty[];
+  /** Self-model */
+  readonly selfModel: SelfModel;
+  /** Reference to world model */
+  readonly beliefGraphRef: Hash | null;
+  /** Active concepts */
+  readonly activeConcepts: string[];
+  /** Active schemas */
+  readonly activeSchemas: ActiveSchema[];
+  /** Execution ledger (bounded window) */
+  readonly executionLedger: ExecutionLedgerEntry[];
+  /** Session budgets */
+  readonly budgets: SessionBudgets;
+  /** Cold-start mode flag */
+  readonly coldStart: boolean;
+}
+
+/** State delta for partial updates */
+export interface StateDelta {
+  readonly section: keyof WorkingState;
+  readonly path: string;
+  readonly value: unknown;
+  readonly operation: 'set' | 'push' | 'remove' | 'merge';
+}
+
+// ============================================================================
+// MicroLoop Interface (Section 1.3)
+// ============================================================================
+
+/** Loop rhythm type */
+export type LoopRhythm = 'palpitation' | 'heartbeat' | 'event';
+
+/** Micro-loop tick result */
+export interface TickResult {
+  /** Signals emitted by this tick */
+  readonly signalsOut: Array<Omit<Signal, 'signalId'> & { signalId?: string }>;
+  /** State deltas to apply */
+  readonly stateDelta: StateDelta[];
+  /** Tick metrics */
+  readonly metrics: {
+    readonly durationMs: number;
+    readonly signalsProcessed: number;
+    readonly signalsEmitted: number;
+  };
+}
+
+/** Micro-loop interface contract */
+export interface MicroLoop {
+  /** Loop name */
+  readonly name: LoopName;
+  /** Execution rhythm */
+  readonly rhythm: LoopRhythm;
+  /** Tick budget in milliseconds */
+  readonly tickBudgetMs: number;
+  /** Maximum signals emitted per tick */
+  readonly maxSignalsOut: number;
+  /** WorkingState sections allowed to read */
+  readonly reads: readonly (keyof WorkingState)[];
+  /** WorkingState sections allowed to write */
+  readonly writes: readonly (keyof WorkingState)[];
+  /** Signal types this loop subscribes to */
+  readonly subscriptions: SignalType[];
+  /** Execute tick */
+  tick(input: {
+    signals: Signal[];
+    workingState: WorkingState;
+    sessionKey: SessionKey;
+  }): Promise<TickResult> | TickResult;
+}
+
+// ============================================================================
+// Scheduler (Section 2)
+// ============================================================================
+
+/** TickRecord for deterministic replay */
+export interface TickRecord {
+  /** Tick identifier */
+  readonly tickId: string;
+  /** Tick sequence number */
+  readonly tickIndex: number;
+  /** Session key */
+  readonly sessionKey: SessionKey;
+  /** Signals consumed in this tick */
+  readonly signalsConsumed: SignalId[];
+  /** Loops run in this tick (ordered) */
+  readonly loopsRun: LoopName[];
+  /** Signals emitted in this tick */
+  readonly signalsEmitted: string[];
+  /** WorkingState hash before tick */
+  readonly workingStateBeforeHash: Hash;
+  /** WorkingState hash after tick */
+  readonly workingStateAfterHash: Hash;
+  /** State delta hash */
+  readonly stateDeltaHash?: Hash;
+  /** Timing metrics */
+  readonly timingMetrics: {
+    readonly startedAtMs: TimestampMs;
+    readonly completedAtMs: TimestampMs;
+    readonly totalDurationMs: number;
+  };
+  /** Budget usage */
+  readonly budgetUsage: {
+    readonly toolCallsUsed: number;
+    readonly memoryWritesUsed: number;
+  };
+  /** Errors and recovery actions */
+  readonly errors: {
+    readonly loopName: LoopName;
+    readonly error: string;
+    readonly recoveryAction: string;
+  }[];
+}
+
+/** Scheduler configuration */
+export interface SchedulerConfig {
+  /** Heartbeat interval in milliseconds */
+  readonly heartbeatIntervalMs: number;
+  /** Default tick budget per loop */
+  readonly defaultTickBudgetMs: number;
+  /** Maximum signals per loop per tick */
+  readonly maxSignalsPerTick: number;
+  /** Session quotas */
+  readonly sessionQuotas: {
+    readonly maxToolCallsPerRun: number;
+    readonly maxToolCallsPerMinute: number;
+    readonly maxMemoryWritesPerMinute: number;
+    readonly maxReflectionPassesPerHour: number;
+  };
+}
+
+// ============================================================================
+// World Model (Section 9)
+// ============================================================================
+
+/** Entity in belief graph */
+export interface BeliefEntity {
+  readonly entityId: string;
+  readonly type: string;
+  readonly properties: Record<string, unknown>;
+  readonly confidence: number;
+}
+
+/** Relation in belief graph */
+export interface BeliefRelation {
+  readonly relationId: string;
+  readonly sourceId: string;
+  readonly targetId: string;
+  readonly type: string;
+  readonly confidence: number;
+}
+
+/** Belief with provenance */
+export interface Belief {
+  readonly beliefId: string;
+  readonly statement: string;
+  readonly confidence: number;
+  readonly provenance: {
+    readonly source: 'signal' | 'tool' | 'user' | 'inference';
+    readonly refId: string;
+  };
+  readonly createdAtMs: TimestampMs;
+  readonly version: number;
+}
+
+/** BeliefGraph - explicit world model */
+export interface BeliefGraph {
+  readonly version: number;
+  readonly versionHash: Hash;
+  readonly sessionKey: SessionKey;
+  readonly entities: BeliefEntity[];
+  readonly relations: BeliefRelation[];
+  readonly beliefs: Belief[];
+  readonly contradictions: {
+    readonly beliefId1: string;
+    readonly beliefId2: string;
+    readonly detectedAtMs: TimestampMs;
+  }[];
+  readonly createdAtMs: TimestampMs;
+}
+
+/** Prediction for testable world model */
+export interface Prediction {
+  readonly predictionId: string;
+  readonly stepId: string;
+  readonly expectedOutcome: unknown;
+  readonly expectedStateTransitions: {
+    readonly path: string;
+    readonly expectedValue: unknown;
+  }[];
+  readonly createdAtMs: TimestampMs;
+}
+
+// ============================================================================
+// Transfer Learning (Section 7)
+// ============================================================================
+
+/** Task trace for case-based reasoning */
+export interface TaskTrace {
+  readonly traceId: string;
+  readonly sessionKey: SessionKey;
+  readonly taskSignature: string;
+  readonly detectedConcepts: string[];
+  readonly filledSlots: Record<string, unknown>;
+  readonly missingSlots: string[];
+  readonly planSteps: {
+    readonly stepId: string;
+    readonly intent: string;
+    readonly actionClass: string;
+    readonly status: string;
+  }[];
+  readonly policyDecisions: {
+    readonly stepId: string;
+    readonly decision: string;
+    readonly reason: string;
+  }[];
+  readonly toolCalls: {
+    readonly toolName: string;
+    readonly success: boolean;
+    readonly timestampMs: TimestampMs;
+  }[];
+  readonly evaluation: {
+    readonly result: 'success' | 'partial' | 'failure';
+    readonly summary: string;
+  };
+  readonly chainLinkage: {
+    readonly parentTraceId?: string;
+    readonly childTraceIds: string[];
+  };
+  readonly createdAtMs: TimestampMs;
+  readonly completedAtMs: TimestampMs;
+}
+
+/** Skill - versioned plan template */
+export interface Skill {
+  readonly skillId: string;
+  readonly version: string;
+  readonly trigger: {
+    readonly concepts: string[];
+    readonly schemaReadiness: string[];
+  };
+  readonly planTemplate: {
+    readonly steps: {
+      readonly intent: string;
+      readonly actionClass: string;
+      readonly toolName?: string;
+      readonly placeholders: Record<string, string>;
+    }[];
+  };
+  readonly invariants: string[];
+  readonly approvals: string[];
+  readonly evaluationChecks: string[];
+  readonly status: 'draft' | 'evaluating' | 'active' | 'deprecated';
+  readonly createdAtMs: TimestampMs;
+  readonly activatedAtMs?: TimestampMs;
+}
+
+// ============================================================================
+// Abstractions (Section 8)
+// ============================================================================
+
+/** Concept definition */
+export interface Concept {
+  readonly conceptId: string;
+  readonly name: string;
+  readonly detectors: {
+    readonly type: 'rule' | 'classifier';
+    readonly config: unknown;
+  }[];
+  readonly confidenceThreshold: number;
+  readonly positiveExemplars: string[]; // trace IDs
+  readonly negativeExemplars: string[]; // trace IDs
+}
+
+/** Schema definition */
+export interface Schema {
+  readonly schemaId: string;
+  readonly concept: string;
+  readonly requiredSlots: string[];
+  readonly optionalSlots: string[];
+  readonly validationRules: {
+    readonly slot: string;
+    readonly rule: string;
+  }[];
+  readonly clarifyingQuestions: Record<string, string>;
+}
+
+/** Invariant definition */
+export interface Invariant {
+  readonly invariantId: string;
+  readonly name: string;
+  readonly rule: string;
+  readonly appliesTo: {
+    readonly actionClasses: string[];
+    readonly concepts: string[];
+  };
+  readonly repairStrategies: {
+    readonly type: 'ask' | 'replan' | 'request_approval';
+    readonly template: string;
+  }[];
+}
+
+// ============================================================================
+// v1 Compatibility Types
+// ============================================================================
+
+/** Action classes from v1 */
 export const ActionClass = {
   LocalOnly: 'local_only',
   ExternalRead: 'external_read',
@@ -44,276 +838,40 @@ export const ActionClass = {
 
 export type ActionClassType = typeof ActionClass[keyof typeof ActionClass];
 
-/**
- * PlanStep - Single step in execution plan
- * Milestone 3: Extended to include all policy action classes
- * Milestone 6: Added toolName, toolInput, outputSummary
- */
+/** Plan step from v1 */
 export interface PlanStep {
-  /** Unique step identifier */
-  readonly stepId: UUID;
-  /** Human-readable intent */
+  readonly stepId: string;
   readonly intent: string;
-  /** Action classification - extends policy action classes */
   readonly actionClass: ActionClassType;
-  /** Execution status - Milestone 2: policy-based statuses */
   readonly status: 'planned' | 'allowed' | 'awaiting_approval' | 'blocked' | 'executed' | 'failed' | 'skipped';
-  /** Tool name for execution (Milestone 6) */
   readonly toolName?: string;
-  /** Tool input parameters (Milestone 6) */
   readonly toolInput?: Record<string, unknown>;
-  /** Step output summary after execution (Milestone 6) */
   readonly outputSummary?: unknown;
 }
 
-/**
- * Plan - Execution plan generated from observation
- * @deprecated Use PlanGraph for new code (Milestone 3+)
- */
+/** Plan from v1 */
 export interface Plan {
-  /** Unique plan ID */
-  readonly id: UUID;
-  /** Session key */
-  readonly sessionKey: SessionKey;
-  /** When plan was created */
+  readonly id: string;
+  readonly sessionKey: string;
   readonly createdAtMs: TimestampMs;
-  /** Steps in the plan */
-  readonly steps: readonly PlanStep[];
-}
-
-/**
- * PlanGraph - Execution plan generated from input
- * Milestone 3: Planning subsystem
- */
-export interface PlanGraph {
-  /** Unique plan ID */
-  readonly id: UUID;
-  /** Session key */
-  readonly sessionKey: SessionKey;
-  /** When plan was created */
-  readonly createdAtMs: TimestampMs;
-  /** Steps in the plan */
   readonly steps: PlanStep[];
 }
 
-/**
- * Semantic Fact - Extracted from tool results
- * Milestone 8: Consolidator & Loop Integration
- */
-export interface SemanticFact {
-  /** Unique fact ID */
-  readonly factId: UUID;
-  /** Session this fact belongs to */
-  readonly sessionKey: SessionKey;
-  /** Natural language statement of the fact */
-  readonly statement: string;
-  /** SHA-256 hash of the statement */
-  readonly statementHash: string;
-  /** Tool that generated this fact */
-  readonly toolName: string;
-  /** Evidence for this fact */
-  readonly evidence: readonly {
-    /** Type of evidence */
-    readonly type: 'tool_result';
-    /** Reference to tool result (step ID, etc.) */
-    readonly refId: string;
-    /** When evidence was collected */
-    readonly timestampMs: TimestampMs;
-  }[];
-  /** Source of this fact */
-  readonly source: 'consolidator';
-  /** Privacy level of the fact */
-  readonly privacyLevel: 'private' | 'public';
-  /** Confidence score (0-1) */
-  readonly confidence: number;
-  /** Last time this fact was verified */
-  readonly lastVerifiedMs: TimestampMs;
-  /** Last time this fact was reinforced */
-  readonly lastReinforcedMs: TimestampMs;
-  /** When fact was created */
-  readonly createdAtMs: TimestampMs;
-}
-
-/**
- * Memory context bundle - recalled memories for planning
- * Milestone 4: Local memory integration
- * Milestone 8: Added semanticFacts
- */
-export interface ContextBundle {
-  /** Recent flash memory entries */
-  readonly flash: { id: string; content: string; timestampMs: number }[];
-  /** Relevant warm memory hits */
-  readonly warmHits: { id: string; content: string; timestampMs: number }[];
-  /** Semantic facts from tool execution */
-  readonly semanticFacts?: SemanticFact[];
-  /** When memories were recalled */
-  readonly recalledAtMs: TimestampMs;
-}
-
-/**
- * PlannerInput - Input to create a plan
- * Milestone 3: Planning subsystem
- * Milestone 4: Added contextBundle
- */
-export interface PlannerInput {
-  /** Input text/natural language description */
-  readonly text: string;
-  /** Session identifier */
-  readonly sessionKey: SessionKey;
-  /** Working directory for execution context */
-  readonly workspaceDir: string;
-  /** Autonomy level (1-3) */
-  readonly autonomy: number;
-  /** Optional memory context */
-  readonly contextBundle?: ContextBundle;
-}
-
-/**
- * PlannerConfig - Planner configuration (Milestone 3)
- */
-export interface PlannerConfig {
-  /** Whether planner should be verbose/logging */
-  readonly verbose?: boolean;
-}
-
-/**
- * Evaluation - Result of executing a plan
- */
-export interface Evaluation {
-  /** Unique evaluation ID */
-  readonly id: UUID;
-  /** Plan being evaluated */
-  readonly planId: UUID;
-  /** Session key */
-  readonly sessionKey: SessionKey;
-  /** Overall result */
-  readonly result: 'success' | 'partial' | 'failure';
-  /** Human-readable summary */
-  readonly summary: string;
-  /** When evaluated */
-  readonly evaluatedAtMs: TimestampMs;
-}
-
-/**
- * AuditEvent - Record of significant actions
- * Milestone 2: includes policy decision tracking
- */
-export interface AuditEvent {
-  /** Event ID */
-  readonly id: UUID;
-  /** Session key */
-  readonly sessionKey: SessionKey;
-  /** Event type */
-  readonly type:
-    | 'loop_start'
-    | 'loop_complete'
-    | 'plan_created'
-    | 'evaluation_complete'
-    | 'policy_decision';
-  /** Related IDs */
-  readonly relatedIds: Record<string, UUID>;
-  /** When event occurred */
-  readonly occurredAtMs: TimestampMs;
-  /** Optional details (e.g., policy decision info) */
-  readonly details?: {
-    readonly decision?: 'allow' | 'awaiting_approval' | 'block';
-    readonly reason?: string;
-    readonly autonomyLevel?: number;
-  };
-}
-
-/**
- * LoopState - Current state snapshot
- * Last-write-wins file that captures latest run
- */
-export interface LoopState {
-  /** Session key */
-  readonly sessionKey: SessionKey;
-  /** Latest observation ID */
-  readonly latestObservationId: UUID;
-  /** Latest plan ID */
-  readonly latestPlanId: UUID;
-  /** Latest evaluation ID */
-  readonly latestEvaluationId: UUID;
-  /** When state was last updated */
-  readonly updatedAtMs: TimestampMs;
-  /** Run counter */
-  readonly runCount: number;
-}
-
-/**
- * LoopInput - Input to runNeuronWavesLoop
- */
-export interface LoopInput {
-  /** Input content/text */
+/** Observation from v1 */
+export interface Observation {
+  readonly id: string;
+  readonly sessionKey: string;
   readonly content: string;
-  /** Session identifier */
-  readonly sessionKey: SessionKey;
+  readonly source: 'user' | 'system' | 'external';
+  readonly observedAtMs: TimestampMs;
 }
 
-/**
- * LoopOutput - Output from runNeuronWavesLoop
- */
-export interface LoopOutput {
-  /** Generated plan */
-  readonly plan: Plan;
-  /** Evaluation result */
-  readonly evaluation: Evaluation;
-  /** Paths to written artifacts */
-  readonly artifactPaths: {
-    readonly observations: string;
-    readonly plans: string;
-    readonly evaluations: string;
-    readonly audit: string;
-    readonly state: string;
-  };
-}
-
-/**
- * LLM Planner Configuration - Milestone 7
- */
-export interface LLMPlannerConfig {
-  /** Enable LLM planner (default: false) */
-  readonly enabled: boolean;
-  /** LLM provider */
-  readonly provider: 'openai' | 'anthropic' | 'ollama' | 'custom';
-  /** Model name */
-  readonly model: string;
-  /** API key (or from env) */
-  readonly apiKey?: string;
-  /** Base URL for custom/ollama */
-  readonly baseUrl?: string;
-  /** Max steps in plan (default: 10) */
-  readonly maxSteps: number;
-  /** LLM call timeout (default: 30000) */
-  readonly timeoutMs: number;
-  /** Max tokens per response (default: 2000) */
-  readonly maxTokens: number;
-  /** Temperature (default: 0) */
-  readonly temperature: number;
-  /** Dev mode - logs raw prompts (default: false) */
-  readonly devMode?: boolean;
-}
-
-/**
- * Planner Audit Record - Milestone 7
- * Hash-only auditing for privacy
- */
-export interface PlannerAuditRecord {
-  /** Plan ID */
+/** Evaluation from v1 */
+export interface Evaluation {
+  readonly id: string;
   readonly planId: string;
-  /** Which planner ran */
-  readonly plannerUsed: 'prompted' | 'heuristic';
-  /** SHA-256 hash of prompt */
-  readonly promptHash: string;
-  /** SHA-256 hash of response (LLM only) */
-  readonly responseHash?: string;
-  /** Validation passed */
-  readonly validationPassed: boolean;
-  /** Validation errors if any */
-  readonly validationErrors?: string[];
-  /** Fallback was triggered */
-  readonly fallbackTriggered: boolean;
-  /** Timestamp */
-  readonly timestampMs: number;
+  readonly sessionKey: string;
+  readonly result: 'success' | 'partial' | 'failure';
+  readonly summary: string;
+  readonly evaluatedAtMs: TimestampMs;
 }
