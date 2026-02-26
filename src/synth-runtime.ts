@@ -28,6 +28,8 @@ import { OllamaProvider, MockLLMProvider, type LLMProvider } from './llm/llm-pro
 import { VectorStore } from './vector/vector-store.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
+import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
+import { Autonomy } from './policy/types.js';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -76,6 +78,8 @@ export class SynthRuntime {
   // Error handling
   private errorBoundary: ErrorBoundary;
 
+  private readonly v1Pipeline: ReturnType<typeof createV1PipelineAdapter>;
+
   // Heartbeat
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private maintenanceInterval: ReturnType<typeof setInterval> | null = null;
@@ -90,6 +94,8 @@ export class SynthRuntime {
       enableMemory: config.enableMemory ?? true,
       tickRate: config.tickRate ?? 10,
     };
+
+    this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
 
     // Initialize core components
     this.signalBus = new SignalBus({ baseDir: join(this.config.baseDir, 'signals') });
@@ -120,11 +126,7 @@ export class SynthRuntime {
 
     this.cortexLoop = new CortexLoop({
       artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-      v1Loop: async (input, config) => ({
-        plan: { id: `plan-${Date.now()}`, steps: [], status: 'completed', sessionKey: input.sessionKey, createdAtMs: Date.now() },
-        evaluation: { id: `eval-${Date.now()}`, result: 'success', summary: 'stub', planId: `plan-${Date.now()}`, sessionKey: input.sessionKey, evaluatedAtMs: Date.now() },
-        artifactPaths: []
-      })
+      v1Loop: this.v1Pipeline
     });
 
     // Initialize memory
@@ -282,11 +284,16 @@ export class SynthRuntime {
       memoryContext = memories.flash.map(m => m.content);
     }
 
-    // 3. Generate response
-    const response = await this.config.llm.generateWithContext(input, [
-      ...memoryContext,
-      ...(context ?? []),
-    ]);
+    // 3. Run real pipeline adapter (plan -> policy -> execution -> evaluation)
+    const pipelineResult = await this.v1Pipeline(
+      { content: input, sessionKey },
+      {
+        artifactBaseDir: join(this.config.baseDir, 'artifacts'),
+        autonomyLevel: Autonomy.Level1,
+        enableMemory: this.config.enableMemory,
+      }
+    );
+    const response = pipelineResult.evaluation.summary;
 
     // 4. Store response
     if (this.config.enableMemory) {
@@ -299,7 +306,11 @@ export class SynthRuntime {
         userFlagged: false,
         linkedTo: [],
         sessionKey,
-        metadata: { response: true },
+        metadata: {
+          response: true,
+          planId: pipelineResult.plan.id,
+          evaluationResult: pipelineResult.evaluation.result,
+        },
       });
     }
 

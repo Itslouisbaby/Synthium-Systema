@@ -21,9 +21,12 @@ export * from './runtime/self-model.js';
 export * from './runtime/deterministic-id.js';
 
 // Memory
-export {
-  MemoryEntry, FlashMemoryFile, WarmMemoryFile,
-  MemoryIndex, DefaultMemoryConfig, STOPWORDS,
+export { DefaultMemoryConfig, STOPWORDS } from './memory/types.js';
+export type {
+  MemoryEntry,
+  FlashMemoryFile,
+  WarmMemoryFile,
+  MemoryIndex,
   ContextBundle
 } from './memory/types.js';
 export * from './memory/core-memories.js';
