@@ -24,6 +24,8 @@ See full policy in [docs/RELEASE_LANES.md](./docs/RELEASE_LANES.md).
 - **Experimental (usable with caution):** policy artifact authoring/versioning flows, external-read stack, multi-agent orchestration modules.
 - **Incubating (for development):** NeuronWaves v2 namespaces and feature-flagged transitions.
 
+For de-stubbing and productionization of the reasoning path, see [docs/PHASE_A_DESTUB_RUNTIME_PLAN.md](./docs/PHASE_A_DESTUB_RUNTIME_PLAN.md).
+
 ## Runtime selection
 
 `run` command defaults to v1 runtime. v2 runtime is opt-in via env flag:
