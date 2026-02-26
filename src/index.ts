@@ -44,3 +44,26 @@ export * from './neural-learning/scaled-embedding-network.js';
 
 // TUI
 export * from './tui/index.js';
+
+// Legacy V1 Exports for Testing
+export { ArtifactStore, type StoreConfig, type SessionPaths } from './artifacts/store.js';
+export { runNeuronWavesLoop, type LoopConfig } from './orchestrator/loop.js';
+export { SynthRuntime, createSynthRuntime } from './orchestrator/runtime.js';
+export type { SynthRuntimeConfig, SynthResult } from './orchestrator/runtime.js';
+export { PolicyGate } from './policy/gate.js';
+export { Autonomy, DefaultLimits, HARD_BLOCKED_CLASSES, initialStats, ActionClass } from './policy/types.js';
+export type { AutonomyLevel, AutonomyLimits, PolicyConfig, PolicyDecision, PolicyGateStats, PolicyStep, PolicyAuditEvent, ActionClassType, StepStatus } from './policy/types.js';
+export { HeuristicPlanner } from './planning/heuristic-planner.js';
+export { PlannerRegistry, type Planner } from './planning/planner.js';
+
+import { runNeuronWavesLoop, type LoopInput } from './orchestrator/loop.js';
+export interface WaveOptions {
+  content: string;
+  sessionKey: string;
+  artifactDir?: string;
+}
+export async function synthesize(options: WaveOptions) {
+  const config = { artifactBaseDir: options.artifactDir || '.synth/neuronwaves' };
+  const input: LoopInput = { content: options.content, sessionKey: options.sessionKey };
+  return runNeuronWavesLoop(input, config);
+}

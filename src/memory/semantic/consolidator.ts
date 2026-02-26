@@ -101,10 +101,12 @@ export class Consolidator {
       ],
       source: 'consolidator',
       privacyLevel: 'private',
-      confidence: 1.0, // Direct tool result = high confidence
+      confidence: 1.0,
       lastVerifiedMs: timestampMs,
       lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
+      toolName: step.toolName,
+      sessionKey,
     };
   }
 
@@ -142,10 +144,12 @@ export class Consolidator {
       ],
       source: 'consolidator',
       privacyLevel: 'private',
-      confidence: 1.0, // Direct tool result = high confidence
+      confidence: 1.0,
       lastVerifiedMs: timestampMs,
       lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
+      toolName: step.toolName,
+      sessionKey,
     };
   }
 
@@ -186,10 +190,12 @@ export class Consolidator {
       ],
       source: 'consolidator',
       privacyLevel: 'private',
-      confidence: 1.0, // Direct tool result = high confidence
+      confidence: 1.0,
       lastVerifiedMs: timestampMs,
       lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,
+      toolName: step.toolName,
+      sessionKey,
     };
   }
 }
