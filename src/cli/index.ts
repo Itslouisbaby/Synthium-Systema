@@ -54,6 +54,10 @@ async function main() {
       await runConfig(subcommand);
       break;
 
+    case 'canary':
+      await runCanary(subcommand);
+      break;
+
     case 'help':
     case '--help':
     case '-h':
@@ -98,6 +102,11 @@ async function runConfig(action?: string): Promise<void> {
   await runConfig(action, process.argv.slice(3));
 }
 
+async function runCanary(action?: string): Promise<void> {
+  const { runCanary } = await import('./commands/canary.js');
+  await runCanary(action);
+}
+
 function showHelp(version: string): void {
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
@@ -118,6 +127,8 @@ Commands:
     path                    Show config file location
     get <key>               Get config value
     set <key> <value>       Set config value
+  canary [action]           Run v2 promotion gate automation
+    gate                    Evaluate parity gates and emit machine report
   help                      Show this help message
   version                   Show version
 
@@ -128,6 +139,7 @@ Examples:
   synth memory stats        Show memory statistics
   synth memory search "AI"  Find memories by keyword
   synth setup               Run first-time setup
+  synth canary gate         Execute PR21 promotion gate checks
 
 Environment Variables:
   SYNTH_MODEL               Default LLM model (default: llama3.2)
