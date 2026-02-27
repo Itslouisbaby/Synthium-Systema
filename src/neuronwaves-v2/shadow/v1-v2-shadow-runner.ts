@@ -23,10 +23,6 @@ export interface ShadowComparisonResult {
     exact: boolean;
     normalized: boolean;
   };
-  evidence: {
-    v2SignalTypes: string[];
-    v2TickCount: number;
-  };
   artifacts: {
     v1BaseDir: string;
     v2BaseDir: string;
@@ -135,10 +131,6 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
       throw new Error(`Timed out waiting for v2 output after ${timeoutMs}ms`);
     }
 
-    const v2Signals = await v2Runtime.getSignals(sessionKey);
-    const v2SignalTypes = [...new Set(v2Signals.map(signal => signal.type))];
-    const v2TickCount = v2Runtime.getStatus().tickCount;
-
     return {
       input: options.input,
       v1Output,
@@ -146,10 +138,6 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
       parity: {
         exact: v1Output === v2Output,
         normalized: normalizeText(v1Output) === normalizeText(v2Output),
-      },
-      evidence: {
-        v2SignalTypes,
-        v2TickCount,
       },
       artifacts: {
         v1BaseDir,
