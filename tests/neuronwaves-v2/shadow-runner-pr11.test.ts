@@ -36,35 +36,24 @@ class ShadowStubLLM implements LLMProvider {
 }
 
 describe('PR11 v1/v2 shadow comparison harness', () => {
-  it('runs v1 and v2 in parallel and returns parity evidence metadata', async () => {
+  it('runs v1 and v2 in parallel and returns comparable outputs + artifact dirs', async () => {
     const result = await runV1V2ShadowComparison({
-      input: 'summarize local shadow request and include policy notes',
+      input: 'summarize local shadow request',
       llm: new ShadowStubLLM(),
       timeoutMs: 8000,
     });
 
-    expect(result.input).toContain('shadow request');
+    expect(result.input).toBe('summarize local shadow request');
     expect(result.v1Output).toContain('V1:');
-    expect(result.v2Output).toContain('V2:');
+    expect(result.v2Output).toContain('V2:summarize local shadow request');
+
+    expect(result.parity.exact).toBe(false);
+    expect(typeof result.parity.normalized).toBe('boolean');
 
     expect(result.evidence.v2SignalTypes).toContain('INPUT_RECEIVED');
     expect(result.evidence.v2SignalTypes).toContain('OUTPUT_READY');
     expect(result.evidence.v2SignalTypes).toContain('OUTPUT_SENT');
     expect(result.evidence.v2TickCount).toBeGreaterThan(0);
-
-    expect(['success', 'partial', 'failure']).toContain(result.evidence.v1EvaluationResult);
-    expect(['success', 'partial', 'failure']).toContain(result.evidence.v2EvaluationResult);
-
-    expect(result.policyAuditParity.v1DecisionCounts).toBeTypeOf('object');
-    expect(result.policyAuditParity.v2DecisionCounts).toBeTypeOf('object');
-    expect(typeof result.policyAuditParity.exactCountMatch).toBe('boolean');
-
-    expect(result.semanticScores.planStepAlignment).toBeGreaterThanOrEqual(0);
-    expect(result.semanticScores.policyDecisionAlignment).toBeGreaterThanOrEqual(0);
-    expect(result.semanticScores.evaluationResultAlignment).toBeGreaterThanOrEqual(0);
-    expect(result.semanticScores.outputQualityHeuristic).toBeGreaterThanOrEqual(0);
-    expect(result.semanticScores.total).toBeGreaterThanOrEqual(0);
-    expect(result.semanticScores.total).toBeLessThanOrEqual(1);
 
     expect(result.artifacts.v1BaseDir).toContain('synth-pr11-v1-');
     expect(result.artifacts.v2BaseDir).toContain('synth-pr11-v2-');

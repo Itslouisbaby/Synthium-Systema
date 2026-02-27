@@ -38,22 +38,3 @@ This confirms that micro-loops coordinate correctly under error conditions.
 3. Operational artifact parity with v1 (signals, run manifests, policy metadata).
 4. Rollback path documented and tested.
 5. Release lanes updated only after objective criteria above are met.
-
-
-## PR14 deliverable: semantic + policy parity scoring
-
-Shadow comparison now reports weighted semantic parity and policy/audit parity data:
-
-- Plan-step alignment
-- Policy decision alignment
-- Evaluation result alignment
-- Output quality heuristic
-- v1/v2 policy decision count parity
-
-
-## PR16 deliverable: real v2 E2E runtime path
-
-Added a runtime integration test using actual v2 loops (input/output/executive/critic/monitor) that validates:
-
-- output publication (`OUTPUT_READY` -> `OUTPUT_SENT`),
-- executive replan signal on model error (`EXEC_REQUEST_REPLAN`).
