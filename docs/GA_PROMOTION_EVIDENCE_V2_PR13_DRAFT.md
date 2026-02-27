@@ -29,12 +29,12 @@ Status: **Met (initial failure-path contract).**
 
 ### 3) Remaining gates before lane promotion
 
-1. Production-grade shadow evaluator with richer semantic parity metrics and CI-operational thresholds.
-2. Policy/audit parity checks with per-step mismatch classification (decision/reason/missing/extra).
-3. End-to-end v2 runtime integration tests with real plan execution path (not shadow bridge).
-4. Rollback SLOs and cutover criteria, plus executed drill evidence.
+1. Add production-grade shadow evaluator with richer semantic parity metrics.
+2. Add policy/audit parity checks between v1 and v2 artifacts.
+3. Add end-to-end v2 runtime integration tests with real plan execution path (not shadow bridge).
+4. Define rollback SLOs and cutover criteria for controlled tenant rollout (PR17).
 
-Status: **In progress (PR18+ operationalization underway).**
+Status: **Partially open.**
 
 ## Recommendation
 
@@ -55,19 +55,3 @@ Status: **Met (baseline integration path).**
 - Added `docs/NEURONWAVES_V2_CUTOVER_ROLLBACK_GATES_PR17.md` with canary stages, rollback SLO thresholds, auto-abort conditions, and lane-promotion checklists.
 
 Status: **Met (operational gate baseline).**
-
-
-### 6) Semantic threshold operationalization + trend gating
-
-- Shadow comparison now emits configurable threshold settings and a promotion gate decision (`pass/fail`, failed checks, recommendation).
-- Gate evaluation supports trend windows (consecutive pass requirements) so CI can block lane promotion on regressions.
-- Covered by `tests/neuronwaves-v2/shadow-runner-pr11.test.ts` with hold/rollback scenarios.
-
-Status: **Met (baseline gate logic in code).**
-
-### 7) Canary/rollback drill evidence capture
-
-- Added `docs/NEURONWAVES_V2_CANARY_DRILL_EVIDENCE.md` as the canonical drill evidence log with required schema and a Stage A dry-run entry.
-- Includes SLO deltas, parity outcomes, and next-stage blockers.
-
-Status: **Met (documentation + example evidence, further real drills required before Stage B).**

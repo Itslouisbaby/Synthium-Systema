@@ -59,13 +59,3 @@ Auto-abort must automatically stop canary progression and route traffic back to 
 - **Ops owner:** canary progression, rollback drills, and incident response.
 
 Use this file as the authoritative cutover gate reference for PR17 onward.
-
-
-## 6) Drill evidence logging
-
-- Record every canary and rollback rehearsal in `docs/NEURONWAVES_V2_CANARY_DRILL_EVIDENCE.md`.
-- Promotion beyond Stage A requires at least one successful logged drill window with no unresolved rollback gate breaches.
-- CI lane-promotion checks should ingest:
-  - semantic gate status (`semanticPromotionGate.pass`),
-  - failed check list (`semanticPromotionGate.failedChecks`),
-  - policy mismatch classification (`policyAuditParity.mismatchBreakdown`).
