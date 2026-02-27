@@ -12,7 +12,7 @@ Goal: prove end-to-end chat wiring is working (local-only / heuristic ok), with 
 Run from repo root:
 
 ```powershell
-cd C:\Users\louis\.openclaw\workspace\synthium-systema
+cd /workspace/Synthium-Systema
 
 # Build
 npm run build
@@ -61,7 +61,7 @@ Patched phase5-wiring to consume real NeuronWaves artifacts instead of smoke tes
 ### Commands to verify
 
 ```powershell
-cd C:\Users\louis\.openclaw\workspace\synthium-systema
+cd /workspace/Synthium-Systema
 npm run build
 
 # Launch ANSI TUI
@@ -102,7 +102,7 @@ node dist/cli/index.mjs tui --workspace . --session phase5_fix4
 ### Commands run
 
 ```powershell
-cd C:\Users\louis\.openclaw\workspace\synthium-systema
+cd /workspace/Synthium-Systema
 npm run build
 
 # Attempt 1: ANSI launch via CLI
