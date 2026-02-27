@@ -38,9 +38,9 @@ Auto-abort must automatically stop canary progression and route traffic back to 
 
 ### Incubating -> Experimental
 
-- [x] PR14 semantic parity scoring active in CI (`v2-promotion-gate` artifact report).
-- [x] PR15 policy/audit parity checks active in CI (`v2-promotion-gate` mismatch breakdown enforcement).
-- [x] PR16 real v2 E2E runtime path green in CI (`tests/neuronwaves-v2/runtime-e2e-pr16.test.ts`).
+- [ ] PR14 semantic parity scoring active in CI.
+- [ ] PR15 policy/audit parity checks active in CI.
+- [ ] PR16 real v2 E2E runtime path green in CI.
 - [ ] Canary Stage B and Stage C complete without rollback events.
 - [ ] Runbook and rollback command path validated in a drill.
 
@@ -59,13 +59,3 @@ Auto-abort must automatically stop canary progression and route traffic back to 
 - **Ops owner:** canary progression, rollback drills, and incident response.
 
 Use this file as the authoritative cutover gate reference for PR17 onward.
-
-
-## 6) Drill evidence logging
-
-- Record every canary and rollback rehearsal in `docs/NEURONWAVES_V2_CANARY_DRILL_EVIDENCE.md`.
-- Promotion beyond Stage A requires at least one successful logged drill window with no unresolved rollback gate breaches.
-- CI lane-promotion checks should ingest:
-  - semantic gate status (`semanticPromotionGate.pass`),
-  - failed check list (`semanticPromotionGate.failedChecks`),
-  - policy mismatch classification (`policyAuditParity.mismatchBreakdown`).
