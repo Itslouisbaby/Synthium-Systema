@@ -47,6 +47,7 @@ Expectation:
 Evidence:
 - GA evidence for default v1 runtime path: `docs/GA_PROMOTION_EVIDENCE_PR9.md`
 - v2 migration approach and gates: `docs/NEURONWAVES_V2_GA_MIGRATION_PLAN.md`
+- v2 GA evidence draft baseline: `docs/GA_PROMOTION_EVIDENCE_V2_PR13_DRAFT.md`
 
 ## Promotion checklist
 

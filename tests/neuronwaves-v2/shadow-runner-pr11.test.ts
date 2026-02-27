@@ -50,6 +50,11 @@ describe('PR11 v1/v2 shadow comparison harness', () => {
     expect(result.parity.exact).toBe(false);
     expect(typeof result.parity.normalized).toBe('boolean');
 
+    expect(result.evidence.v2SignalTypes).toContain('INPUT_RECEIVED');
+    expect(result.evidence.v2SignalTypes).toContain('OUTPUT_READY');
+    expect(result.evidence.v2SignalTypes).toContain('OUTPUT_SENT');
+    expect(result.evidence.v2TickCount).toBeGreaterThan(0);
+
     expect(result.artifacts.v1BaseDir).toContain('synth-pr11-v1-');
     expect(result.artifacts.v2BaseDir).toContain('synth-pr11-v2-');
   }, 20000);
