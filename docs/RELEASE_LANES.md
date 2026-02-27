@@ -48,6 +48,7 @@ Evidence:
 - GA evidence for default v1 runtime path: `docs/GA_PROMOTION_EVIDENCE_PR9.md`
 - v2 migration approach and gates: `docs/NEURONWAVES_V2_GA_MIGRATION_PLAN.md`
 - v2 GA evidence draft baseline: `docs/GA_PROMOTION_EVIDENCE_V2_PR13_DRAFT.md`
+- v2 cutover/rollback operational gates: `docs/NEURONWAVES_V2_CUTOVER_ROLLBACK_GATES_PR17.md`
 
 ## Promotion checklist
 
