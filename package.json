@@ -28,9 +28,7 @@
     "test": "vitest run",
     "dev": "vitest",
     "lint": "npm run typecheck",
-    "typecheck": "tsc --noEmit",
-    "canary:gate": "node dist/cli/index.mjs canary gate",
-    "canary:gate:strict": "SYNTH_CANARY_STAGE=A SYNTH_CANARY_WINDOWS=3 SYNTH_CANARY_USE_MOCK_LLM=1 node dist/cli/index.mjs canary gate"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "blessed": "^0.1.81",

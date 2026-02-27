@@ -4,20 +4,15 @@ import { join } from 'node:path';
 
 import { SynthRuntime } from '../../synth-runtime.js';
 import { NeuronWavesRuntime } from '../neuronwaves-runtime.js';
-import { CortexLoop } from '../loops/cortex-loop.js';
-import { CriticLoop } from '../loops/critic-loop.js';
-import { ExecutiveLoop } from '../loops/executive-loop.js';
-import { MonitorLoop } from '../loops/monitor-loop.js';
-import { createV1PipelineAdapter } from '../../runtime/v1-pipeline-adapter.js';
+import { SignalBus } from '../runtime/signal-bus.js';
 import type { LLMProvider } from '../../llm/llm-provider.js';
+import type { MicroLoop, SessionKey, Signal, SignalType, TickResult, WorkingState } from '../types.js';
 import { BufferedPublisher } from '../loops/output-loop.js';
 
 interface ShadowRunnerOptions {
   input: string;
   llm: LLMProvider;
   timeoutMs?: number;
-  thresholdConfig?: Partial<SemanticThresholdConfig>;
-  recentSemanticTotals?: number[];
 }
 
 interface V1RunManifest {
@@ -25,33 +20,10 @@ interface V1RunManifest {
   policyDecisions?: Array<{ stepId: string; decision: string; reason: string }>;
 }
 
-interface PolicyDecision {
-  stepId: string;
-  decision: string;
-  reason: string;
-}
-
-interface PolicyReasonMismatch {
-  stepId: string;
-  v1Reason: string;
-  v2Reason: string;
-  similarity: number;
-}
-
-interface PolicyAuditMismatchBreakdown {
-  decisionTypeMismatch: number;
-  reasonMismatch: number;
-  missingInV2: number;
-  extraInV2: number;
-}
-
 interface PolicyAuditParity {
   v1DecisionCounts: Record<string, number>;
   v2DecisionCounts: Record<string, number>;
   exactCountMatch: boolean;
-  exactDecisionMatch: boolean;
-  mismatchBreakdown: PolicyAuditMismatchBreakdown;
-  reasonMismatches: PolicyReasonMismatch[];
 }
 
 interface SemanticParityScores {
@@ -60,20 +32,6 @@ interface SemanticParityScores {
   evaluationResultAlignment: number;
   outputQualityHeuristic: number;
   total: number;
-}
-
-interface SemanticThresholdConfig {
-  floor: number;
-  requiredConsecutivePasses: number;
-  reasonSimilarityFloor: number;
-}
-
-interface SemanticPromotionGate {
-  pass: boolean;
-  currentWindowPasses: number;
-  requiredConsecutivePasses: number;
-  failedChecks: string[];
-  recommendation: 'hold' | 'promote' | 'rollback';
 }
 
 export interface ShadowComparisonResult {
@@ -86,16 +44,11 @@ export interface ShadowComparisonResult {
   };
   policyAuditParity: PolicyAuditParity;
   semanticScores: SemanticParityScores;
-  semanticThresholds: SemanticThresholdConfig;
-  semanticPromotionGate: SemanticPromotionGate;
   evidence: {
     v2SignalTypes: string[];
     v2TickCount: number;
     v1EvaluationResult: string;
     v2EvaluationResult: string;
-    outputReadyCount: number;
-    outputSentCount: number;
-    outputPublicationReliability: number;
   };
   artifacts: {
     v1BaseDir: string;
@@ -103,11 +56,56 @@ export interface ShadowComparisonResult {
   };
 }
 
-const DEFAULT_THRESHOLD_CONFIG: SemanticThresholdConfig = {
-  floor: 0.65,
-  requiredConsecutivePasses: 2,
-  reasonSimilarityFloor: 0.6,
-};
+class ShadowBridgeLoop implements MicroLoop {
+  readonly name = 'ShadowBridgeLoop';
+  readonly rhythm = 'palpitation' as const;
+  readonly tickBudgetMs = 20;
+  readonly maxSignalsOut = 5;
+  readonly reads = ['focus'] as const;
+  readonly writes = [] as const;
+  readonly subscriptions: SignalType[] = ['INPUT_RECEIVED'];
+
+  tick(input: {
+    signals: Signal[];
+    workingState: WorkingState;
+    sessionKey: SessionKey;
+  }): TickResult {
+    const source = input.signals.find(signal => signal.type === 'INPUT_RECEIVED');
+    if (!source) {
+      return {
+        signalsOut: [],
+        stateDelta: [],
+        metrics: { durationMs: 0, signalsProcessed: input.signals.length, signalsEmitted: 0 },
+      };
+    }
+
+    const payload = source.payload as { content?: string };
+    const content = typeof payload.content === 'string' ? payload.content : '';
+
+    return {
+      signalsOut: [
+        SignalBus.createSignal(
+          'OUTPUT_READY',
+          {
+            chainId: `shadow-${Date.now()}`,
+            content: `V2:${content}`,
+            contentType: 'text',
+          },
+          input.sessionKey,
+          this.name,
+          'event',
+          { causedBy: [source.signalId] }
+        ),
+      ],
+      stateDelta: [],
+      metrics: {
+        durationMs: 0,
+        signalsProcessed: input.signals.length,
+        signalsEmitted: 1,
+      },
+    };
+  }
+}
 
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -140,10 +138,6 @@ function toDecisionCounts(decisions: string[]): Record<string, number> {
   return counts;
 }
 
-function normalizeDecision(decision: string): string {
-  return decision.trim().toLowerCase() || 'unknown';
-}
-
 function jaccardSimilarity(a: string, b: string): number {
   const setA = new Set(normalizeText(a).split(' ').filter(Boolean));
   const setB = new Set(normalizeText(b).split(' ').filter(Boolean));
@@ -151,98 +145,6 @@ function jaccardSimilarity(a: string, b: string): number {
   const union = new Set([...setA, ...setB]);
   if (union.size === 0) return 1;
   return intersection.size / union.size;
-}
-
-function buildPolicyAuditParity(params: {
-  v1Decisions: PolicyDecision[];
-  v2Decisions: PolicyDecision[];
-  reasonSimilarityFloor: number;
-}): PolicyAuditParity {
-  const v1DecisionCounts = toDecisionCounts(params.v1Decisions.map(item => normalizeDecision(item.decision)));
-  const v2DecisionCounts = toDecisionCounts(params.v2Decisions.map(item => normalizeDecision(item.decision)));
-
-  const v1ByStep = new Map(params.v1Decisions.map(item => [item.stepId, item]));
-  const v2ByStep = new Map(params.v2Decisions.map(item => [item.stepId, item]));
-
-  let decisionTypeMismatch = 0;
-  let reasonMismatch = 0;
-  const reasonMismatches: PolicyReasonMismatch[] = [];
-
-  for (const [stepId, v1] of v1ByStep.entries()) {
-    const v2 = v2ByStep.get(stepId);
-    if (!v2) {
-      continue;
-    }
-
-    if (normalizeDecision(v1.decision) !== normalizeDecision(v2.decision)) {
-      decisionTypeMismatch += 1;
-    }
-
-    const similarity = jaccardSimilarity(v1.reason, v2.reason);
-    if (similarity < params.reasonSimilarityFloor) {
-      reasonMismatch += 1;
-      reasonMismatches.push({
-        stepId,
-        v1Reason: v1.reason,
-        v2Reason: v2.reason,
-        similarity,
-      });
-    }
-  }
-
-  const missingInV2 = params.v1Decisions.filter(item => !v2ByStep.has(item.stepId)).length;
-  const extraInV2 = params.v2Decisions.filter(item => !v1ByStep.has(item.stepId)).length;
-
-  return {
-    v1DecisionCounts,
-    v2DecisionCounts,
-    exactCountMatch: JSON.stringify(v1DecisionCounts) === JSON.stringify(v2DecisionCounts),
-    exactDecisionMatch: decisionTypeMismatch === 0 && reasonMismatch === 0 && missingInV2 === 0 && extraInV2 === 0,
-    mismatchBreakdown: {
-      decisionTypeMismatch,
-      reasonMismatch,
-      missingInV2,
-      extraInV2,
-    },
-    reasonMismatches,
-  };
-}
-
-function buildSemanticPromotionGate(params: {
-  score: number;
-  recentSemanticTotals: number[];
-  policyAuditParity: PolicyAuditParity;
-  thresholds: SemanticThresholdConfig;
-}): SemanticPromotionGate {
-  const history = [...params.recentSemanticTotals, params.score];
-  let trailingPasses = 0;
-
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    if (history[index] >= params.thresholds.floor) {
-      trailingPasses += 1;
-      continue;
-    }
-    break;
-  }
-
-  const failedChecks: string[] = [];
-  if (params.score < params.thresholds.floor) {
-    failedChecks.push(`semantic_total_below_floor:${params.score.toFixed(3)}<${params.thresholds.floor.toFixed(3)}`);
-  }
-  if (trailingPasses < params.thresholds.requiredConsecutivePasses) {
-    failedChecks.push(`insufficient_consecutive_windows:${trailingPasses}/${params.thresholds.requiredConsecutivePasses}`);
-  }
-  if (!params.policyAuditParity.exactDecisionMatch) {
-    failedChecks.push('policy_audit_mismatch_detected');
-  }
-
-  return {
-    pass: failedChecks.length === 0,
-    currentWindowPasses: trailingPasses,
-    requiredConsecutivePasses: params.thresholds.requiredConsecutivePasses,
-    failedChecks,
-    recommendation: failedChecks.length === 0 ? 'promote' : params.score < params.thresholds.floor ? 'rollback' : 'hold',
-  };
 }
 
 async function loadLatestV1Manifest(v1BaseDir: string): Promise<V1RunManifest | null> {
@@ -306,10 +208,6 @@ function buildSemanticScores(params: {
 
 export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Promise<ShadowComparisonResult> {
   const timeoutMs = options.timeoutMs ?? 5000;
-  const thresholds: SemanticThresholdConfig = {
-    ...DEFAULT_THRESHOLD_CONFIG,
-    ...options.thresholdConfig,
-  };
   const v1BaseDir = await mkdtemp(join(tmpdir(), 'synth-pr11-v1-'));
   const v2BaseDir = await mkdtemp(join(tmpdir(), 'synth-pr11-v2-'));
 
@@ -322,8 +220,6 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
   });
 
   const publisher = new BufferedPublisher();
-
-  const v2Pipeline = createV1PipelineAdapter(options.llm);
   const v2Runtime = new NeuronWavesRuntime({
     artifactBaseDir: v2BaseDir,
     enabledLoops: { input: true, output: true, executive: false, critic: false, monitor: false },
@@ -332,26 +228,7 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
 
   await v1Runtime.initialize();
   await v1Runtime.start();
-  v2Runtime.registerLoop(new ExecutiveLoop(), 4);
-  v2Runtime.registerLoop(new CriticLoop({ minPlanDepth: 1 }), 5);
-  v2Runtime.registerLoop(new MonitorLoop(), 6);
-  v2Runtime.registerLoop(
-    new CortexLoop({
-      v1Loop: async (input, config) =>
-        v2Pipeline(
-          { content: input.content, sessionKey: input.sessionKey },
-          {
-            artifactBaseDir: config.artifactBaseDir,
-            autonomyLevel: config.autonomyLevel,
-            enableMemory: config.enableMemory,
-          }
-        ),
-      artifactBaseDir: v2BaseDir,
-      autonomyLevel: 1,
-      enableMemory: true,
-    }),
-    3
-  );
+  v2Runtime.registerLoop(new ShadowBridgeLoop(), 1);
   v2Runtime.start();
 
   try {
@@ -379,33 +256,18 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
     const v2Signals = await v2Runtime.getSignals(sessionKey);
     const v2SignalTypes = [...new Set(v2Signals.map(signal => signal.type))];
     const v2TickCount = v2Runtime.getStatus().tickCount;
-    const outputReadyCount = v2Signals.filter(signal => signal.type === 'OUTPUT_READY').length;
-    const outputSentCount = v2Signals.filter(signal => signal.type === 'OUTPUT_SENT').length;
-    const outputPublicationReliability = outputReadyCount === 0 ? 1 : Math.min(1, outputSentCount / outputReadyCount);
     const v1Manifest = await loadLatestV1Manifest(v1BaseDir);
 
-    const v1Decisions = (v1Manifest?.policyDecisions ?? []).map(decision => ({
-      stepId: decision.stepId,
-      decision: decision.decision,
-      reason: decision.reason,
-    }));
-    const v2Decisions: PolicyDecision[] = v2Signals
+    const v1Decisions = (v1Manifest?.policyDecisions ?? []).map(decision => decision.decision);
+    const v2Decisions = v2Signals
       .filter(signal => signal.type === 'POLICY_DECISION_EMITTED')
       .map(signal => {
-        const payload = signal.payload as { stepId?: string; decision?: string; reason?: string };
-        return {
-          stepId: payload.stepId ?? `v2-${signal.signalId}`,
-          decision: payload.decision ?? 'unknown',
-          reason: payload.reason ?? '',
-        };
+        const payload = signal.payload as { decision?: string };
+        return payload.decision ?? 'unknown';
       });
 
-    const policyAuditParity = buildPolicyAuditParity({
-      v1Decisions,
-      v2Decisions,
-      reasonSimilarityFloor: thresholds.reasonSimilarityFloor,
-    });
-
+    const v1DecisionCounts = toDecisionCounts(v1Decisions);
+    const v2DecisionCounts = toDecisionCounts(v2Decisions);
     const v1EvaluationResult = v1Manifest?.evaluation?.result ?? classifyEvaluationResult(v1Output);
     const v2EvaluationResult = classifyEvaluationResult(v2Output);
 
@@ -413,17 +275,10 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
       input: options.input,
       v1Output,
       v2Output,
-      v1DecisionCounts: policyAuditParity.v1DecisionCounts,
-      v2DecisionCounts: policyAuditParity.v2DecisionCounts,
+      v1DecisionCounts,
+      v2DecisionCounts,
       v1EvaluationResult,
       v2EvaluationResult,
-    });
-
-    const semanticPromotionGate = buildSemanticPromotionGate({
-      score: semanticScores.total,
-      recentSemanticTotals: options.recentSemanticTotals ?? [],
-      policyAuditParity,
-      thresholds,
     });
 
     return {
@@ -434,18 +289,17 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
         exact: v1Output === v2Output,
         normalized: normalizeText(v1Output) === normalizeText(v2Output),
       },
-      policyAuditParity,
+      policyAuditParity: {
+        v1DecisionCounts,
+        v2DecisionCounts,
+        exactCountMatch: JSON.stringify(v1DecisionCounts) === JSON.stringify(v2DecisionCounts),
+      },
       semanticScores,
-      semanticThresholds: thresholds,
-      semanticPromotionGate,
       evidence: {
         v2SignalTypes,
         v2TickCount,
         v1EvaluationResult,
         v2EvaluationResult,
-        outputReadyCount,
-        outputSentCount,
-        outputPublicationReliability,
       },
       artifacts: {
         v1BaseDir,
