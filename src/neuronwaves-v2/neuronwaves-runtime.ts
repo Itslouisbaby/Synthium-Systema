@@ -19,7 +19,9 @@ import type {
   SchedulerConfig,
   TickRecord,
   WorkingState,
-  StateDelta
+  StateDelta,
+  SignalType,
+  SignalPayloadMap
 } from './types.js';
 
 // Default loops
@@ -215,6 +217,25 @@ export class NeuronWavesRuntime {
     // Trigger immediate tick for responsiveness
     await this.scheduler.triggerTick(sessionKey);
 
+    return sequenced.signalId;
+  }
+
+
+  /**
+   * Submit a raw signal into the runtime (integration/testing helper)
+   */
+  async submitSignal<T extends SignalType>(
+    sessionKey: SessionKey,
+    type: T,
+    payload: SignalPayloadMap[T],
+    sourceLoop: string = 'external',
+    priority: 'palpitation' | 'heartbeat' | 'event' = 'event'
+  ): Promise<string> {
+    this.workingState.getState(sessionKey);
+
+    const signal = SignalBus.createSignal(type, payload, sessionKey, sourceLoop, priority);
+    const sequenced = await this.signalBus.append(signal);
+    await this.scheduler.triggerTick(sessionKey);
     return sequenced.signalId;
   }
 
