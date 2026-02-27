@@ -89,10 +89,6 @@ export class CriticLoop implements MicroLoop {
           steps: PlanStep[];
           contextBundle?: unknown;
         };
-        const chainsAny = workingState.chains as any;
-        chainsAny.primary.status = 'paused';
-        const actualDepth = payload.steps.length;
-        (payload as any).shallow = true;
 
         // Perform plan critique
         const critique = this.critiquePlan(payload.planId, payload.steps, workingState);
