@@ -425,9 +425,9 @@ export class SynthRuntime {
     const policyDecisions = signals
       .filter(signal => signal.type === 'POLICY_DECISION_EMITTED')
       .map(signal => {
-        const payload = signal.payload as { stepId?: string; decision?: string; reason?: string };
+        const payload = signal.payload as { ruleId?: string; decision?: string; reason?: string };
         return {
-          stepId: payload.stepId ?? signal.signalId,
+          stepId: payload.ruleId ?? signal.signalId,
           decision: payload.decision ?? 'unknown',
           reason: payload.reason ?? 'No reason provided',
         };
