@@ -111,7 +111,7 @@ export class MonitorLoop implements MicroLoop {
         }
 
         case 'STEP_FAILED': {
-          const payload = signal.payload as { stepId: string; error: string };
+          const payload = signal.payload as { stepId: string; chainId?: string; error: string; errorType?: string };
           
           outcomes.push({
             toolName: 'unknown',
@@ -121,12 +121,15 @@ export class MonitorLoop implements MicroLoop {
           });
 
           // Emit confidence drop
+          const chainId = payload.chainId ?? workingState.focus.activeChainId ?? 'unknown-chain';
           signalsOut.push(SignalBus.createSignal(
             'CONFIDENCE_DROP',
             {
+              chainId,
+              metric: 'execution_success_rate',
+              previousValue: Math.max(0, workingState.selfModel.confidenceState.overall),
+              currentValue: Math.max(0, workingState.selfModel.confidenceState.overall - 0.1),
               reason: `Step failed: ${payload.error}`,
-              stepId: payload.stepId,
-              magnitude: 0.1,
             },
             sessionKey,
             this.name,
@@ -139,9 +142,9 @@ export class MonitorLoop implements MicroLoop {
             signalsOut.push(SignalBus.createSignal(
               'MODEL_ERROR_DETECTED',
               {
-                error: payload.error,
-                context: { stepId: payload.stepId },
-                severity: 'high',
+                errorType: payload.errorType ?? 'runtime_step_failure',
+                description: payload.error,
+                affectedChains: [chainId],
               },
               sessionKey,
               this.name,
@@ -174,14 +177,9 @@ export class MonitorLoop implements MicroLoop {
           signalsOut.push(SignalBus.createSignal(
             'MODEL_ERROR_DETECTED',
             {
-              error: 'Prediction mismatch detected',
-              context: {
-                predictionId: payload.predictionId,
-                expected: payload.expected,
-                actual: payload.actual,
-                stepId: payload.stepId,
-              },
-              severity: 'medium',
+              errorType: 'prediction_mismatch',
+              description: 'Prediction mismatch detected',
+              affectedChains: [payload.stepId],
             },
             sessionKey,
             this.name,
@@ -208,10 +206,10 @@ export class MonitorLoop implements MicroLoop {
         }
 
         case 'MODEL_ERROR_DETECTED': {
-          const payload = signal.payload as { error: string; severity?: string };
+          const payload = signal.payload as { description?: string; error?: string; errorType?: string; affectedChains?: string[] };
 
           // Update self-model confidence
-          const confidenceDrop = payload.severity === 'high' ? 0.2 : 0.1;
+          const confidenceDrop = payload.errorType === 'prediction_mismatch' ? 0.2 : 0.1;
           const newConfidence = Math.max(0, workingState.selfModel.confidenceState.overall - confidenceDrop);
 
           stateDeltas.push({
@@ -221,7 +219,7 @@ export class MonitorLoop implements MicroLoop {
               overall: newConfidence,
               topUncertaintyDrivers: [
                 ...workingState.selfModel.confidenceState.topUncertaintyDrivers,
-                payload.error,
+                payload.description ?? payload.error ?? payload.errorType ?? 'model_error',
               ].slice(0, 5),
             },
             operation: 'set',
@@ -233,8 +231,9 @@ export class MonitorLoop implements MicroLoop {
             signalsOut.push(SignalBus.createSignal(
               'ESCALATE_APPROVAL_SUGGESTED',
               {
+                chainId: workingState.focus.activeChainId ?? 'unknown-chain',
                 reason: `Confidence dropped to ${newConfidence.toFixed(2)} below threshold ${threshold}`,
-                suggestedAction: 'request_human_approval',
+                currentApprover: 'runtime-ops',
               },
               sessionKey,
               this.name,

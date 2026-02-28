@@ -33,7 +33,10 @@ export interface ExecutiveLoopConfig {
   readonly interruptThreshold?: number;
   /** Clarification question generator */
   readonly clarificationGenerator?: (uncertainty: string) => string;
+  /** Maximum number of replan attempts per chain before escalation */
+  readonly maxReplanAttempts?: number;
 }
+
 
 /**
  * ExecutiveLoop - Heartbeat + event-triggered executive coordination
@@ -70,6 +73,7 @@ export class ExecutiveLoop implements MicroLoop {
 
   private readonly config: ExecutiveLoopConfig;
   private chainCounter = 0;
+  private readonly replanAttemptsByChain = new Map<string, number>();
 
   constructor(config: ExecutiveLoopConfig = {}) {
     this.config = config;
@@ -117,8 +121,16 @@ export class ExecutiveLoop implements MicroLoop {
           break;
         }
         case 'MODEL_ERROR_DETECTED': {
-          const payload = signal.payload as { error: string };
-          modelError = { ...payload, signalId: signal.signalId };
+          const payload = signal.payload as {
+            description?: string;
+            error?: string;
+            errorType?: string;
+            affectedChains?: string[];
+          };
+          modelError = {
+            error: payload.description ?? payload.error ?? payload.errorType ?? 'model_error_detected',
+            signalId: signal.signalId,
+          };
           break;
         }
         case 'SUGGEST_ALTERNATIVE_PLAN': {
@@ -279,19 +291,53 @@ export class ExecutiveLoop implements MicroLoop {
 
       case 'handle_model_error': {
         if (modelError) {
-          // Request replan with error context
-          signalsOut.push(SignalBus.createSignal(
-            'EXEC_REQUEST_REPLAN',
-            {
-              reason: `Model error: ${modelError.error}`,
-              currentChainId: workingState.focus.activeChainId,
-              degradeMode: true,
-            },
-            sessionKey,
-            this.name,
-            'event',
-            { causedBy: [modelError.signalId] }
-          ));
+          const activeChainId = workingState.focus.activeChainId ?? 'global';
+          const previousAttempts = this.replanAttemptsByChain.get(activeChainId) ?? 0;
+          const nextAttempt = previousAttempts + 1;
+          const maxAttempts = this.config.maxReplanAttempts ?? 2;
+
+          if (nextAttempt <= maxAttempts) {
+            this.replanAttemptsByChain.set(activeChainId, nextAttempt);
+            signalsOut.push(SignalBus.createSignal(
+              'EXEC_REQUEST_REPLAN',
+              {
+                reason: `Model error: ${modelError.error} (attempt ${nextAttempt}/${maxAttempts})`,
+                currentChainId: workingState.focus.activeChainId,
+                degradeMode: true,
+                attempt: nextAttempt,
+              },
+              sessionKey,
+              this.name,
+              'event',
+              { causedBy: [modelError.signalId] }
+            ));
+          } else {
+            signalsOut.push(SignalBus.createSignal(
+              'ESCALATE_APPROVAL_SUGGESTED',
+              {
+                chainId: activeChainId,
+                reason: `Replan budget exceeded after ${previousAttempts} attempts: ${modelError.error}`,
+                currentApprover: 'runtime-ops',
+              },
+              sessionKey,
+              this.name,
+              'event',
+              { causedBy: [modelError.signalId] }
+            ));
+
+            signalsOut.push(SignalBus.createSignal(
+              'CHAIN_PAUSE',
+              {
+                chainId: activeChainId,
+                reason: 'Replan budget exhausted; manual intervention required',
+                canResume: false,
+              },
+              sessionKey,
+              this.name,
+              'event',
+              { causedBy: [modelError.signalId] }
+            ));
+          }
         }
         break;
       }
