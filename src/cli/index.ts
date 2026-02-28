@@ -129,6 +129,9 @@ Commands:
     set <key> <value>       Set config value
   canary [action]           Run v2 promotion gate automation
     gate                    Evaluate parity gates and emit machine report
+    promote                 Advance rollout stage and v2 percentage
+    rollback                Emergency rollback to stage C at 0% v2
+    status                  Show rollout stage and cohort health counters
   help                      Show this help message
   version                   Show version
 
