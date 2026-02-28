@@ -19,19 +19,62 @@ import { MonitorLoop } from './loops/monitor-loop.js';
 import { OutputLoop } from './loops/output-loop.js';
 import { CortexLoop } from './loops/cortex-loop.js';
 import { CoreMemories } from './memory/core-memories.js';
+import { Consolidator, SemanticStore } from './memory/semantic/index.js';
 import { LearningCategories, LearningCategory } from './learning/learning-categories.js';
 import { ContinuousPretraining } from './learning/continuous-pretraining.js';
 import { GoalAutonomy } from './autonomy/goal-autonomy.js';
 import { ExecutiveControl } from './autonomy/executive-control.js';
 import { Metacognition } from './cognition/metacognition.js';
-import { OllamaProvider, MockLLMProvider, type LLMProvider } from './llm/llm-provider.js';
+import { OllamaProvider, MockLLMProvider, createReliableLLMProvider, type LLMProvider } from './llm/llm-provider.js';
 import { VectorStore } from './vector/vector-store.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
 import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
 import { Autonomy, type AutonomyLevel } from './policy/types.js';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
+
+interface SessionWorldState {
+  facts: string[];
+  assumptions: string[];
+  openGoals: string[];
+  constraints: string[];
+  updatedAtMs: number;
+}
+
+interface WorldStateDiff {
+  stepId: string;
+  type: 'fact_add' | 'assumption_add' | 'goal_add' | 'constraint_add' | 'contradiction';
+  value: string;
+  status: string;
+}
+
+interface ContradictionEvent {
+  stepId: string;
+  expected: string;
+  actual: string;
+}
+
+interface RankedMemory {
+  content: string;
+  similarity: number;
+  recencyScore: number;
+  sourceTrust: number;
+  provenanceScore: number;
+  finalScore: number;
+  metadata: Record<string, unknown>;
+}
+
+type RuntimeGovernorMode = 'full' | 'conservative' | 'safe_minimal';
+
+interface RuntimeGovernorState {
+  mode: RuntimeGovernorMode;
+  recentErrors: number;
+  recentSuccesses: number;
+  lastUpdatedMs: number;
+}
 
 /** Synth runtime configuration */
 export interface SynthRuntimeConfig {
@@ -67,6 +110,8 @@ export class SynthRuntime {
   // Memory
   private coreMemories: CoreMemories;
   private vectorStore: VectorStore;
+  private semanticStore: SemanticStore;
+  private semanticConsolidator: Consolidator;
 
   // Learning
   private learningCategories: LearningCategories;
@@ -86,8 +131,11 @@ export class SynthRuntime {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private maintenanceInterval: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
+  private runtimeGovernor: RuntimeGovernorState = { mode: 'full', recentErrors: 0, recentSuccesses: 0, lastUpdatedMs: Date.now() };
 
   constructor(config: Partial<SynthRuntimeConfig> = {}) {
+    const userProvidedLLM = config.llm !== undefined;
+
     this.config = {
       baseDir: config.baseDir ?? '.synth/runtime',
       llm: config.llm ?? new MockLLMProvider(4096),
@@ -99,10 +147,35 @@ export class SynthRuntime {
       policyPath: config.policyPath ?? join(config.baseDir ?? '.synth/runtime', 'policy.yaml'),
     };
 
-    this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
-
     // Initialize core components
     this.signalBus = new SignalBus({ baseDir: join(this.config.baseDir, 'signals') });
+
+    this.config.llm = createReliableLLMProvider(this.config.llm, {
+      timeoutMs: Number(process.env.SYNTH_LLM_TIMEOUT_MS ?? '5000'),
+      maxPromptChars: Number(process.env.SYNTH_LLM_MAX_PROMPT_CHARS ?? '4000'),
+      maxContextChars: Number(process.env.SYNTH_LLM_MAX_CONTEXT_CHARS ?? '6000'),
+      maxInputTokensApprox: Number(process.env.SYNTH_LLM_MAX_INPUT_TOKENS ?? '3500'),
+      fallbackProvider: (process.env.SYNTH_LLM_DISABLE_FALLBACK === '1' || userProvidedLLM)
+        ? undefined
+        : new MockLLMProvider(4096),
+      onDegraded: (event) => {
+        this.recordGovernorError(event.reason);
+        void this.signalBus.append({
+          type: 'MODEL_ERROR_DETECTED',
+          payload: {
+            errorType: `llm_${event.type}`,
+            description: event.reason,
+            affectedChains: ['llm-runtime'],
+          },
+          sessionKey: 'llm-runtime',
+          sourceLoop: 'LLMProvider',
+          priority: 'event',
+          emittedAtMs: Date.now(),
+        }).catch(() => undefined);
+      },
+    });
+
+    this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
     this.workingState = new WorkingStateManager({ baseDir: join(this.config.baseDir, 'state') });
     this.scheduler = new Scheduler(
       { ...defaultSchedulerConfig, heartbeatIntervalMs: 1000 / this.config.tickRate },
@@ -130,7 +203,13 @@ export class SynthRuntime {
 
     this.cortexLoop = new CortexLoop({
       artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-      v1Loop: this.v1Pipeline
+      v1Loop: this.v1Pipeline,
+      autonomyLevel: this.config.autonomyLevel,
+      enableMemory: this.config.enableMemory,
+      policyPath: this.config.policyPath,
+      resolveRuntimeMode: () => this.runtimeGovernor.mode,
+      maxPlanSteps: 5,
+      experimentBudget: 2,
     });
 
     // Initialize memory
@@ -142,6 +221,13 @@ export class SynthRuntime {
       baseDir: join(this.config.baseDir, 'vectors'),
       dimension: 4096,
     });
+
+    this.semanticStore = new SemanticStore({
+      baseDir: join(this.config.baseDir, 'semantic-store'),
+      maxFacts: 2000,
+      recallLimit: 10,
+    });
+    this.semanticConsolidator = new Consolidator();
 
     // Initialize learning
     this.learningCategories = new LearningCategories({
@@ -180,6 +266,7 @@ export class SynthRuntime {
     if (this.config.enableMemory) {
       await this.coreMemories.initialize();
       await this.vectorStore.initialize();
+      await this.semanticStore.init();
     }
 
     // Initialize learning
@@ -283,27 +370,31 @@ export class SynthRuntime {
 
     // 2. Get relevant memories
     let memoryContext: string[] = [];
+    let retrievalTrace: RankedMemory[] = [];
     if (this.config.enableMemory) {
       const memories = await this.coreMemories.getContextMemories(sessionKey);
-      memoryContext = memories.flash.map(m => m.content);
+      const ranked = await this.retrieveRankedMemories(input, 5);
+      retrievalTrace = ranked;
+      memoryContext = [
+        ...ranked.map(item => item.content),
+        ...memories.flash.map(m => m.content),
+      ].slice(0, 8);
     }
 
-    // 3. Run real pipeline adapter (plan -> policy -> execution -> evaluation)
+    // 3. Signal-driven runtime path: queue input, emit INPUT_RECEIVED, and wait for OUTPUT_SENT.
     const signalCursor = this.signalBus.getTailOffset(sessionKey);
-
-    const pipelineResult = await this.v1Pipeline(
-      { content: input, sessionKey, memoryContext },
-      {
-        artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-        autonomyLevel: this.config.autonomyLevel,
-        enableMemory: this.config.enableMemory,
-        policyPath: this.config.policyPath,
-      }
-    );
 
     await this.signalBus.append({
       type: 'INPUT_RECEIVED',
-      payload: { content: input, source: 'user' },
+      payload: {
+        content: input,
+        source: 'user',
+        metadata: {
+          context,
+          memoryContext,
+          runtimeMode: this.runtimeGovernor.mode,
+        },
+      },
       sessionKey,
       sourceLoop: 'external',
       priority: 'palpitation',
@@ -311,38 +402,46 @@ export class SynthRuntime {
       dedupeKey: `input-${sessionKey}`,
     });
 
-    await this.signalBus.append({
-      type: 'OUTPUT_READY',
-      payload: {
-        chainId: pipelineResult.plan.id,
-        content: pipelineResult.evaluation.summary,
-        contentType: 'text',
-      },
-      sessionKey,
-      sourceLoop: 'CortexLoop',
-      priority: 'event',
-      emittedAtMs: Date.now(),
-      causedBy: [],
-    });
-
     await this.scheduler.triggerTick(sessionKey);
 
-    const response = (await this.waitForOutputSignal(sessionKey, signalCursor)) ?? pipelineResult.evaluation.summary;
+    const output = await this.waitForOutputSignal(sessionKey, signalCursor);
+    const response = output?.content ?? 'No output emitted by runtime.';
+
+    const runSummary = await this.collectRunSummary(sessionKey, signalCursor);
+    if (runSummary.evaluation.result === 'failure') {
+      this.recordGovernorError(runSummary.evaluation.summary);
+    } else {
+      this.recordGovernorSuccess();
+    }
+    const policyDecisions = Array.isArray(runSummary.policyDecisions) ? runSummary.policyDecisions : [];
+    const stepOutcomes = Array.isArray(runSummary.stepOutcomes) ? runSummary.stepOutcomes : [];
+    const toolOutcomes = Array.isArray(runSummary.toolOutcomes) ? runSummary.toolOutcomes : [];
+    const executionTrace = Array.isArray(runSummary.executionTrace) ? runSummary.executionTrace : [];
+    const actionGraph = runSummary.actionGraph;
+    const goalStack = runSummary.goalStack;
+    const criticPatch = runSummary.criticPatch;
+    const reviseCycleApplied = runSummary.reviseCycleApplied;
+    const worldStateBefore = await this.loadSessionWorldState(sessionKey);
 
     await this.writeRunManifest(sessionKey, {
       input,
       response,
-      planId: pipelineResult.plan.id,
-      evaluation: {
-        result: pipelineResult.evaluation.result,
-        summary: pipelineResult.evaluation.summary,
-      },
-      policyDecisions: pipelineResult.artifactPaths.policyAuditEvents.map(e => ({
-        stepId: e.stepId,
-        decision: e.decision,
-        reason: e.reason,
-      })),
-      policyLoadError: pipelineResult.artifactPaths.policyLoadError,
+      planId: runSummary.planId,
+      evaluation: runSummary.evaluation,
+      policyDecisions,
+      stepOutcomes,
+      toolOutcomes,
+      actionGraph,
+      executionTrace,
+      worldStateBefore,
+      worldStateAfter: worldStateBefore,
+      worldStateDiffs: [],
+      goalStack,
+      criticPatch,
+      reviseCycleApplied,
+      policyLoadError: runSummary.policyLoadError,
+      retrievalTrace,
+      runtimeGovernor: this.runtimeGovernor,
     });
 
     // 4. Store response
@@ -358,8 +457,8 @@ export class SynthRuntime {
         sessionKey,
         metadata: {
           response: true,
-          planId: pipelineResult.plan.id,
-          evaluationResult: pipelineResult.evaluation.result,
+          planId: runSummary.planId,
+          evaluationResult: runSummary.evaluation.result,
         },
       });
     }
@@ -371,6 +470,9 @@ export class SynthRuntime {
         text: input,
         response,
         sessionKey,
+        source: 'runtime_memory',
+        sourceTrust: 0.8,
+        addedAtMs: Date.now(),
       });
     }
 
@@ -388,26 +490,332 @@ export class SynthRuntime {
       }
     }
 
+    // 7. Consolidate semantic memory strictly from successful executed outcomes
+    const successfulSteps = stepOutcomes
+      .filter(step => step.status === 'executed')
+      .map(step => ({
+        stepId: step.stepId,
+        intent: step.intent,
+        actionClass: step.actionClass,
+        status: 'executed' as const,
+        toolName: step.toolName,
+        toolInput: step.toolInput,
+        outputSummary: step.outputSummary,
+      }));
+
+    const facts = this.semanticConsolidator.extractFacts(successfulSteps as any, sessionKey);
+    for (const fact of facts) {
+      await this.semanticStore.addFact({
+        statement: fact.statement,
+        evidence: fact.evidence,
+        privacyLevel: fact.privacyLevel,
+      });
+    }
+
+    const worldStateDiffs = this.buildWorldStateDiffs(stepOutcomes);
+    const worldStateAfter = this.applyWorldStateDiffs(worldStateBefore, worldStateDiffs);
+    const contradictions = this.detectContradictions(worldStateBefore, worldStateDiffs);
+    await this.saveSessionWorldState(sessionKey, worldStateAfter);
+
+    for (const diff of worldStateDiffs) {
+      await this.signalBus.append({
+        type: 'BELIEF_UPDATED',
+        payload: {
+          entityId: sessionKey,
+          property: diff.type,
+          oldValue: undefined,
+          newValue: diff.value,
+          confidence: diff.status === 'executed' ? 0.85 : 0.4,
+        },
+        sessionKey,
+        sourceLoop: 'SynthRuntime',
+        priority: 'event',
+        emittedAtMs: Date.now(),
+      });
+    }
+
+    for (const contradiction of contradictions) {
+      await this.signalBus.append({
+        type: 'PREDICTION_MISMATCH',
+        payload: {
+          predictionId: `contradiction-${Date.now()}-${contradiction.stepId}`,
+          expected: contradiction.expected,
+          actual: contradiction.actual,
+          stepId: contradiction.stepId,
+        },
+        sessionKey,
+        sourceLoop: 'SynthRuntime',
+        priority: 'event',
+        emittedAtMs: Date.now(),
+      });
+    }
+
+    await this.writeRunManifest(sessionKey, {
+      input,
+      response,
+      planId: runSummary.planId,
+      evaluation: runSummary.evaluation,
+      policyDecisions,
+      stepOutcomes,
+      toolOutcomes,
+      actionGraph,
+      executionTrace,
+      worldStateBefore,
+      worldStateAfter,
+      worldStateDiffs,
+      goalStack,
+      criticPatch,
+      reviseCycleApplied,
+      policyLoadError: runSummary.policyLoadError,
+      retrievalTrace,
+      runtimeGovernor: this.runtimeGovernor,
+    });
+
     return response;
   }
 
-  private async waitForOutputSignal(sessionKey: string, fromOffset: number): Promise<string | null> {
+  private async waitForOutputSignal(
+    sessionKey: string,
+    fromOffset: number
+  ): Promise<{ content: string; chainId: string | null } | null> {
     const timeoutMs = 5000;
     const started = Date.now();
 
     while (Date.now() - started < timeoutMs) {
-      const signals = await this.signalBus.readTail(sessionKey, fromOffset, 200);
-      const output = signals.find(s => s.type === 'OUTPUT_READY');
-      if (output) {
-        const payload = output.payload as { content?: string };
-        if (typeof payload.content === 'string') {
-          return payload.content;
+      await this.scheduler.triggerTick(sessionKey);
+      const signals = await this.signalBus.readTail(sessionKey, fromOffset, 500);
+
+      const latestOutputReady = [...signals].reverse().find(s => s.type === 'OUTPUT_READY');
+      const latestOutputSent = [...signals].reverse().find(s => s.type === 'OUTPUT_SENT');
+
+      if (latestOutputReady) {
+        const payload = latestOutputReady.payload as { content?: string; chainId?: string | null };
+        if (latestOutputSent && typeof payload.content === 'string') {
+          return {
+            content: payload.content,
+            chainId: typeof payload.chainId === 'string' ? payload.chainId : null,
+          };
         }
       }
+
       await new Promise(resolve => setTimeout(resolve, 25));
     }
 
     return null;
+  }
+
+  private async collectRunSummary(
+    sessionKey: string,
+    fromOffset: number
+  ): Promise<{
+    planId: string;
+    evaluation: { result: string; summary: string };
+    policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+    stepOutcomes: Array<{
+      stepId: string;
+      intent: string;
+      actionClass: string;
+      status: 'executed' | 'failed';
+      toolName?: string;
+      toolInput?: Record<string, unknown>;
+      outputSummary?: string;
+    }>;
+    toolOutcomes: Array<{
+      toolName: string;
+      success: boolean;
+      durationMs: number;
+      input: Record<string, unknown>;
+      output: Record<string, unknown>;
+    }>;
+    actionGraph?: {
+      version: 'v2';
+      nodes: Array<{
+        nodeId: string;
+        intent: string;
+        actionClass: string;
+        target?: string;
+        policyTags: string[];
+        preconditions: string[];
+        inputs: string[];
+        outputs: string[];
+        dependsOn: string[];
+      }>;
+    };
+    executionTrace: Array<{
+      nodeId: string;
+      stepId: string;
+      status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+      startedAtMs: number;
+      endedAtMs: number;
+      reason?: string;
+    }>;
+    goalStack?: Record<string, unknown>;
+    criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
+    reviseCycleApplied: boolean;
+    policyLoadError?: string;
+  }> {
+    const signals = await this.signalBus.readTail(sessionKey, fromOffset, 1000);
+
+    const planCreated = [...signals].reverse().find(signal => signal.type === 'PLAN_CREATED');
+    const evaluationComplete = [...signals].reverse().find(signal => signal.type === 'EVALUATION_COMPLETE');
+    const outputReady = [...signals].reverse().find(signal => signal.type === 'OUTPUT_READY');
+
+    const planPayload = planCreated?.payload as { chainId?: string } | undefined;
+    const evalPayload = evaluationComplete?.payload as {
+      result?: string;
+      summary?: string;
+      actionGraph?: {
+        version?: 'v2';
+        nodes?: Array<{
+          nodeId?: string;
+          intent?: string;
+          actionClass?: string;
+          target?: string;
+          policyTags?: string[];
+          preconditions?: string[];
+          inputs?: string[];
+          outputs?: string[];
+          dependsOn?: string[];
+        }>;
+      };
+      executionTrace?: Array<{
+        nodeId?: string;
+        stepId?: string;
+        status?: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+        startedAtMs?: number;
+        endedAtMs?: number;
+        reason?: string;
+      }>
+    } | undefined;
+    const outputPayload = outputReady?.payload as { content?: string } | undefined;
+
+    const policyDecisions = signals
+      .filter(signal => signal.type === 'POLICY_DECISION_EMITTED')
+      .map(signal => {
+        const payload = signal.payload as { stepId?: string; decision?: string; reason?: string };
+        return {
+          stepId: payload.stepId ?? signal.signalId,
+          decision: payload.decision ?? 'unknown',
+          reason: payload.reason ?? 'No reason provided',
+        };
+      });
+
+    const stepOutcomes = signals
+      .filter(signal => signal.type === 'STEP_EXECUTED' || signal.type === 'STEP_FAILED')
+      .map(signal => {
+        if (signal.type === 'STEP_EXECUTED') {
+          const payload = signal.payload as {
+            stepId?: string;
+            result?: { output?: unknown; toolName?: string; toolInput?: Record<string, unknown>; intent?: string; actionClass?: string };
+          };
+          return {
+            stepId: payload.stepId ?? signal.signalId,
+            intent: String(payload.result?.intent ?? ''),
+            actionClass: String(payload.result?.actionClass ?? 'unknown'),
+            status: 'executed' as const,
+            toolName: payload.result?.toolName,
+            toolInput: payload.result?.toolInput,
+            outputSummary: typeof payload.result?.output === 'string' ? payload.result.output : JSON.stringify(payload.result?.output ?? ''),
+          };
+        }
+
+        const failedPayload = signal.payload as { stepId?: string; error?: string };
+        return {
+          stepId: failedPayload.stepId ?? signal.signalId,
+          intent: '',
+          actionClass: 'unknown',
+          status: 'failed' as const,
+          outputSummary: failedPayload.error,
+        };
+      });
+
+    const toolOutcomes = signals
+      .filter(signal => signal.type === 'TOOL_RESULT_RECEIVED')
+      .map(signal => {
+        const payload = signal.payload as {
+          toolName?: string;
+          success?: boolean;
+          durationMs?: number;
+          input?: Record<string, unknown>;
+          output?: Record<string, unknown>;
+        };
+        return {
+          toolName: payload.toolName ?? 'unknown',
+          success: Boolean(payload.success),
+          durationMs: Number(payload.durationMs ?? 0),
+          input: payload.input ?? {},
+          output: payload.output ?? {},
+        };
+      });
+
+    const executionTrace = Array.isArray(evalPayload?.executionTrace)
+      ? evalPayload.executionTrace
+          .filter(item => Boolean(item?.stepId && item?.nodeId))
+          .map(item => ({
+            nodeId: String(item.nodeId),
+            stepId: String(item.stepId),
+            status: item.status ?? 'failed',
+            startedAtMs: Number(item.startedAtMs ?? 0),
+            endedAtMs: Number(item.endedAtMs ?? 0),
+            reason: item.reason,
+          }))
+      : [];
+
+    const actionGraph = (evalPayload?.actionGraph?.version === 'v2' && Array.isArray(evalPayload?.actionGraph?.nodes))
+      ? {
+          version: 'v2' as const,
+          nodes: evalPayload.actionGraph.nodes.map(node => ({
+            nodeId: String(node.nodeId ?? ''),
+            intent: String(node.intent ?? ''),
+            actionClass: String(node.actionClass ?? 'local_only'),
+            target: node.target,
+            policyTags: Array.isArray(node.policyTags) ? node.policyTags.map(String) : [],
+            preconditions: Array.isArray(node.preconditions) ? node.preconditions.map(String) : [],
+            inputs: Array.isArray(node.inputs) ? node.inputs.map(String) : [],
+            outputs: Array.isArray(node.outputs) ? node.outputs.map(String) : [],
+            dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn.map(String) : [],
+          })),
+        }
+      : undefined;
+
+    const memoryWrites = signals
+      .filter(signal => signal.type === 'MEMORY_WRITE_SUGGESTED')
+      .map(signal => signal.payload as { key?: string; value?: unknown; reason?: string });
+
+    const goalStackPayload = [...memoryWrites].reverse().find(item => String(item.key ?? '').startsWith('goal_stack:'));
+    const criticPatchPayload = [...memoryWrites].reverse().find(item => String(item.key ?? '').startsWith('critic_patch:'));
+
+    const replanSignals = signals
+      .filter(signal => signal.type === 'EXEC_REQUEST_REPLAN')
+      .map(signal => signal.payload as { reviseCycle?: boolean });
+
+    const responseSummary = typeof outputPayload?.content === 'string'
+      ? outputPayload.content
+      : (typeof evalPayload?.summary === 'string' ? evalPayload.summary : 'No summary available');
+
+    return {
+      planId: typeof planPayload?.chainId === 'string' ? planPayload.chainId : `plan-${Date.now()}`,
+      evaluation: {
+        result: typeof evalPayload?.result === 'string' ? evalPayload.result : 'partial',
+        summary: responseSummary,
+      },
+      policyDecisions,
+      stepOutcomes,
+      toolOutcomes,
+      actionGraph,
+      executionTrace,
+      goalStack: (goalStackPayload?.value && typeof goalStackPayload.value === 'object') ? goalStackPayload.value as Record<string, unknown> : undefined,
+      criticPatch: (criticPatchPayload?.value && typeof criticPatchPayload.value === 'object')
+        ? {
+            issue: String((criticPatchPayload.value as Record<string, unknown>).issue ?? ''),
+            proposedFix: String((criticPatchPayload.value as Record<string, unknown>).proposedFix ?? ''),
+            confidence: Number((criticPatchPayload.value as Record<string, unknown>).confidence ?? 0),
+            reviseCycle: Number((criticPatchPayload.value as Record<string, unknown>).reviseCycle ?? 0) || undefined,
+          }
+        : undefined,
+      reviseCycleApplied: replanSignals.some(item => Boolean(item.reviseCycle)),
+      policyLoadError: responseSummary.includes('[Policy load warning:') ? responseSummary : undefined,
+    };
   }
 
   private async writeRunManifest(sessionKey: string, payload: {
@@ -416,20 +824,152 @@ export class SynthRuntime {
     planId: string;
     evaluation: { result: string; summary: string };
     policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+    stepOutcomes: Array<{
+      stepId: string;
+      intent: string;
+      actionClass: string;
+      status: 'executed' | 'failed';
+      toolName?: string;
+      toolInput?: Record<string, unknown>;
+      outputSummary?: string;
+    }>;
+    toolOutcomes: Array<{
+      toolName: string;
+      success: boolean;
+      durationMs: number;
+      input: Record<string, unknown>;
+      output: Record<string, unknown>;
+    }>;
+    actionGraph?: {
+      version: 'v2';
+      nodes: Array<{
+        nodeId: string;
+        intent: string;
+        actionClass: string;
+        target?: string;
+        policyTags: string[];
+        preconditions: string[];
+        inputs: string[];
+        outputs: string[];
+        dependsOn: string[];
+      }>;
+    };
+    executionTrace: Array<{
+      nodeId: string;
+      stepId: string;
+      status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+      startedAtMs: number;
+      endedAtMs: number;
+      reason?: string;
+    }>;
+    worldStateBefore: SessionWorldState;
+    worldStateAfter: SessionWorldState;
+    worldStateDiffs: WorldStateDiff[];
+    goalStack?: Record<string, unknown>;
+    criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
+    reviseCycleApplied?: boolean;
     policyLoadError?: string;
+    retrievalTrace?: RankedMemory[];
+    runtimeGovernor?: RuntimeGovernorState;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
     await mkdir(runDir, { recursive: true });
 
-    const manifest = {
+    const manifestCore = {
       runId: `run-${Date.now()}`,
       sessionKey,
       timestampMs: Date.now(),
       ...payload,
     };
 
+    const integrity = this.computeIntegrityHash(manifestCore);
+    const manifest = {
+      ...manifestCore,
+      integrity,
+    };
+
     await writeFile(join(runDir, 'latest.json'), JSON.stringify(manifest, null, 2), 'utf8');
   }
+
+  private computeIntegrityHash(payload: Record<string, unknown>): string {
+    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  }
+
+
+  private async retrieveRankedMemories(query: string, maxResults: number): Promise<RankedMemory[]> {
+    const embedding = await this.config.llm.embed(query);
+    const raw = this.vectorStore.search(embedding, Math.max(12, maxResults * 3));
+    const now = Date.now();
+
+    const scored = raw.map(item => {
+      const metadata = item.metadata;
+      const text = String(metadata.text ?? '');
+      const ageMs = Math.max(0, now - Number(metadata.addedAtMs ?? now));
+      const recencyScore = 1 / (1 + ageMs / (1000 * 60 * 60 * 24));
+      const sourceTrust = Math.max(0, Math.min(1, Number(metadata.sourceTrust ?? this.deriveSourceTrust(metadata))));
+      const stalePenalty = ageMs > 1000 * 60 * 60 * 24 * 7 ? 0.15 : 0;
+      const conflictPenalty = this.detectQueryMemoryConflict(query, text) ? 0.25 : 0;
+      const provenanceScore = (item.score * 0.5) + (recencyScore * 0.25) + (sourceTrust * 0.25) - stalePenalty - conflictPenalty;
+      const finalScore = Math.max(0, provenanceScore);
+      return {
+        content: text,
+        similarity: item.score,
+        recencyScore,
+        sourceTrust,
+        provenanceScore,
+        finalScore,
+        metadata,
+      };
+    });
+
+    scored.sort((a, b) => b.finalScore - a.finalScore);
+    return scored.slice(0, maxResults);
+  }
+
+  private deriveSourceTrust(metadata: Record<string, unknown>): number {
+    const source = String(metadata.source ?? '').toLowerCase();
+    if (source.includes('user')) return 0.9;
+    if (source.includes('tool')) return 0.8;
+    if (source.includes('runtime')) return 0.75;
+    return 0.6;
+  }
+
+  private detectQueryMemoryConflict(query: string, memoryText: string): boolean {
+    const q = query.toLowerCase();
+    const m = memoryText.toLowerCase();
+    const negations = [' not ', " can't ", ' never ', ' no '];
+    const queryNegative = negations.some(n => ` ${q} `.includes(n));
+    const memoryNegative = negations.some(n => ` ${m} `.includes(n));
+    return queryNegative !== memoryNegative;
+  }
+
+  private recordGovernorError(reason: string): void {
+    const now = Date.now();
+    this.runtimeGovernor.recentErrors += 1;
+    this.runtimeGovernor.recentSuccesses = Math.max(0, this.runtimeGovernor.recentSuccesses - 1);
+    this.runtimeGovernor.lastUpdatedMs = now;
+
+    if (this.runtimeGovernor.recentErrors >= 5) {
+      this.runtimeGovernor.mode = 'safe_minimal';
+    } else if (this.runtimeGovernor.recentErrors >= 2) {
+      this.runtimeGovernor.mode = 'conservative';
+    }
+  }
+
+  private recordGovernorSuccess(): void {
+    const now = Date.now();
+    this.runtimeGovernor.recentSuccesses += 1;
+    this.runtimeGovernor.lastUpdatedMs = now;
+
+    if (this.runtimeGovernor.mode === 'safe_minimal' && this.runtimeGovernor.recentSuccesses >= 3) {
+      this.runtimeGovernor.mode = 'conservative';
+      this.runtimeGovernor.recentErrors = Math.max(0, this.runtimeGovernor.recentErrors - 1);
+    } else if (this.runtimeGovernor.mode === 'conservative' && this.runtimeGovernor.recentSuccesses >= 5) {
+      this.runtimeGovernor.mode = 'full';
+      this.runtimeGovernor.recentErrors = Math.max(0, this.runtimeGovernor.recentErrors - 1);
+    }
+  }
+
 
   /**
    * Query knowledge
@@ -438,12 +978,10 @@ export class SynthRuntime {
     content: string;
     score: number;
   }>> {
-    const embedding = await this.config.llm.embed(query);
-    const results = this.vectorStore.search(embedding, 5);
-
+    const results = await this.retrieveRankedMemories(query, 5);
     return results.map(r => ({
-      content: String(r.metadata.text ?? ''),
-      score: r.score,
+      content: r.content,
+      score: r.finalScore,
     }));
   }
 
@@ -590,6 +1128,116 @@ export class SynthRuntime {
 
     // Report progress
     await this.goalAutonomy.reportProgress(goal.goalId, 1.0, 'Exploration complete');
+  }
+
+
+  private worldStatePath(sessionKey: string): string {
+    return join(this.config.baseDir, 'artifacts', sessionKey, 'world-state.json');
+  }
+
+  private async loadSessionWorldState(sessionKey: string): Promise<SessionWorldState> {
+    const path = this.worldStatePath(sessionKey);
+    try {
+      const raw = await readFile(path, 'utf8');
+      const parsed = JSON.parse(raw) as SessionWorldState;
+      return {
+        facts: Array.isArray(parsed.facts) ? parsed.facts.map(String) : [],
+        assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.map(String) : [],
+        openGoals: Array.isArray(parsed.openGoals) ? parsed.openGoals.map(String) : [],
+        constraints: Array.isArray(parsed.constraints) ? parsed.constraints.map(String) : [],
+        updatedAtMs: Number(parsed.updatedAtMs ?? Date.now()),
+      };
+    } catch {
+      return { facts: [], assumptions: [], openGoals: [], constraints: [], updatedAtMs: Date.now() };
+    }
+  }
+
+  private async saveSessionWorldState(sessionKey: string, state: SessionWorldState): Promise<void> {
+    const path = this.worldStatePath(sessionKey);
+    await mkdir(join(this.config.baseDir, 'artifacts', sessionKey), { recursive: true });
+    await writeFile(path, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  }
+
+  private buildWorldStateDiffs(stepOutcomes: Array<{
+    stepId: string;
+    status: string;
+    outputSummary?: string;
+    intent?: string;
+    actionClass?: string;
+  }>): WorldStateDiff[] {
+    const diffs: WorldStateDiff[] = [];
+    for (const step of stepOutcomes) {
+      const summary = String(step.outputSummary ?? '').trim();
+      const intent = String(step.intent ?? '').trim();
+
+      if (step.status === 'executed' && summary) {
+        diffs.push({ stepId: step.stepId, type: 'fact_add', value: summary, status: step.status });
+        if (step.actionClass === 'experiment') {
+          diffs.push({ stepId: step.stepId, type: 'fact_add', value: `experiment_result:${summary}`, status: step.status });
+        }
+      }
+
+      if (step.status === 'failed') {
+        diffs.push({ stepId: step.stepId, type: 'goal_add', value: `recover:${intent || step.stepId}`, status: step.status });
+      }
+
+      if (step.status === 'blocked' || step.status === 'awaiting_approval') {
+        diffs.push({ stepId: step.stepId, type: 'constraint_add', value: `policy:${step.actionClass ?? 'unknown'}`, status: step.status });
+      }
+
+      if (step.status !== 'executed' && summary) {
+        diffs.push({ stepId: step.stepId, type: 'assumption_add', value: summary, status: step.status });
+      }
+    }
+
+    return diffs;
+  }
+
+  private applyWorldStateDiffs(before: SessionWorldState, diffs: WorldStateDiff[]): SessionWorldState {
+    const after: SessionWorldState = {
+      facts: [...before.facts],
+      assumptions: [...before.assumptions],
+      openGoals: [...before.openGoals],
+      constraints: [...before.constraints],
+      updatedAtMs: Date.now(),
+    };
+
+    for (const diff of diffs) {
+      switch (diff.type) {
+        case 'fact_add':
+          if (!after.facts.includes(diff.value)) after.facts.push(diff.value);
+          break;
+        case 'assumption_add':
+          if (!after.assumptions.includes(diff.value)) after.assumptions.push(diff.value);
+          break;
+        case 'goal_add':
+          if (!after.openGoals.includes(diff.value)) after.openGoals.push(diff.value);
+          break;
+        case 'constraint_add':
+        case 'contradiction':
+          if (!after.constraints.includes(diff.value)) after.constraints.push(diff.value);
+          break;
+      }
+    }
+
+    return after;
+  }
+
+  private detectContradictions(before: SessionWorldState, diffs: WorldStateDiff[]): ContradictionEvent[] {
+    const contradictions: ContradictionEvent[] = [];
+    const knownFacts = new Set(before.facts.map(value => value.toLowerCase().trim()));
+
+    for (const diff of diffs) {
+      if (diff.type !== 'fact_add') continue;
+      const normalized = diff.value.toLowerCase().trim();
+      const alt = normalized.startsWith('not ') ? normalized.slice(4) : `not ${normalized}`;
+      if (knownFacts.has(alt)) {
+        contradictions.push({ stepId: diff.stepId, expected: alt, actual: normalized });
+      }
+      knownFacts.add(normalized);
+    }
+
+    return contradictions;
   }
 
   /**
