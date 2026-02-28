@@ -15,7 +15,6 @@ export async function runCapability(action?: string, args: string[] = []): Promi
       return;
     }
 
-
     case 'matrix': {
       const batchSize = Number(args.find(arg => arg.startsWith('--batch-size='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_BATCH_SIZE ?? '40');
       const aggregateFloor = Number(args.find(arg => arg.startsWith('--aggregate-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_AGGREGATE_FLOOR ?? '0.65');
@@ -25,6 +24,9 @@ export async function runCapability(action?: string, args: string[] = []): Promi
       const oodToolsFloor = Number(args.find(arg => arg.startsWith('--ood-tools-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_OOD_TOOLS_FLOOR ?? '0.55');
       const oodDomainsFloor = Number(args.find(arg => arg.startsWith('--ood-domains-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_OOD_DOMAINS_FLOOR ?? '0.55');
       const stabilityStddevCeiling = Number(args.find(arg => arg.startsWith('--stability-stddev='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_STABILITY_STDDEV_CEILING ?? '0.08');
+      const rollingWindowSize = Number(args.find(arg => arg.startsWith('--rolling-window='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_WINDOW_SIZE ?? '20');
+      const rollingStddevCeiling = Number(args.find(arg => arg.startsWith('--rolling-stddev='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_STDDEV_CEILING ?? '0.05');
+      const rollingWorstDecileFloor = Number(args.find(arg => arg.startsWith('--rolling-worst-decile-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_WORST_DECILE_FLOOR ?? '0.58');
 
       const scorecard = await runAGIEvalMatrix({
         rootDir: '.',
@@ -36,12 +38,16 @@ export async function runCapability(action?: string, args: string[] = []): Promi
         oodToolsFloor,
         oodDomainsFloor,
         stabilityStddevCeiling,
+        rollingWindowSize,
+        rollingStddevCeiling,
+        rollingWorstDecileFloor,
       });
 
       console.log(`[AGI Matrix] Run ${scorecard.runId}`);
       console.log(`[AGI Matrix] Tasks: ${scorecard.totalTasks} | Aggregate: ${scorecard.normalizedScore.toFixed(3)} | Seen: ${scorecard.seenGroup.normalized.toFixed(3)} | OOD: ${scorecard.oodNormalized.toFixed(3)} | Stability stddev: ${scorecard.stability.stddev.toFixed(4)}`);
       console.log(`[AGI Matrix] Transfer index: ${scorecard.transfer.transferIndex.toFixed(3)} (OOD ${scorecard.transfer.preLearningOOD.toFixed(3)} -> ${scorecard.transfer.postLearningOOD.toFixed(3)} | in-domain gain ${scorecard.transfer.inDomainGain.toFixed(3)})`);
       console.log(`[AGI Matrix] OOD splits: templates=${scorecard.bySplit.ood_unseen_templates.normalized.toFixed(3)}, tools=${scorecard.bySplit.ood_unseen_tools.normalized.toFixed(3)}, domains=${scorecard.bySplit.ood_unseen_domains.normalized.toFixed(3)}`);
+      console.log(`[AGI Matrix] Rolling window (n=${scorecard.rollingWindow.windowSize}): mean=${scorecard.rollingWindow.mean.toFixed(3)}, stddev=${scorecard.rollingWindow.stddev.toFixed(4)}, worst-decile=${scorecard.rollingWindow.worstDecileScore.toFixed(3)}`);
       for (const [domain, stats] of Object.entries(scorecard.byDomain)) {
         console.log(`  - ${domain}: ${stats.normalized.toFixed(3)} (${stats.score.toFixed(2)}/${stats.max.toFixed(2)})`);
       }
@@ -61,7 +67,7 @@ export async function runCapability(action?: string, args: string[] = []): Promi
     }
 
     default:
-      console.log('Usage: synth capability [eval|gate|matrix] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55]');
+      console.log('Usage: synth capability [eval|gate|matrix] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58]');
       return;
   }
 }

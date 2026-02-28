@@ -64,6 +64,14 @@ export interface TransferIndex {
   transferIndex: number;
 }
 
+interface WindowStability {
+  windowSize: number;
+  mean: number;
+  variance: number;
+  stddev: number;
+  worstDecileScore: number;
+}
+
 export interface AGIMatrixScorecard {
   runId: string;
   timestampMs: number;
@@ -84,6 +92,7 @@ export interface AGIMatrixScorecard {
     variance: number;
     stddev: number;
   };
+  rollingWindow: WindowStability;
   results: AGIMatrixTaskResult[];
 }
 
@@ -207,6 +216,25 @@ function computeStability(history: AGIMatrixScorecard[], currentNormalized: numb
   };
 }
 
+function computeRollingWindow(history: AGIMatrixScorecard[], currentNormalized: number, windowSize: number): WindowStability {
+  const size = Math.max(1, windowSize);
+  const values = [...history.map(h => h.normalizedScore), currentNormalized].slice(-size);
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+  const sortedAscending = [...values].sort((a, b) => a - b);
+  const decileCount = Math.max(1, Math.ceil(sortedAscending.length / 10));
+  const worstDecileValues = sortedAscending.slice(0, decileCount);
+  const worstDecileScore = worstDecileValues.reduce((a, b) => a + b, 0) / worstDecileValues.length;
+
+  return {
+    windowSize: values.length,
+    mean: Number(mean.toFixed(6)),
+    variance: Number(variance.toFixed(8)),
+    stddev: Number(Math.sqrt(variance).toFixed(6)),
+    worstDecileScore: Number(worstDecileScore.toFixed(6)),
+  };
+}
+
 export async function runAGIEvalMatrix(options?: {
   rootDir?: string;
   batchSize?: number;
@@ -217,9 +245,13 @@ export async function runAGIEvalMatrix(options?: {
   oodDomainsFloor?: number;
   perDomainFloor?: number;
   stabilityStddevCeiling?: number;
+  rollingWindowSize?: number;
+  rollingStddevCeiling?: number;
+  rollingWorstDecileFloor?: number;
 }): Promise<AGIMatrixScorecard> {
   const rootDir = options?.rootDir ?? '.';
   const batchSize = Math.max(1, options?.batchSize ?? 40);
+  const rollingWindowSize = Math.max(1, options?.rollingWindowSize ?? 20);
 
   const tasks = await loadTasks(rootDir);
   const results: AGIMatrixTaskResult[] = [];
@@ -286,13 +318,22 @@ export async function runAGIEvalMatrix(options?: {
       transferIndex: 0,
     },
     stability,
+    rollingWindow: {
+      windowSize: 1,
+      mean: normalizedScore,
+      variance: 0,
+      stddev: 0,
+      worstDecileScore: normalizedScore,
+    },
     results,
   };
 
   const transfer = computeTransferIndex(history, scorecardBase);
+  const rollingWindow = computeRollingWindow(history, normalizedScore, rollingWindowSize);
   const scorecard: AGIMatrixScorecard = {
     ...scorecardBase,
     transfer,
+    rollingWindow,
   };
 
   await writeFile(join(outDir, 'latest.json'), JSON.stringify(scorecard, null, 2), 'utf8');
@@ -305,6 +346,8 @@ export async function runAGIEvalMatrix(options?: {
   const oodDomainsFloor = options?.oodDomainsFloor;
   const perDomainFloor = options?.perDomainFloor;
   const stabilityStddevCeiling = options?.stabilityStddevCeiling;
+  const rollingStddevCeiling = options?.rollingStddevCeiling;
+  const rollingWorstDecileFloor = options?.rollingWorstDecileFloor;
 
   if (typeof aggregateFloor === 'number' && normalizedScore < aggregateFloor) {
     throw new Error(`agi_matrix_aggregate_floor_not_met:${normalizedScore.toFixed(4)}<${aggregateFloor.toFixed(4)}`);
@@ -334,6 +377,12 @@ export async function runAGIEvalMatrix(options?: {
   }
   if (typeof stabilityStddevCeiling === 'number' && stability.stddev > stabilityStddevCeiling) {
     throw new Error(`agi_matrix_stability_stddev_exceeded:${stability.stddev.toFixed(6)}>${stabilityStddevCeiling.toFixed(6)}`);
+  }
+  if (typeof rollingStddevCeiling === 'number' && rollingWindow.stddev > rollingStddevCeiling) {
+    throw new Error(`agi_matrix_rolling_stddev_exceeded:${rollingWindow.stddev.toFixed(6)}>${rollingStddevCeiling.toFixed(6)}`);
+  }
+  if (typeof rollingWorstDecileFloor === 'number' && rollingWindow.worstDecileScore < rollingWorstDecileFloor) {
+    throw new Error(`agi_matrix_rolling_worst_decile_floor_not_met:${rollingWindow.worstDecileScore.toFixed(6)}<${rollingWorstDecileFloor.toFixed(6)}`);
   }
 
   return scorecard;
