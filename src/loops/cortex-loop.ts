@@ -18,6 +18,21 @@ import type {
 import { SignalBus, SignalBuilder } from '../runtime/signal-bus.js';
 
 /** v1 Loop function type */
+export interface PipelineArtifactPaths {
+  policyAuditEvents: Array<{
+    stepId: string;
+    decision: string;
+    reason: string;
+    timestampMs: number;
+  }>;
+  replanRequested: boolean;
+  replanReason?: string;
+  policySource?: string;
+  policyVersion?: string;
+  policyHash?: string;
+  policyLoadError?: string;
+}
+
 export type V1LoopFunction = (input: {
   content: string;
   sessionKey: string;
@@ -30,7 +45,7 @@ export type V1LoopFunction = (input: {
 }) => Promise<{
   plan: Plan;
   evaluation: Evaluation;
-  artifactPaths: unknown;
+  artifactPaths: PipelineArtifactPaths;
 }>;
 
 /** CortexLoop configuration */
@@ -71,10 +86,6 @@ export class CortexLoop implements MicroLoop {
   ];
 
   private readonly config: CortexLoopConfig;
-  private readonly pendingExecutions: Map<string, {
-    resolve: (value: TickResult) => void;
-    reject: (reason: Error) => void;
-  }> = new Map();
 
   constructor(config: CortexLoopConfig) {
     this.config = config;
@@ -110,12 +121,21 @@ export class CortexLoop implements MicroLoop {
             { causedBy: [signal.signalId] }
           ));
 
+          const policyByStepId = new Map(
+            result.artifactPaths.policyAuditEvents.map(event => [event.stepId, event])
+          );
+
           // Emit policy decision signals for each step
           for (const step of result.plan.steps) {
+            const policyEvent = policyByStepId.get(step.stepId);
+            const policyDecision = policyEvent?.decision
+              ?? (step.status === 'executed' ? 'allow' : step.status === 'awaiting_approval' ? 'awaiting_approval' : 'block');
+            const policyReason = policyEvent?.reason ?? `v1 policy evaluation: ${step.actionClass}`;
+
             signalsOut.push(signalBuilder.policyDecision(
               step.stepId,
-              step.status === 'allowed' ? 'allow' : step.status,
-              `v1 policy evaluation: ${step.actionClass}`,
+              policyDecision,
+              policyReason,
               { causedBy: [signal.signalId] }
             ));
 
@@ -247,7 +267,7 @@ export class CortexLoop implements MicroLoop {
   private async executeV1Loop(content: string, sessionKey: string, memoryContext?: string[]): Promise<{
     plan: Plan;
     evaluation: Evaluation;
-    artifactPaths: unknown;
+    artifactPaths: PipelineArtifactPaths;
   }> {
     return this.config.v1Loop(
       { content, sessionKey, memoryContext },
