@@ -3,7 +3,13 @@ import { ActionClass, Autonomy, type ActionClassType } from '../policy/types.js'
 import { loadPolicy, simulatePolicyDecision } from '../policy-artifacts/index.js';
 import type { LLMProvider } from '../llm/llm-provider.js';
 import type { Evaluation, Plan, PlanStep } from '../types.js';
-import { executeToolWithBoundary, type ToolExecutionEvent, type SupportedToolName } from './tool-executor.js';
+import {
+  executeToolDag,
+  executeToolWithBoundary,
+  type ToolDagExecutionArtifact,
+  type ToolExecutionEvent,
+  type SupportedToolName,
+} from './tool-executor.js';
 
 interface PipelineInput {
   content: string;
@@ -74,6 +80,7 @@ interface PipelineResult {
     policyLoadError?: string;
     actionGraph: ActionGraph;
     executionTrace: ExecutionTraceEvent[];
+    toolDag: ToolDagExecutionArtifact;
   };
 }
 
@@ -193,163 +200,200 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
       policyHash: policy?.policyHash ?? 'local-runtime',
     });
 
-    const steps: PlanStep[] = [];
+    const stepsByNode = new Map<string, PlanStep>();
     const policyAuditEvents: PipelineResult['artifactPaths']['policyAuditEvents'] = [];
     const toolExecutionEvents: PipelineResult['artifactPaths']['toolExecutionEvents'] = [];
     let replanRequested = false;
     let replanReason: string | undefined;
     const executionTrace: ExecutionTraceEvent[] = [];
+    const actionByNodeId = new Map<string, PlannedAction>();
 
-    for (let i = 0; i < plannedActions.length; i++) {
-      const action = plannedActions[i];
+    const dagNodes = plannedActions.map((action, i) => {
+
       const stepId = `step-${now}-${i}`;
-      const nodeId = actionGraph.nodes[i]?.nodeId ?? `node-${i + 1}`;
-      const startedAtMs = Date.now();
+      const node = actionGraph.nodes[i];
+      const nodeId = node?.nodeId ?? `node-${i + 1}`;
+      const toolName: SupportedToolName = action.actionClass === ActionClass.LocalOnly
+        ? 'local_reason'
+        : 'external_read_reasoning';
 
-      let decision = policyGate.evaluate({ stepId, actionClass: action.actionClass, target: action.target });
-
-      if (policy && action.actionClass === ActionClass.ExternalRead && action.target) {
-        const sim = simulatePolicyDecision(policy.policy, { operation: 'external_read', domain: action.target });
-        if (sim.decision === 'deny') {
-          decision = {
-            decision: 'block',
-            reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
-          };
-        }
-      }
-
-      const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
-      policyAuditEvents.push({
-        stepId: audit.stepId,
-        decision: audit.decision,
-        reason: decision.reason,
-        timestampMs: audit.timestampMs,
-      });
-
-      if (decision.decision === 'allow') {
-        try {
-          const toolName: SupportedToolName = action.actionClass === ActionClass.LocalOnly
-            ? 'local_reason'
-            : 'external_read_reasoning';
-
-          const execution = await executeToolWithBoundary(llm, {
-            stepId,
-            toolName,
-            input: {
-              content: action.intent,
-              target: action.target,
-            },
-            allowlist: ['example.com', 'docs.example.com'],
-            maxRetries: 1,
-            timeoutMs: 2000,
-          }, [
-            'You are executing a policy-approved reasoning step.',
-            ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
-          ]);
-
-          toolExecutionEvents.push(...execution.events);
-          steps.push({
-            stepId,
-            intent: action.intent,
-            actionClass: action.actionClass,
-            status: 'executed',
-            toolName,
-            toolInput: { content: action.intent, target: action.target },
-            outputSummary: execution.outputSummary,
-          });
-          executionTrace.push({
-            nodeId,
-            stepId,
-            status: 'executed',
-            startedAtMs,
-            endedAtMs: Date.now(),
-          });
-        } catch (error) {
-          replanRequested = true;
-          replanReason = error instanceof Error ? error.message : String(error);
-          toolExecutionEvents.push({
-            eventId: `${stepId}-attempt-final`,
-            stepId,
-            toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
-            attempt: 2,
-            status: 'failed',
-            startedAtMs: Date.now(),
-            endedAtMs: Date.now(),
-            durationMs: 0,
-            inputHash: stepId,
-            error: replanReason,
-          });
-          steps.push({
-            stepId,
-            intent: action.intent,
-            actionClass: action.actionClass,
-            status: 'failed',
-            toolInput: { content: action.intent, target: action.target },
-            outputSummary: `Execution failed: ${replanReason}`,
-          });
-          executionTrace.push({
-            nodeId,
-            stepId,
-            status: 'failed',
-            startedAtMs,
-            endedAtMs: Date.now(),
-            reason: replanReason,
-          });
-        }
-        continue;
-      }
-
-      if (decision.decision === 'awaiting_approval') {
-        toolExecutionEvents.push({
-          eventId: `${stepId}-policy-awaiting`,
-          stepId,
-          toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
-          attempt: 0,
-          status: 'skipped_policy',
-          startedAtMs: Date.now(),
-          endedAtMs: Date.now(),
-          durationMs: 0,
-          inputHash: stepId,
-          error: decision.reason,
-        });
-        steps.push({
-          stepId,
-          intent: action.intent,
-          actionClass: action.actionClass,
-          status: 'awaiting_approval',
-          toolInput: { content: action.intent, target: action.target },
-          outputSummary: `Awaiting approval: ${decision.reason}`,
-        });
-        executionTrace.push({
-          nodeId,
-          stepId,
-          status: 'awaiting_approval',
-          startedAtMs,
-          endedAtMs: Date.now(),
-          reason: decision.reason,
-        });
-        continue;
-      }
-
-      toolExecutionEvents.push({
-        eventId: `${stepId}-policy-block`,
+      actionByNodeId.set(nodeId, action);
+      return {
+        nodeId,
         stepId,
-        toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
-        attempt: 0,
-        status: 'skipped_policy',
+        toolName,
+        dependsOn: node?.dependsOn ?? [],
+        execute: async () => {
+          const startedAtMs = Date.now();
+          let decision = policyGate.evaluate({ stepId, actionClass: action.actionClass, target: action.target });
+
+          if (policy && action.actionClass === ActionClass.ExternalRead && action.target) {
+            const sim = simulatePolicyDecision(policy.policy, { operation: 'external_read', domain: action.target });
+            if (sim.decision === 'deny') {
+              decision = {
+                decision: 'block',
+                reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
+              };
+            }
+          }
+
+          const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
+          policyAuditEvents.push({
+            stepId: audit.stepId,
+            decision: audit.decision,
+            reason: decision.reason,
+            timestampMs: audit.timestampMs,
+          });
+
+          if (decision.decision !== 'allow') {
+            const status = decision.decision === 'awaiting_approval' ? 'awaiting_approval' : 'blocked';
+            const message = decision.decision === 'awaiting_approval'
+              ? `Awaiting approval: ${decision.reason}`
+              : `Blocked by policy: ${decision.reason}`;
+
+            toolExecutionEvents.push({
+              eventId: `${stepId}-policy-${status}`,
+              stepId,
+              toolName,
+              attempt: 0,
+              status: 'skipped_policy',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              durationMs: 0,
+              inputHash: stepId,
+              error: decision.reason,
+            });
+
+            const step: PlanStep = {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status,
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: message,
+            };
+            stepsByNode.set(nodeId, step);
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status,
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: decision.reason,
+            });
+            return {
+              outputSummary: message,
+              attempts: 0,
+              events: [] as ToolExecutionEvent[],
+            };
+          }
+
+          try {
+            const execution = await executeToolWithBoundary(llm, {
+              stepId,
+              toolName,
+              input: {
+                content: action.intent,
+                target: action.target,
+              },
+              allowlist: ['example.com', 'docs.example.com'],
+              maxRetries: 1,
+              timeoutMs: 2000,
+            }, [
+              'You are executing a policy-approved reasoning step.',
+              ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
+            ]);
+
+            toolExecutionEvents.push(...execution.events);
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: 'executed',
+              toolName,
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: execution.outputSummary,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: 'executed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+            });
+            return execution;
+          } catch (error) {
+            replanRequested = true;
+            replanReason = error instanceof Error ? error.message : String(error);
+            toolExecutionEvents.push({
+              eventId: `${stepId}-attempt-final`,
+              stepId,
+              toolName,
+              attempt: 2,
+              status: 'failed',
+              startedAtMs: Date.now(),
+              endedAtMs: Date.now(),
+              durationMs: 0,
+              inputHash: stepId,
+              error: replanReason,
+            });
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: 'failed',
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: `Execution failed: ${replanReason}`,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: 'failed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: replanReason,
+            });
+            throw error;
+          }
+        },
+      };
+    });
+
+    const toolDag = await executeToolDag(dagNodes, (node, result) => ({
+      nodeId: node.nodeId,
+      stepId: node.stepId,
+      toolName: node.toolName,
+      status: 'success',
+      summary: result.outputSummary,
+      payload: {
+        attempts: result.attempts,
+        events: result.events,
+      },
+    }));
+
+    for (const node of actionGraph.nodes) {
+      if (stepsByNode.has(node.nodeId)) continue;
+      const dagResult = toolDag.results[node.nodeId];
+      if (!dagResult || dagResult.status !== 'blocked_dependency') continue;
+
+      const stepId = dagResult.stepId;
+      const action = actionByNodeId.get(node.nodeId);
+      const outputSummary = dagResult.summary;
+      stepsByNode.set(node.nodeId, {
+        stepId,
+        intent: action?.intent ?? node.intent,
+        actionClass: action?.actionClass ?? node.actionClass,
+        status: 'failed',
+        toolInput: { content: action?.intent ?? node.intent, target: action?.target ?? node.target },
+        outputSummary,
+      });
+      executionTrace.push({
+        nodeId: node.nodeId,
+        stepId,
+        status: 'failed',
         startedAtMs: Date.now(),
         endedAtMs: Date.now(),
-        durationMs: 0,
-        inputHash: stepId,
-        error: decision.reason,
-      });
-      steps.push({
-        stepId,
-        intent: action.intent,
-        actionClass: action.actionClass,
-        status: 'blocked',
-        toolInput: { content: action.intent, target: action.target },
-        outputSummary: `Blocked by policy: ${decision.reason}`,
+        reason: outputSummary,
       });
       executionTrace.push({
         nodeId,
@@ -360,6 +404,8 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         reason: decision.reason,
       });
     }
+
+    const steps = actionGraph.nodes.map(node => stepsByNode.get(node.nodeId)).filter(Boolean) as PlanStep[];
 
     const hasFailed = steps.some(s => s.status === 'failed');
     const hasBlocked = steps.some(s => s.status === 'blocked');
@@ -408,6 +454,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         ...(policyLoadError ? { policyLoadError } : {}),
         actionGraph,
         executionTrace,
+        toolDag,
       },
     };
   };

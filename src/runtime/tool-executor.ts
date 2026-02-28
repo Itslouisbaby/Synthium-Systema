@@ -36,6 +36,36 @@ export interface ToolExecutionResult {
   events: ToolExecutionEvent[];
 }
 
+export interface ToolDagNode {
+  nodeId: string;
+  stepId: string;
+  toolName: SupportedToolName;
+  dependsOn: string[];
+  execute: () => Promise<ToolExecutionResult>;
+}
+
+export interface NormalizedToolResult {
+  nodeId: string;
+  stepId: string;
+  toolName: SupportedToolName;
+  status: 'success' | 'failed' | 'blocked_dependency';
+  summary: string;
+  payload: Record<string, unknown>;
+  dependencyFailures?: string[];
+}
+
+export interface ToolDagExecutionArtifact {
+  executionOrder: string[];
+  executionLevels: string[][];
+  results: Record<string, NormalizedToolResult>;
+  aggregated: {
+    totalNodes: number;
+    succeeded: number;
+    failed: number;
+    blockedDependency: number;
+  };
+}
+
 function hashInput(input: ToolExecutionEnvelope['input']): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex').slice(0, 16);
 }
@@ -136,4 +166,86 @@ export async function executeToolWithBoundary(
   }
 
   throw new Error(lastError ?? 'tool_execution_failed_without_error');
+}
+
+export async function executeToolDag(
+  nodes: ToolDagNode[],
+  normalizeResult: (node: ToolDagNode, result: ToolExecutionResult) => NormalizedToolResult,
+): Promise<ToolDagExecutionArtifact> {
+  const pending = new Map(nodes.map(node => [node.nodeId, node]));
+  const results = new Map<string, NormalizedToolResult>();
+  const executionOrder: string[] = [];
+  const executionLevels: string[][] = [];
+
+  while (pending.size > 0) {
+    const ready = [...pending.values()]
+      .filter(node => node.dependsOn.every(dep => results.has(dep)))
+      .sort((a, b) => a.nodeId.localeCompare(b.nodeId));
+
+    if (ready.length === 0) {
+      const unresolved = [...pending.values()].map(node => node.nodeId).join(', ');
+      throw new Error(`tool_dag_invalid_or_cyclic: unresolved nodes ${unresolved}`);
+    }
+
+    const levelIds = ready.map(node => node.nodeId);
+    executionLevels.push(levelIds);
+
+    const settled = await Promise.all(ready.map(async node => {
+      const failedDeps = node.dependsOn.filter(dep => {
+        const depResult = results.get(dep);
+        return depResult ? depResult.status !== 'success' : false;
+      });
+
+      if (failedDeps.length > 0) {
+        const blocked: NormalizedToolResult = {
+          nodeId: node.nodeId,
+          stepId: node.stepId,
+          toolName: node.toolName,
+          status: 'blocked_dependency',
+          summary: `Blocked by failed dependencies: ${failedDeps.join(', ')}`,
+          dependencyFailures: failedDeps,
+          payload: {},
+        };
+        return { node, normalized: blocked };
+      }
+
+      try {
+        const result = await node.execute();
+        return { node, normalized: normalizeResult(node, result) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          node,
+          normalized: {
+            nodeId: node.nodeId,
+            stepId: node.stepId,
+            toolName: node.toolName,
+            status: 'failed' as const,
+            summary: message,
+            payload: { error: message },
+          },
+        };
+      }
+    }));
+
+    for (const item of settled) {
+      pending.delete(item.node.nodeId);
+      results.set(item.node.nodeId, item.normalized);
+      executionOrder.push(item.node.nodeId);
+    }
+  }
+
+  const normalized = Object.fromEntries(results.entries());
+  const values = [...results.values()];
+  return {
+    executionOrder,
+    executionLevels,
+    results: normalized,
+    aggregated: {
+      totalNodes: values.length,
+      succeeded: values.filter(item => item.status === 'success').length,
+      failed: values.filter(item => item.status === 'failed').length,
+      blockedDependency: values.filter(item => item.status === 'blocked_dependency').length,
+    },
+  };
 }

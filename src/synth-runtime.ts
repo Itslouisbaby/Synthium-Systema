@@ -57,6 +57,16 @@ interface ContradictionEvent {
   actual: string;
 }
 
+interface RankedMemory {
+  content: string;
+  similarity: number;
+  recencyScore: number;
+  sourceTrust: number;
+  provenanceScore: number;
+  finalScore: number;
+  metadata: Record<string, unknown>;
+}
+
 /** Synth runtime configuration */
 export interface SynthRuntimeConfig {
   baseDir: string;
@@ -346,9 +356,15 @@ export class SynthRuntime {
 
     // 2. Get relevant memories
     let memoryContext: string[] = [];
+    let retrievalTrace: RankedMemory[] = [];
     if (this.config.enableMemory) {
       const memories = await this.coreMemories.getContextMemories(sessionKey);
-      memoryContext = memories.flash.map(m => m.content);
+      const ranked = await this.retrieveRankedMemories(input, 5);
+      retrievalTrace = ranked;
+      memoryContext = [
+        ...ranked.map(item => item.content),
+        ...memories.flash.map(m => m.content),
+      ].slice(0, 8);
     }
 
     // 3. Signal-driven runtime path: queue input, emit INPUT_RECEIVED, and wait for OUTPUT_SENT.
@@ -404,6 +420,7 @@ export class SynthRuntime {
       criticPatch,
       reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
+      retrievalTrace,
     });
 
     // 4. Store response
@@ -432,6 +449,9 @@ export class SynthRuntime {
         text: input,
         response,
         sessionKey,
+        source: 'runtime_memory',
+        sourceTrust: 0.8,
+        addedAtMs: Date.now(),
       });
     }
 
@@ -526,6 +546,7 @@ export class SynthRuntime {
       criticPatch,
       reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
+      retrievalTrace,
     });
 
     return response;
@@ -826,6 +847,7 @@ export class SynthRuntime {
     criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
     reviseCycleApplied?: boolean;
     policyLoadError?: string;
+    retrievalTrace?: RankedMemory[];
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
     await mkdir(runDir, { recursive: true });
@@ -850,6 +872,54 @@ export class SynthRuntime {
     return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
   }
 
+
+  private async retrieveRankedMemories(query: string, maxResults: number): Promise<RankedMemory[]> {
+    const embedding = await this.config.llm.embed(query);
+    const raw = this.vectorStore.search(embedding, Math.max(12, maxResults * 3));
+    const now = Date.now();
+
+    const scored = raw.map(item => {
+      const metadata = item.metadata;
+      const text = String(metadata.text ?? '');
+      const ageMs = Math.max(0, now - Number(metadata.addedAtMs ?? now));
+      const recencyScore = 1 / (1 + ageMs / (1000 * 60 * 60 * 24));
+      const sourceTrust = Math.max(0, Math.min(1, Number(metadata.sourceTrust ?? this.deriveSourceTrust(metadata))));
+      const stalePenalty = ageMs > 1000 * 60 * 60 * 24 * 7 ? 0.15 : 0;
+      const conflictPenalty = this.detectQueryMemoryConflict(query, text) ? 0.25 : 0;
+      const provenanceScore = (item.score * 0.5) + (recencyScore * 0.25) + (sourceTrust * 0.25) - stalePenalty - conflictPenalty;
+      const finalScore = Math.max(0, provenanceScore);
+      return {
+        content: text,
+        similarity: item.score,
+        recencyScore,
+        sourceTrust,
+        provenanceScore,
+        finalScore,
+        metadata,
+      };
+    });
+
+    scored.sort((a, b) => b.finalScore - a.finalScore);
+    return scored.slice(0, maxResults);
+  }
+
+  private deriveSourceTrust(metadata: Record<string, unknown>): number {
+    const source = String(metadata.source ?? '').toLowerCase();
+    if (source.includes('user')) return 0.9;
+    if (source.includes('tool')) return 0.8;
+    if (source.includes('runtime')) return 0.75;
+    return 0.6;
+  }
+
+  private detectQueryMemoryConflict(query: string, memoryText: string): boolean {
+    const q = query.toLowerCase();
+    const m = memoryText.toLowerCase();
+    const negations = [' not ', " can't ", ' never ', ' no '];
+    const queryNegative = negations.some(n => ` ${q} `.includes(n));
+    const memoryNegative = negations.some(n => ` ${m} `.includes(n));
+    return queryNegative !== memoryNegative;
+  }
+
   /**
    * Query knowledge
    */
@@ -857,12 +927,10 @@ export class SynthRuntime {
     content: string;
     score: number;
   }>> {
-    const embedding = await this.config.llm.embed(query);
-    const results = this.vectorStore.search(embedding, 5);
-
+    const results = await this.retrieveRankedMemories(query, 5);
     return results.map(r => ({
-      content: String(r.metadata.text ?? ''),
-      score: r.score,
+      content: r.content,
+      score: r.finalScore,
     }));
   }
 
