@@ -25,7 +25,7 @@ import { ContinuousPretraining } from './learning/continuous-pretraining.js';
 import { GoalAutonomy } from './autonomy/goal-autonomy.js';
 import { ExecutiveControl } from './autonomy/executive-control.js';
 import { Metacognition } from './cognition/metacognition.js';
-import { OllamaProvider, MockLLMProvider, type LLMProvider } from './llm/llm-provider.js';
+import { OllamaProvider, MockLLMProvider, createReliableLLMProvider, type LLMProvider } from './llm/llm-provider.js';
 import { VectorStore } from './vector/vector-store.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
@@ -103,10 +103,32 @@ export class SynthRuntime {
       policyPath: config.policyPath ?? join(config.baseDir ?? '.synth/runtime', 'policy.yaml'),
     };
 
-    this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
-
     // Initialize core components
     this.signalBus = new SignalBus({ baseDir: join(this.config.baseDir, 'signals') });
+
+    this.config.llm = createReliableLLMProvider(this.config.llm, {
+      timeoutMs: Number(process.env.SYNTH_LLM_TIMEOUT_MS ?? '5000'),
+      maxPromptChars: Number(process.env.SYNTH_LLM_MAX_PROMPT_CHARS ?? '4000'),
+      maxContextChars: Number(process.env.SYNTH_LLM_MAX_CONTEXT_CHARS ?? '6000'),
+      maxInputTokensApprox: Number(process.env.SYNTH_LLM_MAX_INPUT_TOKENS ?? '3500'),
+      fallbackProvider: process.env.SYNTH_LLM_DISABLE_FALLBACK === '1' ? undefined : new MockLLMProvider(4096),
+      onDegraded: (event) => {
+        void this.signalBus.append({
+          type: 'MODEL_ERROR_DETECTED',
+          payload: {
+            errorType: `llm_${event.type}`,
+            description: event.reason,
+            affectedChains: ['llm-runtime'],
+          },
+          sessionKey: 'llm-runtime',
+          sourceLoop: 'LLMProvider',
+          priority: 'event',
+          emittedAtMs: Date.now(),
+        }).catch(() => undefined);
+      },
+    });
+
+    this.v1Pipeline = createV1PipelineAdapter(this.config.llm);
     this.workingState = new WorkingStateManager({ baseDir: join(this.config.baseDir, 'state') });
     this.scheduler = new Scheduler(
       { ...defaultSchedulerConfig, heartbeatIntervalMs: 1000 / this.config.tickRate },
