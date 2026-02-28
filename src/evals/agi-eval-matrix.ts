@@ -22,6 +22,9 @@ export const AGI_SPLITS = [
 type Domain = typeof AGI_DOMAINS[number];
 type Split = typeof AGI_SPLITS[number];
 
+const SEEN_SPLITS: Split[] = ['train_seen', 'val_seen'];
+const OOD_SPLITS: Split[] = ['ood_unseen_templates', 'ood_unseen_tools', 'ood_unseen_domains'];
+
 export interface AGIMatrixTask {
   taskId: string;
   domain: Domain;
@@ -48,6 +51,19 @@ export interface AGIMatrixTaskResult {
   maxScore: number;
 }
 
+interface ScoreGroup {
+  score: number;
+  max: number;
+  normalized: number;
+}
+
+export interface TransferIndex {
+  preLearningOOD: number;
+  postLearningOOD: number;
+  inDomainGain: number;
+  transferIndex: number;
+}
+
 export interface AGIMatrixScorecard {
   runId: string;
   timestampMs: number;
@@ -55,11 +71,14 @@ export interface AGIMatrixScorecard {
   aggregateScore: number;
   maxAggregateScore: number;
   normalizedScore: number;
-  byDomain: Record<Domain, { score: number; max: number; normalized: number }>;
-  bySplit: Record<Split, { score: number; max: number; normalized: number }>;
+  byDomain: Record<Domain, ScoreGroup>;
+  bySplit: Record<Split, ScoreGroup>;
+  seenGroup: ScoreGroup;
+  oodGroup: ScoreGroup;
   oodScore: number;
   oodMax: number;
   oodNormalized: number;
+  transfer: TransferIndex;
   stability: {
     mean: number;
     variance: number;
@@ -70,6 +89,46 @@ export interface AGIMatrixScorecard {
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+function asScoreGroup(score: number, max: number): ScoreGroup {
+  const normalized = max === 0 ? 0 : score / max;
+  return {
+    score: Number(score.toFixed(6)),
+    max: Number(max.toFixed(6)),
+    normalized: Number(normalized.toFixed(6)),
+  };
+}
+
+function sumGroup(results: AGIMatrixTaskResult[]): ScoreGroup {
+  const score = results.reduce((acc, item) => acc + item.score, 0);
+  const max = results.reduce((acc, item) => acc + item.maxScore, 0);
+  return asScoreGroup(score, max);
+}
+
+function computeTransferIndex(history: AGIMatrixScorecard[], current: AGIMatrixScorecard): TransferIndex {
+  const previous = history.at(-1);
+  if (!previous) {
+    return {
+      preLearningOOD: Number(current.oodGroup.normalized.toFixed(6)),
+      postLearningOOD: Number(current.oodGroup.normalized.toFixed(6)),
+      inDomainGain: 0,
+      transferIndex: 0,
+    };
+  }
+
+  const preLearningOOD = previous.oodGroup.normalized;
+  const postLearningOOD = current.oodGroup.normalized;
+  const inDomainGain = current.seenGroup.normalized - previous.seenGroup.normalized;
+  const epsilon = 1e-6;
+  const transferIndex = (postLearningOOD - preLearningOOD) / (Math.abs(inDomainGain) < epsilon ? epsilon : inDomainGain);
+
+  return {
+    preLearningOOD: Number(preLearningOOD.toFixed(6)),
+    postLearningOOD: Number(postLearningOOD.toFixed(6)),
+    inDomainGain: Number(inDomainGain.toFixed(6)),
+    transferIndex: Number(transferIndex.toFixed(6)),
+  };
 }
 
 export function validateAGIMatrixTask(task: unknown): task is AGIMatrixTask {
@@ -125,7 +184,7 @@ function evaluateTask(task: AGIMatrixTask): AGIMatrixTaskResult {
   const toolPenalty = task.toolProfile.requiresTools ? 0.06 : 0;
 
   const normalized = Math.max(0, Math.min(1, 0.82 + signalBonus - complexityPenalty - forbiddenRisk - toolPenalty));
-  const maxScore = Number((task.scoringHooks.baselineWeight).toFixed(4));
+  const maxScore = Number(task.scoringHooks.baselineWeight.toFixed(4));
   const score = Number((maxScore * normalized).toFixed(4));
 
   return {
@@ -153,6 +212,9 @@ export async function runAGIEvalMatrix(options?: {
   batchSize?: number;
   aggregateFloor?: number;
   oodFloor?: number;
+  oodTemplateFloor?: number;
+  oodToolsFloor?: number;
+  oodDomainsFloor?: number;
   perDomainFloor?: number;
   stabilityStddevCeiling?: number;
 }): Promise<AGIMatrixScorecard> {
@@ -173,24 +235,19 @@ export async function runAGIEvalMatrix(options?: {
 
   const byDomain = Object.fromEntries(AGI_DOMAINS.map(domain => {
     const scoped = results.filter(r => r.domain === domain);
-    const score = scoped.reduce((a, b) => a + b.score, 0);
-    const max = scoped.reduce((a, b) => a + b.maxScore, 0);
-    const normalized = max === 0 ? 0 : score / max;
-    return [domain, { score: Number(score.toFixed(6)), max: Number(max.toFixed(6)), normalized: Number(normalized.toFixed(6)) }];
+    return [domain, sumGroup(scoped)];
   })) as AGIMatrixScorecard['byDomain'];
 
   const bySplit = Object.fromEntries(AGI_SPLITS.map(split => {
     const scoped = results.filter(r => r.split === split);
-    const score = scoped.reduce((a, b) => a + b.score, 0);
-    const max = scoped.reduce((a, b) => a + b.maxScore, 0);
-    const normalized = max === 0 ? 0 : score / max;
-    return [split, { score: Number(score.toFixed(6)), max: Number(max.toFixed(6)), normalized: Number(normalized.toFixed(6)) }];
+    return [split, sumGroup(scoped)];
   })) as AGIMatrixScorecard['bySplit'];
 
-  const oodSplits: Split[] = ['ood_unseen_templates', 'ood_unseen_tools', 'ood_unseen_domains'];
-  const oodScore = Number(results.filter(r => oodSplits.includes(r.split)).reduce((a, b) => a + b.score, 0).toFixed(6));
-  const oodMax = Number(results.filter(r => oodSplits.includes(r.split)).reduce((a, b) => a + b.maxScore, 0).toFixed(6));
-  const oodNormalized = Number((oodMax === 0 ? 0 : oodScore / oodMax).toFixed(6));
+  const seenGroup = sumGroup(results.filter(r => SEEN_SPLITS.includes(r.split)));
+  const oodGroup = sumGroup(results.filter(r => OOD_SPLITS.includes(r.split)));
+  const oodScore = oodGroup.score;
+  const oodMax = oodGroup.max;
+  const oodNormalized = oodGroup.normalized;
 
   const outDir = join(rootDir, '.synth', 'evals', 'agi-matrix');
   await mkdir(outDir, { recursive: true });
@@ -208,7 +265,7 @@ export async function runAGIEvalMatrix(options?: {
   const runId = `agi-matrix-${Date.now()}`;
   const stability = computeStability(history, normalizedScore);
 
-  const scorecard: AGIMatrixScorecard = {
+  const scorecardBase: AGIMatrixScorecard = {
     runId,
     timestampMs: Date.now(),
     totalTasks: tasks.length,
@@ -217,11 +274,25 @@ export async function runAGIEvalMatrix(options?: {
     normalizedScore,
     byDomain,
     bySplit,
+    seenGroup,
+    oodGroup,
     oodScore,
     oodMax,
     oodNormalized,
+    transfer: {
+      preLearningOOD: 0,
+      postLearningOOD: 0,
+      inDomainGain: 0,
+      transferIndex: 0,
+    },
     stability,
     results,
+  };
+
+  const transfer = computeTransferIndex(history, scorecardBase);
+  const scorecard: AGIMatrixScorecard = {
+    ...scorecardBase,
+    transfer,
   };
 
   await writeFile(join(outDir, 'latest.json'), JSON.stringify(scorecard, null, 2), 'utf8');
@@ -229,6 +300,9 @@ export async function runAGIEvalMatrix(options?: {
 
   const aggregateFloor = options?.aggregateFloor;
   const oodFloor = options?.oodFloor;
+  const oodTemplateFloor = options?.oodTemplateFloor;
+  const oodToolsFloor = options?.oodToolsFloor;
+  const oodDomainsFloor = options?.oodDomainsFloor;
   const perDomainFloor = options?.perDomainFloor;
   const stabilityStddevCeiling = options?.stabilityStddevCeiling;
 
@@ -238,6 +312,20 @@ export async function runAGIEvalMatrix(options?: {
   if (typeof oodFloor === 'number' && oodNormalized < oodFloor) {
     throw new Error(`agi_matrix_ood_floor_not_met:${oodNormalized.toFixed(4)}<${oodFloor.toFixed(4)}`);
   }
+
+  const oodSplitFloors: Array<{ split: Split; floor?: number }> = [
+    { split: 'ood_unseen_templates', floor: oodTemplateFloor },
+    { split: 'ood_unseen_tools', floor: oodToolsFloor },
+    { split: 'ood_unseen_domains', floor: oodDomainsFloor },
+  ];
+  for (const requirement of oodSplitFloors) {
+    if (typeof requirement.floor !== 'number') continue;
+    const splitScore = bySplit[requirement.split].normalized;
+    if (splitScore < requirement.floor) {
+      throw new Error(`agi_matrix_${requirement.split}_floor_not_met:${splitScore.toFixed(4)}<${requirement.floor.toFixed(4)}`);
+    }
+  }
+
   if (typeof perDomainFloor === 'number') {
     const failing = Object.entries(byDomain).filter(([, value]) => value.normalized < perDomainFloor);
     if (failing.length > 0) {
