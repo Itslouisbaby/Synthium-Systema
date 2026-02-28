@@ -395,6 +395,14 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         endedAtMs: Date.now(),
         reason: outputSummary,
       });
+      executionTrace.push({
+        nodeId,
+        stepId,
+        status: 'blocked',
+        startedAtMs,
+        endedAtMs: Date.now(),
+        reason: decision.reason,
+      });
     }
 
     const steps = actionGraph.nodes.map(node => stepsByNode.get(node.nodeId)).filter(Boolean) as PlanStep[];
