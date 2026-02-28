@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, readdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,8 +23,22 @@ interface ShadowRunnerOptions {
 }
 
 interface V1RunManifest {
+  runId?: string;
+  sessionKey?: string;
+  timestampMs?: number;
+  input?: string;
+  response?: string;
+  planId?: string;
   evaluation?: { result?: string; summary?: string };
   policyDecisions?: Array<{ stepId: string; decision: string; reason: string }>;
+  integrity?: string;
+}
+
+interface PolicyMismatchBreakdown {
+  decisionTypeMismatch: number;
+  reasonMismatch: number;
+  missingInV2: number;
+  extraInV2: number;
 }
 
 interface PolicyMismatchBreakdown {
@@ -190,7 +205,15 @@ async function loadLatestV1Manifest(v1BaseDir: string): Promise<V1RunManifest | 
       const runPath = join(artifactsRoot, session, 'runs', 'latest.json');
       try {
         const raw = await readFile(runPath, 'utf8');
-        return JSON.parse(raw) as V1RunManifest;
+        const parsed = JSON.parse(raw) as V1RunManifest;
+        if (parsed.integrity && parsed.runId && parsed.sessionKey) {
+          const { integrity, ...core } = parsed;
+          const expected = createHash('sha256').update(JSON.stringify(core)).digest('hex');
+          if (expected !== integrity) {
+            continue;
+          }
+        }
+        return parsed;
       } catch {
         // keep scanning
       }

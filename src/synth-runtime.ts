@@ -19,6 +19,7 @@ import { MonitorLoop } from './loops/monitor-loop.js';
 import { OutputLoop } from './loops/output-loop.js';
 import { CortexLoop } from './loops/cortex-loop.js';
 import { CoreMemories } from './memory/core-memories.js';
+import { Consolidator, SemanticStore } from './memory/semantic/index.js';
 import { LearningCategories, LearningCategory } from './learning/learning-categories.js';
 import { ContinuousPretraining } from './learning/continuous-pretraining.js';
 import { GoalAutonomy } from './autonomy/goal-autonomy.js';
@@ -30,6 +31,7 @@ import { ErrorBoundary } from './utils/error-boundary.js';
 import { ConfigManager } from './config/system-config.js';
 import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
 import { Autonomy, type AutonomyLevel } from './policy/types.js';
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -67,6 +69,8 @@ export class SynthRuntime {
   // Memory
   private coreMemories: CoreMemories;
   private vectorStore: VectorStore;
+  private semanticStore: SemanticStore;
+  private semanticConsolidator: Consolidator;
 
   // Learning
   private learningCategories: LearningCategories;
@@ -146,6 +150,13 @@ export class SynthRuntime {
       dimension: 4096,
     });
 
+    this.semanticStore = new SemanticStore({
+      baseDir: join(this.config.baseDir, 'semantic-store'),
+      maxFacts: 2000,
+      recallLimit: 10,
+    });
+    this.semanticConsolidator = new Consolidator();
+
     // Initialize learning
     this.learningCategories = new LearningCategories({
       baseDir: join(this.config.baseDir, 'learning'),
@@ -183,6 +194,7 @@ export class SynthRuntime {
     if (this.config.enableMemory) {
       await this.coreMemories.initialize();
       await this.vectorStore.initialize();
+      await this.semanticStore.init();
     }
 
     // Initialize learning
@@ -370,6 +382,28 @@ export class SynthRuntime {
       }
     }
 
+    // 7. Consolidate semantic memory strictly from successful executed outcomes
+    const successfulSteps = runSummary.stepOutcomes
+      .filter(step => step.status === 'executed')
+      .map(step => ({
+        stepId: step.stepId,
+        intent: step.intent,
+        actionClass: step.actionClass,
+        status: 'executed' as const,
+        toolName: step.toolName,
+        toolInput: step.toolInput,
+        outputSummary: step.outputSummary,
+      }));
+
+    const facts = this.semanticConsolidator.extractFacts(successfulSteps as any, sessionKey);
+    for (const fact of facts) {
+      await this.semanticStore.addFact({
+        statement: fact.statement,
+        evidence: fact.evidence,
+        privacyLevel: fact.privacyLevel,
+      });
+    }
+
     return response;
   }
 
@@ -454,19 +488,45 @@ export class SynthRuntime {
     planId: string;
     evaluation: { result: string; summary: string };
     policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+    stepOutcomes: Array<{
+      stepId: string;
+      intent: string;
+      actionClass: string;
+      status: 'executed' | 'failed';
+      toolName?: string;
+      toolInput?: Record<string, unknown>;
+      outputSummary?: string;
+    }>;
+    toolOutcomes: Array<{
+      toolName: string;
+      success: boolean;
+      durationMs: number;
+      input: Record<string, unknown>;
+      output: Record<string, unknown>;
+    }>;
     policyLoadError?: string;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
     await mkdir(runDir, { recursive: true });
 
-    const manifest = {
+    const manifestCore = {
       runId: `run-${Date.now()}`,
       sessionKey,
       timestampMs: Date.now(),
       ...payload,
     };
 
+    const integrity = this.computeIntegrityHash(manifestCore);
+    const manifest = {
+      ...manifestCore,
+      integrity,
+    };
+
     await writeFile(join(runDir, 'latest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+  }
+
+  private computeIntegrityHash(payload: Record<string, unknown>): string {
+    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
   }
 
   /**

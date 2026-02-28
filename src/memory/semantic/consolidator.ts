@@ -56,6 +56,12 @@ export class Consolidator {
           if (fact) facts.push(fact);
           break;
         }
+        case 'local_reason':
+        case 'external_read_reasoning': {
+          const fact = this.extractReasoningFact(step, sessionKey, now);
+          if (fact) facts.push(fact);
+          break;
+        }
         // Skip other tools
         default:
           break;
@@ -145,6 +151,45 @@ export class Consolidator {
       source: 'consolidator',
       privacyLevel: 'private',
       confidence: 1.0,
+      lastVerifiedMs: timestampMs,
+      lastReinforcedMs: timestampMs,
+      createdAtMs: timestampMs,
+      toolName: step.toolName,
+      sessionKey,
+    };
+  }
+
+
+
+  /**
+   * Extract fact from reasoning-style tool outputs
+   */
+  private extractReasoningFact(
+    step: PlanStep,
+    sessionKey: SessionKey,
+    timestampMs: TimestampMs
+  ): SemanticFact | null {
+    if (typeof step.outputSummary !== 'string' || step.outputSummary.trim().length === 0) {
+      return null;
+    }
+
+    const statement = `[${step.toolName}] ${step.outputSummary}`;
+    const statementHash = this.hashStatement(statement);
+
+    return {
+      factId: randomUUID(),
+      statement,
+      statementHash,
+      evidence: [
+        {
+          type: 'tool_result',
+          refId: step.stepId,
+          timestampMs,
+        },
+      ],
+      source: 'consolidator',
+      privacyLevel: 'private',
+      confidence: 0.8,
       lastVerifiedMs: timestampMs,
       lastReinforcedMs: timestampMs,
       createdAtMs: timestampMs,

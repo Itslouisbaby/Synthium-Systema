@@ -146,13 +146,19 @@ export class CortexLoop implements MicroLoop {
             if (step.status === 'executed') {
               signalsOut.push(signalBuilder.stepExecuted(
                 step.stepId,
-                step.outputSummary,
+                {
+                  output: step.outputSummary,
+                  toolName: step.toolName,
+                  toolInput: step.toolInput,
+                  intent: step.intent,
+                  actionClass: step.actionClass,
+                },
                 { causedBy: [signal.signalId] }
               ));
             } else if (step.status === 'failed') {
               signalsOut.push(signalBuilder.stepFailed(
                 step.stepId,
-                'Execution failed',
+                String(step.outputSummary ?? 'Execution failed'),
                 { causedBy: [signal.signalId] }
               ));
             } else if (step.status === 'awaiting_approval') {
