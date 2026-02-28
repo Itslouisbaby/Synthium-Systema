@@ -18,17 +18,34 @@ import type {
 import { SignalBus, SignalBuilder } from '../runtime/signal-bus.js';
 
 /** v1 Loop function type */
+export interface PipelineArtifactPaths {
+  policyAuditEvents: Array<{
+    stepId: string;
+    decision: string;
+    reason: string;
+    timestampMs: number;
+  }>;
+  replanRequested: boolean;
+  replanReason?: string;
+  policySource?: string;
+  policyVersion?: string;
+  policyHash?: string;
+  policyLoadError?: string;
+}
+
 export type V1LoopFunction = (input: {
   content: string;
   sessionKey: string;
+  memoryContext?: string[];
 }, config: {
   artifactBaseDir: string;
   autonomyLevel?: number;
   enableMemory?: boolean;
+  policyPath?: string;
 }) => Promise<{
   plan: Plan;
   evaluation: Evaluation;
-  artifactPaths: unknown;
+  artifactPaths: PipelineArtifactPaths;
 }>;
 
 /** CortexLoop configuration */
@@ -41,6 +58,8 @@ export interface CortexLoopConfig {
   readonly autonomyLevel?: number;
   /** Whether to enable memory */
   readonly enableMemory?: boolean;
+  /** Runtime policy path passed to v1 adapter */
+  readonly policyPath?: string;
 }
 
 /**
@@ -67,10 +86,6 @@ export class CortexLoop implements MicroLoop {
   ];
 
   private readonly config: CortexLoopConfig;
-  private readonly pendingExecutions: Map<string, {
-    resolve: (value: TickResult) => void;
-    reject: (reason: Error) => void;
-  }> = new Map();
 
   constructor(config: CortexLoopConfig) {
     this.config = config;
@@ -89,11 +104,15 @@ export class CortexLoop implements MicroLoop {
     // Process each input signal
     for (const signal of signals) {
       if (signal.type === 'INPUT_RECEIVED') {
-        const payload = signal.payload as { content: string };
+        const payload = signal.payload as { content: string; metadata?: Record<string, unknown> };
+        const memoryContextRaw = payload.metadata?.memoryContext;
+        const memoryContext = Array.isArray(memoryContextRaw)
+          ? memoryContextRaw.filter((entry): entry is string => typeof entry === 'string')
+          : undefined;
 
         try {
           // Execute v1 loop
-          const result = await this.executeV1Loop(payload.content, sessionKey);
+          const result = await this.executeV1Loop(payload.content, sessionKey, memoryContext);
 
           // Emit PLAN_CREATED signal
           signalsOut.push(signalBuilder.planCreated(
@@ -102,12 +121,21 @@ export class CortexLoop implements MicroLoop {
             { causedBy: [signal.signalId] }
           ));
 
+          const policyByStepId = new Map(
+            result.artifactPaths.policyAuditEvents.map(event => [event.stepId, event])
+          );
+
           // Emit policy decision signals for each step
           for (const step of result.plan.steps) {
+            const policyEvent = policyByStepId.get(step.stepId);
+            const policyDecision = policyEvent?.decision
+              ?? (step.status === 'executed' ? 'allow' : step.status === 'awaiting_approval' ? 'awaiting_approval' : 'block');
+            const policyReason = policyEvent?.reason ?? `v1 policy evaluation: ${step.actionClass}`;
+
             signalsOut.push(signalBuilder.policyDecision(
               step.stepId,
-              step.status === 'allowed' ? 'allow' : step.status,
-              `v1 policy evaluation: ${step.actionClass}`,
+              policyDecision,
+              policyReason,
               { causedBy: [signal.signalId] }
             ));
 
@@ -236,17 +264,18 @@ export class CortexLoop implements MicroLoop {
   /**
    * Execute the v1 loop
    */
-  private async executeV1Loop(content: string, sessionKey: string): Promise<{
+  private async executeV1Loop(content: string, sessionKey: string, memoryContext?: string[]): Promise<{
     plan: Plan;
     evaluation: Evaluation;
-    artifactPaths: unknown;
+    artifactPaths: PipelineArtifactPaths;
   }> {
     return this.config.v1Loop(
-      { content, sessionKey },
+      { content, sessionKey, memoryContext },
       {
         artifactBaseDir: this.config.artifactBaseDir,
         autonomyLevel: this.config.autonomyLevel ?? 1,
         enableMemory: this.config.enableMemory ?? true,
+        policyPath: this.config.policyPath,
       }
     );
   }

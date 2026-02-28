@@ -6,6 +6,8 @@
  * Default is v1 (stable). v2 is opt-in until CI gates pass.
  */
 import { SynthRuntime } from '../../synth-runtime.js';
+import { NeuronWavesRuntime } from '../../neuronwaves-v2/neuronwaves-runtime.js';
+import { parseGateStatusFromEnv, parseRoutingPolicyFromEnv, resolveCanaryRoute } from '../../neuronwaves-v2/canary/default-route.js';
 import { validateSessionId } from '../types.js';
 import type { CLIOptions, CLIResult } from '../types.js';
 
@@ -53,23 +55,45 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
 
   // Construct artifact base directory
   const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
+  const tenantId = process.env.SYNTH_TENANT_ID;
+
+  const canaryRoute = resolveCanaryRoute(
+    {
+      tenantId,
+      sessionId,
+    },
+    parseRoutingPolicyFromEnv(),
+    parseGateStatusFromEnv()
+  );
+
+  const useV2Runtime = USE_V2_RUNTIME || canaryRoute.route === 'v2';
 
   try {
-    const runtime = new SynthRuntime({
-      baseDir: artifactBaseDir,
-    });
-    await runtime.initialize();
-    await runtime.start();
-    await runtime.processInput(text);
+    if (useV2Runtime) {
+      const runtime = new NeuronWavesRuntime({
+        artifactBaseDir,
+      });
+      runtime.start();
+      await runtime.submitInput(sessionId, text);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      runtime.stop();
+    } else {
+      const runtime = new SynthRuntime({
+        baseDir: artifactBaseDir,
+      });
+      await runtime.initialize();
+      await runtime.start();
+      await runtime.processInput(text);
 
-    // Wait for a few ticks to process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    runtime.stop();
+      // Wait for a few ticks to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      runtime.stop();
+    }
 
     // Success: print summary and exit 0
     return {
       exitCode: 0,
-      output: `Session ${sessionId}: Event loop execution complete. System responded to "${text}"`,
+      output: `Session ${sessionId}: Event loop execution complete. Runtime=${useV2Runtime ? 'v2' : 'v1'} (${canaryRoute.reason}). System responded to "${text}"`,
     };
   } catch (error) {
     // Error: print error message and exit 2

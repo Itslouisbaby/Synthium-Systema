@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-02-27T14:20:00Z",
+  "stage": "B",
+  "decision": "rollback",
+  "reason": "Hard gate failure: semantic_below_floor, output_publication_reliability_below_floor",
+  "report": {
+    "pass": false,
+    "failedChecks": [
+      "semantic_below_floor",
+      "output_publication_reliability_below_floor"
+    ],
+    "trailingSemanticPasses": 0,
+    "windows": [
+      { "semanticTotal": 0.59, "decisionTypeMismatch": 0, "reasonMismatch": 0, "missingInV2": 0, "extraInV2": 0, "outputPublicationReliability": 0.91, "pass": false }
+    ]
+  },
+  "rollbackCommand": "SYNTH_NEURONWAVES_RUNTIME=v1 synth run --session rollback-drill --workspace . --text \"rollback drill\""
+}

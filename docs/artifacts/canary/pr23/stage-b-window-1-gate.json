@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-02-27T10:15:00Z",
+  "stage": "B",
+  "decision": "promote",
+  "reason": "All configured gates satisfied for this stage window.",
+  "report": {
+    "pass": true,
+    "failedChecks": [],
+    "trailingSemanticPasses": 3,
+    "windows": [
+      { "semanticTotal": 0.77, "decisionTypeMismatch": 0, "reasonMismatch": 0, "missingInV2": 0, "extraInV2": 0, "outputPublicationReliability": 1, "pass": true },
+      { "semanticTotal": 0.79, "decisionTypeMismatch": 0, "reasonMismatch": 0, "missingInV2": 0, "extraInV2": 0, "outputPublicationReliability": 1, "pass": true },
+      { "semanticTotal": 0.81, "decisionTypeMismatch": 0, "reasonMismatch": 0, "missingInV2": 0, "extraInV2": 0, "outputPublicationReliability": 1, "pass": true }
+    ]
+  }
+}
