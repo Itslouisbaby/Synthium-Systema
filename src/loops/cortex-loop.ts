@@ -44,6 +44,28 @@ export interface PipelineArtifactPaths {
   policyVersion?: string;
   policyHash?: string;
   policyLoadError?: string;
+  actionGraph?: {
+    version: 'v2';
+    nodes: Array<{
+      nodeId: string;
+      intent: string;
+      actionClass: string;
+      target?: string;
+      policyTags: string[];
+      preconditions: string[];
+      inputs: string[];
+      outputs: string[];
+      dependsOn: string[];
+    }>;
+  };
+  executionTrace?: Array<{
+    nodeId: string;
+    stepId: string;
+    status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+    startedAtMs: number;
+    endedAtMs: number;
+    reason?: string;
+  }>;
 }
 
 export type V1LoopFunction = (input: {
@@ -217,6 +239,8 @@ export class CortexLoop implements MicroLoop {
               evaluationId: result.evaluation.id,
               result: result.evaluation.result,
               summary: result.evaluation.summary,
+              actionGraph: result.artifactPaths.actionGraph,
+              executionTrace: result.artifactPaths.executionTrace ?? [],
             },
             sessionKey,
             this.name,

@@ -32,8 +32,30 @@ import { ConfigManager } from './config/system-config.js';
 import { createV1PipelineAdapter } from './runtime/v1-pipeline-adapter.js';
 import { Autonomy, type AutonomyLevel } from './policy/types.js';
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
+
+interface SessionWorldState {
+  facts: string[];
+  assumptions: string[];
+  openGoals: string[];
+  constraints: string[];
+  updatedAtMs: number;
+}
+
+interface WorldStateDiff {
+  stepId: string;
+  type: 'fact_add' | 'assumption_add' | 'goal_add' | 'constraint_add' | 'contradiction';
+  value: string;
+  status: string;
+}
+
+interface ContradictionEvent {
+  stepId: string;
+  expected: string;
+  actual: string;
+}
 
 /** Synth runtime configuration */
 export interface SynthRuntimeConfig {
@@ -358,6 +380,9 @@ export class SynthRuntime {
     const policyDecisions = Array.isArray(runSummary.policyDecisions) ? runSummary.policyDecisions : [];
     const stepOutcomes = Array.isArray(runSummary.stepOutcomes) ? runSummary.stepOutcomes : [];
     const toolOutcomes = Array.isArray(runSummary.toolOutcomes) ? runSummary.toolOutcomes : [];
+    const executionTrace = Array.isArray(runSummary.executionTrace) ? runSummary.executionTrace : [];
+    const actionGraph = runSummary.actionGraph;
+    const worldStateBefore = await this.loadSessionWorldState(sessionKey);
 
     await this.writeRunManifest(sessionKey, {
       input,
@@ -367,6 +392,11 @@ export class SynthRuntime {
       policyDecisions,
       stepOutcomes,
       toolOutcomes,
+      actionGraph,
+      executionTrace,
+      worldStateBefore,
+      worldStateAfter: worldStateBefore,
+      worldStateDiffs: [],
       policyLoadError: runSummary.policyLoadError,
     });
 
@@ -435,6 +465,60 @@ export class SynthRuntime {
       });
     }
 
+    const worldStateDiffs = this.buildWorldStateDiffs(stepOutcomes);
+    const worldStateAfter = this.applyWorldStateDiffs(worldStateBefore, worldStateDiffs);
+    const contradictions = this.detectContradictions(worldStateBefore, worldStateDiffs);
+    await this.saveSessionWorldState(sessionKey, worldStateAfter);
+
+    for (const diff of worldStateDiffs) {
+      await this.signalBus.append({
+        type: 'BELIEF_UPDATED',
+        payload: {
+          entityId: sessionKey,
+          property: diff.type,
+          oldValue: undefined,
+          newValue: diff.value,
+          confidence: diff.status === 'executed' ? 0.85 : 0.4,
+        },
+        sessionKey,
+        sourceLoop: 'SynthRuntime',
+        priority: 'event',
+        emittedAtMs: Date.now(),
+      });
+    }
+
+    for (const contradiction of contradictions) {
+      await this.signalBus.append({
+        type: 'PREDICTION_MISMATCH',
+        payload: {
+          predictionId: `contradiction-${Date.now()}-${contradiction.stepId}`,
+          expected: contradiction.expected,
+          actual: contradiction.actual,
+          stepId: contradiction.stepId,
+        },
+        sessionKey,
+        sourceLoop: 'SynthRuntime',
+        priority: 'event',
+        emittedAtMs: Date.now(),
+      });
+    }
+
+    await this.writeRunManifest(sessionKey, {
+      input,
+      response,
+      planId: runSummary.planId,
+      evaluation: runSummary.evaluation,
+      policyDecisions,
+      stepOutcomes,
+      toolOutcomes,
+      actionGraph,
+      executionTrace,
+      worldStateBefore,
+      worldStateAfter,
+      worldStateDiffs,
+      policyLoadError: runSummary.policyLoadError,
+    });
+
     return response;
   }
 
@@ -491,6 +575,28 @@ export class SynthRuntime {
       input: Record<string, unknown>;
       output: Record<string, unknown>;
     }>;
+    actionGraph?: {
+      version: 'v2';
+      nodes: Array<{
+        nodeId: string;
+        intent: string;
+        actionClass: string;
+        target?: string;
+        policyTags: string[];
+        preconditions: string[];
+        inputs: string[];
+        outputs: string[];
+        dependsOn: string[];
+      }>;
+    };
+    executionTrace: Array<{
+      nodeId: string;
+      stepId: string;
+      status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+      startedAtMs: number;
+      endedAtMs: number;
+      reason?: string;
+    }>;
     policyLoadError?: string;
   }> {
     const signals = await this.signalBus.readTail(sessionKey, fromOffset, 1000);
@@ -500,7 +606,32 @@ export class SynthRuntime {
     const outputReady = [...signals].reverse().find(signal => signal.type === 'OUTPUT_READY');
 
     const planPayload = planCreated?.payload as { chainId?: string } | undefined;
-    const evalPayload = evaluationComplete?.payload as { result?: string; summary?: string } | undefined;
+    const evalPayload = evaluationComplete?.payload as {
+      result?: string;
+      summary?: string;
+      actionGraph?: {
+        version?: 'v2';
+        nodes?: Array<{
+          nodeId?: string;
+          intent?: string;
+          actionClass?: string;
+          target?: string;
+          policyTags?: string[];
+          preconditions?: string[];
+          inputs?: string[];
+          outputs?: string[];
+          dependsOn?: string[];
+        }>;
+      };
+      executionTrace?: Array<{
+        nodeId?: string;
+        stepId?: string;
+        status?: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+        startedAtMs?: number;
+        endedAtMs?: number;
+        reason?: string;
+      }>
+    } | undefined;
     const outputPayload = outputReady?.payload as { content?: string } | undefined;
 
     const policyDecisions = signals
@@ -562,6 +693,36 @@ export class SynthRuntime {
         };
       });
 
+    const executionTrace = Array.isArray(evalPayload?.executionTrace)
+      ? evalPayload.executionTrace
+          .filter(item => Boolean(item?.stepId && item?.nodeId))
+          .map(item => ({
+            nodeId: String(item.nodeId),
+            stepId: String(item.stepId),
+            status: item.status ?? 'failed',
+            startedAtMs: Number(item.startedAtMs ?? 0),
+            endedAtMs: Number(item.endedAtMs ?? 0),
+            reason: item.reason,
+          }))
+      : [];
+
+    const actionGraph = (evalPayload?.actionGraph?.version === 'v2' && Array.isArray(evalPayload?.actionGraph?.nodes))
+      ? {
+          version: 'v2' as const,
+          nodes: evalPayload.actionGraph.nodes.map(node => ({
+            nodeId: String(node.nodeId ?? ''),
+            intent: String(node.intent ?? ''),
+            actionClass: String(node.actionClass ?? 'local_only'),
+            target: node.target,
+            policyTags: Array.isArray(node.policyTags) ? node.policyTags.map(String) : [],
+            preconditions: Array.isArray(node.preconditions) ? node.preconditions.map(String) : [],
+            inputs: Array.isArray(node.inputs) ? node.inputs.map(String) : [],
+            outputs: Array.isArray(node.outputs) ? node.outputs.map(String) : [],
+            dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn.map(String) : [],
+          })),
+        }
+      : undefined;
+
     const responseSummary = typeof outputPayload?.content === 'string'
       ? outputPayload.content
       : (typeof evalPayload?.summary === 'string' ? evalPayload.summary : 'No summary available');
@@ -575,6 +736,8 @@ export class SynthRuntime {
       policyDecisions,
       stepOutcomes,
       toolOutcomes,
+      actionGraph,
+      executionTrace,
       policyLoadError: responseSummary.includes('[Policy load warning:') ? responseSummary : undefined,
     };
   }
@@ -601,6 +764,31 @@ export class SynthRuntime {
       input: Record<string, unknown>;
       output: Record<string, unknown>;
     }>;
+    actionGraph?: {
+      version: 'v2';
+      nodes: Array<{
+        nodeId: string;
+        intent: string;
+        actionClass: string;
+        target?: string;
+        policyTags: string[];
+        preconditions: string[];
+        inputs: string[];
+        outputs: string[];
+        dependsOn: string[];
+      }>;
+    };
+    executionTrace: Array<{
+      nodeId: string;
+      stepId: string;
+      status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+      startedAtMs: number;
+      endedAtMs: number;
+      reason?: string;
+    }>;
+    worldStateBefore: SessionWorldState;
+    worldStateAfter: SessionWorldState;
+    worldStateDiffs: WorldStateDiff[];
     policyLoadError?: string;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
@@ -785,6 +973,113 @@ export class SynthRuntime {
 
     // Report progress
     await this.goalAutonomy.reportProgress(goal.goalId, 1.0, 'Exploration complete');
+  }
+
+
+  private worldStatePath(sessionKey: string): string {
+    return join(this.config.baseDir, 'artifacts', sessionKey, 'world-state.json');
+  }
+
+  private async loadSessionWorldState(sessionKey: string): Promise<SessionWorldState> {
+    const path = this.worldStatePath(sessionKey);
+    try {
+      const raw = await readFile(path, 'utf8');
+      const parsed = JSON.parse(raw) as SessionWorldState;
+      return {
+        facts: Array.isArray(parsed.facts) ? parsed.facts.map(String) : [],
+        assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.map(String) : [],
+        openGoals: Array.isArray(parsed.openGoals) ? parsed.openGoals.map(String) : [],
+        constraints: Array.isArray(parsed.constraints) ? parsed.constraints.map(String) : [],
+        updatedAtMs: Number(parsed.updatedAtMs ?? Date.now()),
+      };
+    } catch {
+      return { facts: [], assumptions: [], openGoals: [], constraints: [], updatedAtMs: Date.now() };
+    }
+  }
+
+  private async saveSessionWorldState(sessionKey: string, state: SessionWorldState): Promise<void> {
+    const path = this.worldStatePath(sessionKey);
+    await mkdir(join(this.config.baseDir, 'artifacts', sessionKey), { recursive: true });
+    await writeFile(path, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  }
+
+  private buildWorldStateDiffs(stepOutcomes: Array<{
+    stepId: string;
+    status: string;
+    outputSummary?: string;
+    intent?: string;
+    actionClass?: string;
+  }>): WorldStateDiff[] {
+    const diffs: WorldStateDiff[] = [];
+    for (const step of stepOutcomes) {
+      const summary = String(step.outputSummary ?? '').trim();
+      const intent = String(step.intent ?? '').trim();
+
+      if (step.status === 'executed' && summary) {
+        diffs.push({ stepId: step.stepId, type: 'fact_add', value: summary, status: step.status });
+      }
+
+      if (step.status === 'failed') {
+        diffs.push({ stepId: step.stepId, type: 'goal_add', value: `recover:${intent || step.stepId}`, status: step.status });
+      }
+
+      if (step.status === 'blocked' || step.status === 'awaiting_approval') {
+        diffs.push({ stepId: step.stepId, type: 'constraint_add', value: `policy:${step.actionClass ?? 'unknown'}`, status: step.status });
+      }
+
+      if (step.status !== 'executed' && summary) {
+        diffs.push({ stepId: step.stepId, type: 'assumption_add', value: summary, status: step.status });
+      }
+    }
+
+    return diffs;
+  }
+
+  private applyWorldStateDiffs(before: SessionWorldState, diffs: WorldStateDiff[]): SessionWorldState {
+    const after: SessionWorldState = {
+      facts: [...before.facts],
+      assumptions: [...before.assumptions],
+      openGoals: [...before.openGoals],
+      constraints: [...before.constraints],
+      updatedAtMs: Date.now(),
+    };
+
+    for (const diff of diffs) {
+      switch (diff.type) {
+        case 'fact_add':
+          if (!after.facts.includes(diff.value)) after.facts.push(diff.value);
+          break;
+        case 'assumption_add':
+          if (!after.assumptions.includes(diff.value)) after.assumptions.push(diff.value);
+          break;
+        case 'goal_add':
+          if (!after.openGoals.includes(diff.value)) after.openGoals.push(diff.value);
+          break;
+        case 'constraint_add':
+        case 'contradiction':
+          if (!after.constraints.includes(diff.value)) after.constraints.push(diff.value);
+          break;
+      }
+    }
+
+    return after;
+  }
+
+  private detectContradictions(before: SessionWorldState, diffs: WorldStateDiff[]): ContradictionEvent[] {
+    const contradictions: ContradictionEvent[] = [];
+    const knownFacts = new Set(before.facts.map(value => value.toLowerCase().trim()));
+
+    for (const diff of diffs) {
+      if (diff.type !== 'fact_add') continue;
+      const normalized = diff.value.toLowerCase().trim();
+      const alt = normalized.startsWith('not ') ? normalized.slice(4) : `not ${normalized}`;
+      if (knownFacts.has(alt)) {
+        contradictions.push({ stepId: diff.stepId, expected: alt, actual: normalized });
+      }
+      knownFacts.add(normalized);
+    }
+
+    return contradictions;
   }
 
   /**
