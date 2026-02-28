@@ -30,7 +30,8 @@
     "lint": "npm run typecheck",
     "typecheck": "tsc --noEmit",
     "capability:eval": "node dist/cli/index.mjs capability eval",
-    "capability:gate": "node dist/cli/index.mjs capability gate"
+    "capability:gate": "node dist/cli/index.mjs capability gate",
+    "capability:matrix": "node dist/cli/index.mjs capability matrix"
   },
   "dependencies": {
     "blessed": "^0.1.81",
