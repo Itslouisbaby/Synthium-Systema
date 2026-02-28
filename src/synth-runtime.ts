@@ -130,7 +130,10 @@ export class SynthRuntime {
 
     this.cortexLoop = new CortexLoop({
       artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-      v1Loop: this.v1Pipeline
+      v1Loop: this.v1Pipeline,
+      autonomyLevel: this.config.autonomyLevel,
+      enableMemory: this.config.enableMemory,
+      policyPath: this.config.policyPath,
     });
 
     // Initialize memory
@@ -288,22 +291,19 @@ export class SynthRuntime {
       memoryContext = memories.flash.map(m => m.content);
     }
 
-    // 3. Run real pipeline adapter (plan -> policy -> execution -> evaluation)
+    // 3. Signal-driven runtime path: queue input, emit INPUT_RECEIVED, and wait for OUTPUT_SENT.
     const signalCursor = this.signalBus.getTailOffset(sessionKey);
-
-    const pipelineResult = await this.v1Pipeline(
-      { content: input, sessionKey, memoryContext },
-      {
-        artifactBaseDir: join(this.config.baseDir, 'artifacts'),
-        autonomyLevel: this.config.autonomyLevel,
-        enableMemory: this.config.enableMemory,
-        policyPath: this.config.policyPath,
-      }
-    );
 
     await this.signalBus.append({
       type: 'INPUT_RECEIVED',
-      payload: { content: input, source: 'user' },
+      payload: {
+        content: input,
+        source: 'user',
+        metadata: {
+          context,
+          memoryContext,
+        },
+      },
       sessionKey,
       sourceLoop: 'external',
       priority: 'palpitation',
@@ -311,38 +311,20 @@ export class SynthRuntime {
       dedupeKey: `input-${sessionKey}`,
     });
 
-    await this.signalBus.append({
-      type: 'OUTPUT_READY',
-      payload: {
-        chainId: pipelineResult.plan.id,
-        content: pipelineResult.evaluation.summary,
-        contentType: 'text',
-      },
-      sessionKey,
-      sourceLoop: 'CortexLoop',
-      priority: 'event',
-      emittedAtMs: Date.now(),
-      causedBy: [],
-    });
-
     await this.scheduler.triggerTick(sessionKey);
 
-    const response = (await this.waitForOutputSignal(sessionKey, signalCursor)) ?? pipelineResult.evaluation.summary;
+    const output = await this.waitForOutputSignal(sessionKey, signalCursor);
+    const response = output?.content ?? 'No output emitted by runtime.';
+
+    const runSummary = await this.collectRunSummary(sessionKey, signalCursor);
 
     await this.writeRunManifest(sessionKey, {
       input,
       response,
-      planId: pipelineResult.plan.id,
-      evaluation: {
-        result: pipelineResult.evaluation.result,
-        summary: pipelineResult.evaluation.summary,
-      },
-      policyDecisions: pipelineResult.artifactPaths.policyAuditEvents.map(e => ({
-        stepId: e.stepId,
-        decision: e.decision,
-        reason: e.reason,
-      })),
-      policyLoadError: pipelineResult.artifactPaths.policyLoadError,
+      planId: runSummary.planId,
+      evaluation: runSummary.evaluation,
+      policyDecisions: runSummary.policyDecisions,
+      policyLoadError: runSummary.policyLoadError,
     });
 
     // 4. Store response
@@ -358,8 +340,8 @@ export class SynthRuntime {
         sessionKey,
         metadata: {
           response: true,
-          planId: pipelineResult.plan.id,
-          evaluationResult: pipelineResult.evaluation.result,
+          planId: runSummary.planId,
+          evaluationResult: runSummary.evaluation.result,
         },
       });
     }
@@ -391,23 +373,79 @@ export class SynthRuntime {
     return response;
   }
 
-  private async waitForOutputSignal(sessionKey: string, fromOffset: number): Promise<string | null> {
+  private async waitForOutputSignal(
+    sessionKey: string,
+    fromOffset: number
+  ): Promise<{ content: string; chainId: string | null } | null> {
     const timeoutMs = 5000;
     const started = Date.now();
 
     while (Date.now() - started < timeoutMs) {
-      const signals = await this.signalBus.readTail(sessionKey, fromOffset, 200);
-      const output = signals.find(s => s.type === 'OUTPUT_READY');
-      if (output) {
-        const payload = output.payload as { content?: string };
-        if (typeof payload.content === 'string') {
-          return payload.content;
+      await this.scheduler.triggerTick(sessionKey);
+      const signals = await this.signalBus.readTail(sessionKey, fromOffset, 500);
+
+      const latestOutputReady = [...signals].reverse().find(s => s.type === 'OUTPUT_READY');
+      const latestOutputSent = [...signals].reverse().find(s => s.type === 'OUTPUT_SENT');
+
+      if (latestOutputReady) {
+        const payload = latestOutputReady.payload as { content?: string; chainId?: string | null };
+        if (latestOutputSent && typeof payload.content === 'string') {
+          return {
+            content: payload.content,
+            chainId: typeof payload.chainId === 'string' ? payload.chainId : null,
+          };
         }
       }
+
       await new Promise(resolve => setTimeout(resolve, 25));
     }
 
     return null;
+  }
+
+  private async collectRunSummary(
+    sessionKey: string,
+    fromOffset: number
+  ): Promise<{
+    planId: string;
+    evaluation: { result: string; summary: string };
+    policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
+    policyLoadError?: string;
+  }> {
+    const signals = await this.signalBus.readTail(sessionKey, fromOffset, 1000);
+
+    const planCreated = [...signals].reverse().find(signal => signal.type === 'PLAN_CREATED');
+    const evaluationComplete = [...signals].reverse().find(signal => signal.type === 'EVALUATION_COMPLETE');
+    const outputReady = [...signals].reverse().find(signal => signal.type === 'OUTPUT_READY');
+
+    const planPayload = planCreated?.payload as { chainId?: string } | undefined;
+    const evalPayload = evaluationComplete?.payload as { result?: string; summary?: string } | undefined;
+    const outputPayload = outputReady?.payload as { content?: string } | undefined;
+
+    const policyDecisions = signals
+      .filter(signal => signal.type === 'POLICY_DECISION_EMITTED')
+      .map(signal => {
+        const payload = signal.payload as { ruleId?: string; decision?: string; reason?: string };
+        return {
+          stepId: payload.ruleId ?? signal.signalId,
+          decision: payload.decision ?? 'unknown',
+          reason: payload.reason ?? 'No reason provided',
+        };
+      });
+
+    const responseSummary = typeof outputPayload?.content === 'string'
+      ? outputPayload.content
+      : (typeof evalPayload?.summary === 'string' ? evalPayload.summary : 'No summary available');
+
+    return {
+      planId: typeof planPayload?.chainId === 'string' ? planPayload.chainId : `plan-${Date.now()}`,
+      evaluation: {
+        result: typeof evalPayload?.result === 'string' ? evalPayload.result : 'partial',
+        summary: responseSummary,
+      },
+      policyDecisions,
+      policyLoadError: responseSummary.includes('[Policy load warning:') ? responseSummary : undefined,
+    };
   }
 
   private async writeRunManifest(sessionKey: string, payload: {
