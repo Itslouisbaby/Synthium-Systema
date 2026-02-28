@@ -11,10 +11,52 @@ export async function runCanary(action?: string): Promise<void> {
     case undefined:
       await runGate();
       return;
+    case 'promote':
+      await updateRollout('promote');
+      return;
+    case 'rollback':
+      await updateRollout('rollback');
+      return;
+    case 'status':
+      await printRolloutStatus();
+      return;
     default:
       console.error(`Unknown canary action: ${action}`);
-      console.log('Usage: synth canary [gate|run]');
+      console.log('Usage: synth canary [gate|run|promote|rollback|status]');
       process.exit(1);
+  }
+}
+
+function resolveRolloutStatePath(): string {
+  return process.env.SYNTH_V2_ROLLOUT_STATE_PATH ?? '.synth/canary/rollout-state.json';
+}
+
+async function getOrCreateState() {
+  const statePath = resolveRolloutStatePath();
+  const policy = parseRoutingPolicyFromEnv();
+  const existing = await loadRolloutState(statePath);
+  const state = existing ?? defaultRolloutState(policy);
+  return { state, statePath };
+}
+
+async function updateRollout(mode: 'promote' | 'rollback'): Promise<void> {
+  const { state, statePath } = await getOrCreateState();
+  const next = mode === 'promote' ? promoteRollout(state) : rollbackRollout(state);
+  await saveRolloutState(statePath, next);
+
+  console.log(`[canary] rollout ${mode} complete`);
+  console.log(`[canary] stage=${next.stage} percentToV2=${next.percentToV2}%`);
+  console.log(`[canary] state=${statePath}`);
+}
+
+async function printRolloutStatus(): Promise<void> {
+  const { state, statePath } = await getOrCreateState();
+  const cohorts = Object.values(state.cohorts);
+  console.log(`[canary] state=${statePath}`);
+  console.log(`[canary] stage=${state.stage} percentToV2=${state.percentToV2}% updatedAt=${state.updatedAt}`);
+  console.log(`[canary] cohorts=${cohorts.length}`);
+  for (const cohort of cohorts.slice(0, 10)) {
+    console.log(`  - ${cohort.cohort}: total=${cohort.total} v2=${cohort.v2Routed} v1=${cohort.v1Routed} gate={promote:${cohort.promoteCount},hold:${cohort.holdCount},rollback:${cohort.rollbackCount}}`);
   }
 }
 

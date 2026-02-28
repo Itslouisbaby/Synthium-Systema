@@ -2,8 +2,7 @@
  * CLI Run Command - Milestone 5
  * synth run --session <id> "<text>" --level 1|2|3 --workspace <path>
  *
- * Feature flag: SYNTH_NEURONWAVES_RUNTIME=v2 routes input into NeuronWaves v2 runtime.
- * Default is v1 (stable). v2 is opt-in until CI gates pass.
+ * Default runtime is now v2 for GA cutover, with explicit v1 emergency fallback.
  */
 import { SynthRuntime } from '../../synth-runtime.js';
 import { NeuronWavesRuntime } from '../../neuronwaves-v2/neuronwaves-runtime.js';
@@ -11,7 +10,11 @@ import { parseGateStatusFromEnv, parseRoutingPolicyFromEnv, resolveCanaryRoute }
 import { validateSessionId } from '../types.js';
 import type { CLIOptions, CLIResult } from '../types.js';
 
-const USE_V2_RUNTIME = process.env['SYNTH_NEURONWAVES_RUNTIME'] === 'v2';
+const FORCE_V1_RUNTIME = process.env['SYNTH_NEURONWAVES_RUNTIME'] === 'v1' || process.env['SYNTH_FORCE_V1_FALLBACK'] === '1';
+
+function resolveRolloutStatePath(env: NodeJS.ProcessEnv = process.env): string {
+  return env.SYNTH_V2_ROLLOUT_STATE_PATH ?? '.synth/canary/rollout-state.json';
+}
 
 /**
  * Validate that level is a valid autonomy level (1, 2, or 3)
