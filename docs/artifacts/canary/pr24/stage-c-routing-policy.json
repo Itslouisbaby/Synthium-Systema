@@ -1,0 +1,14 @@
+{
+  "stage": "C",
+  "effectiveAt": "2026-02-27T16:00:00Z",
+  "defaultRoute": {
+    "enabled": true,
+    "percentToV2": 25,
+    "controlledTenants": ["tenant-alpha", "tenant-beta", "tenant-gamma"],
+    "controlledSessions": []
+  },
+  "autoAbort": {
+    "gateDecisionsTriggeringAbort": ["hold", "rollback"],
+    "fallbackRoute": "v1"
+  }
+}
