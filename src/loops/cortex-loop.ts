@@ -21,10 +21,12 @@ import { SignalBus, SignalBuilder } from '../runtime/signal-bus.js';
 export type V1LoopFunction = (input: {
   content: string;
   sessionKey: string;
+  memoryContext?: string[];
 }, config: {
   artifactBaseDir: string;
   autonomyLevel?: number;
   enableMemory?: boolean;
+  policyPath?: string;
 }) => Promise<{
   plan: Plan;
   evaluation: Evaluation;
@@ -41,6 +43,8 @@ export interface CortexLoopConfig {
   readonly autonomyLevel?: number;
   /** Whether to enable memory */
   readonly enableMemory?: boolean;
+  /** Runtime policy path passed to v1 adapter */
+  readonly policyPath?: string;
 }
 
 /**
@@ -89,11 +93,15 @@ export class CortexLoop implements MicroLoop {
     // Process each input signal
     for (const signal of signals) {
       if (signal.type === 'INPUT_RECEIVED') {
-        const payload = signal.payload as { content: string };
+        const payload = signal.payload as { content: string; metadata?: Record<string, unknown> };
+        const memoryContextRaw = payload.metadata?.memoryContext;
+        const memoryContext = Array.isArray(memoryContextRaw)
+          ? memoryContextRaw.filter((entry): entry is string => typeof entry === 'string')
+          : undefined;
 
         try {
           // Execute v1 loop
-          const result = await this.executeV1Loop(payload.content, sessionKey);
+          const result = await this.executeV1Loop(payload.content, sessionKey, memoryContext);
 
           // Emit PLAN_CREATED signal
           signalsOut.push(signalBuilder.planCreated(
@@ -236,17 +244,18 @@ export class CortexLoop implements MicroLoop {
   /**
    * Execute the v1 loop
    */
-  private async executeV1Loop(content: string, sessionKey: string): Promise<{
+  private async executeV1Loop(content: string, sessionKey: string, memoryContext?: string[]): Promise<{
     plan: Plan;
     evaluation: Evaluation;
     artifactPaths: unknown;
   }> {
     return this.config.v1Loop(
-      { content, sessionKey },
+      { content, sessionKey, memoryContext },
       {
         artifactBaseDir: this.config.artifactBaseDir,
         autonomyLevel: this.config.autonomyLevel ?? 1,
         enableMemory: this.config.enableMemory ?? true,
+        policyPath: this.config.policyPath,
       }
     );
   }

@@ -13,6 +13,12 @@ interface ShadowRunnerOptions {
   input: string;
   llm: LLMProvider;
   timeoutMs?: number;
+  recentSemanticTotals?: number[];
+  thresholdConfig?: {
+    floor?: number;
+    requiredConsecutivePasses?: number;
+    reasonSimilarityFloor?: number;
+  };
 }
 
 interface V1RunManifest {
@@ -20,10 +26,20 @@ interface V1RunManifest {
   policyDecisions?: Array<{ stepId: string; decision: string; reason: string }>;
 }
 
+interface PolicyMismatchBreakdown {
+  decisionTypeMismatch: number;
+  reasonMismatch: number;
+  missingInV2: number;
+  extraInV2: number;
+}
+
 interface PolicyAuditParity {
   v1DecisionCounts: Record<string, number>;
   v2DecisionCounts: Record<string, number>;
   exactCountMatch: boolean;
+  exactDecisionMatch: boolean;
+  mismatchBreakdown: PolicyMismatchBreakdown;
+  reasonMismatches: string[];
 }
 
 interface SemanticParityScores {
@@ -32,6 +48,20 @@ interface SemanticParityScores {
   evaluationResultAlignment: number;
   outputQualityHeuristic: number;
   total: number;
+}
+
+interface SemanticThresholds {
+  floor: number;
+  requiredConsecutivePasses: number;
+  reasonSimilarityFloor: number;
+}
+
+interface SemanticPromotionGate {
+  pass: boolean;
+  currentWindowPasses: number;
+  requiredConsecutivePasses: number;
+  failedChecks: string[];
+  recommendation: 'promote' | 'hold';
 }
 
 export interface ShadowComparisonResult {
@@ -44,11 +74,16 @@ export interface ShadowComparisonResult {
   };
   policyAuditParity: PolicyAuditParity;
   semanticScores: SemanticParityScores;
+  semanticThresholds: SemanticThresholds;
+  semanticPromotionGate: SemanticPromotionGate;
   evidence: {
     v2SignalTypes: string[];
     v2TickCount: number;
     v1EvaluationResult: string;
     v2EvaluationResult: string;
+    outputReadyCount: number;
+    outputSentCount: number;
+    outputPublicationReliability: number;
   };
   artifacts: {
     v1BaseDir: string;
@@ -206,6 +241,76 @@ function buildSemanticScores(params: {
   };
 }
 
+function buildPolicyAuditParity(v1DecisionCounts: Record<string, number>, v2DecisionCounts: Record<string, number>): PolicyAuditParity {
+  const decisionKeys = new Set([...Object.keys(v1DecisionCounts), ...Object.keys(v2DecisionCounts)]);
+  let missingInV2 = 0;
+  let extraInV2 = 0;
+  let decisionTypeMismatch = 0;
+
+  for (const key of decisionKeys) {
+    const v1Count = v1DecisionCounts[key] ?? 0;
+    const v2Count = v2DecisionCounts[key] ?? 0;
+    if (v1Count > v2Count) {
+      missingInV2 += v1Count - v2Count;
+    } else if (v2Count > v1Count) {
+      extraInV2 += v2Count - v1Count;
+    }
+    if (v1Count !== v2Count) {
+      decisionTypeMismatch += Math.abs(v1Count - v2Count);
+    }
+  }
+
+  const mismatchBreakdown: PolicyMismatchBreakdown = {
+    decisionTypeMismatch,
+    reasonMismatch: 0,
+    missingInV2,
+    extraInV2,
+  };
+
+  const exactCountMatch = JSON.stringify(v1DecisionCounts) === JSON.stringify(v2DecisionCounts);
+
+  return {
+    v1DecisionCounts,
+    v2DecisionCounts,
+    exactCountMatch,
+    exactDecisionMatch: exactCountMatch,
+    mismatchBreakdown,
+    reasonMismatches: [],
+  };
+}
+
+function buildSemanticPromotionGate(
+  semanticTotal: number,
+  thresholds: SemanticThresholds,
+  recentTotals: number[] = []
+): SemanticPromotionGate {
+  const combined = [...recentTotals, semanticTotal];
+  let trailingPasses = 0;
+  for (let index = combined.length - 1; index >= 0; index -= 1) {
+    if (combined[index] >= thresholds.floor) {
+      trailingPasses += 1;
+    } else {
+      break;
+    }
+  }
+
+  const failedChecks: string[] = [];
+  if (semanticTotal < thresholds.floor) {
+    failedChecks.push('semantic_below_floor');
+  }
+  if (trailingPasses < thresholds.requiredConsecutivePasses) {
+    failedChecks.push('insufficient_consecutive_semantic_passes');
+  }
+
+  return {
+    pass: failedChecks.length === 0,
+    currentWindowPasses: trailingPasses,
+    requiredConsecutivePasses: thresholds.requiredConsecutivePasses,
+    failedChecks,
+    recommendation: failedChecks.length === 0 ? 'promote' : 'hold',
+  };
+}
+
 export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Promise<ShadowComparisonResult> {
   const timeoutMs = options.timeoutMs ?? 5000;
   const v1BaseDir = await mkdtemp(join(tmpdir(), 'synth-pr11-v1-'));
@@ -268,6 +373,7 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
 
     const v1DecisionCounts = toDecisionCounts(v1Decisions);
     const v2DecisionCounts = toDecisionCounts(v2Decisions);
+    const policyAuditParity = buildPolicyAuditParity(v1DecisionCounts, v2DecisionCounts);
     const v1EvaluationResult = v1Manifest?.evaluation?.result ?? classifyEvaluationResult(v1Output);
     const v2EvaluationResult = classifyEvaluationResult(v2Output);
 
@@ -281,6 +387,16 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
       v2EvaluationResult,
     });
 
+    const semanticThresholds: SemanticThresholds = {
+      floor: options.thresholdConfig?.floor ?? 0.65,
+      requiredConsecutivePasses: options.thresholdConfig?.requiredConsecutivePasses ?? 2,
+      reasonSimilarityFloor: options.thresholdConfig?.reasonSimilarityFloor ?? 0.6,
+    };
+
+    const outputReadyCount = v2Signals.filter(signal => signal.type === 'OUTPUT_READY').length;
+    const outputSentCount = v2Signals.filter(signal => signal.type === 'OUTPUT_SENT').length;
+    const outputPublicationReliability = outputReadyCount === 0 ? 1 : outputSentCount / outputReadyCount;
+
     return {
       input: options.input,
       v1Output,
@@ -289,17 +405,22 @@ export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Pro
         exact: v1Output === v2Output,
         normalized: normalizeText(v1Output) === normalizeText(v2Output),
       },
-      policyAuditParity: {
-        v1DecisionCounts,
-        v2DecisionCounts,
-        exactCountMatch: JSON.stringify(v1DecisionCounts) === JSON.stringify(v2DecisionCounts),
-      },
+      policyAuditParity,
       semanticScores,
+      semanticThresholds,
+      semanticPromotionGate: buildSemanticPromotionGate(
+        semanticScores.total,
+        semanticThresholds,
+        options.recentSemanticTotals
+      ),
       evidence: {
         v2SignalTypes,
         v2TickCount,
         v1EvaluationResult,
         v2EvaluationResult,
+        outputReadyCount,
+        outputSentCount,
+        outputPublicationReliability,
       },
       artifacts: {
         v1BaseDir,
