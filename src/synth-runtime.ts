@@ -382,6 +382,9 @@ export class SynthRuntime {
     const toolOutcomes = Array.isArray(runSummary.toolOutcomes) ? runSummary.toolOutcomes : [];
     const executionTrace = Array.isArray(runSummary.executionTrace) ? runSummary.executionTrace : [];
     const actionGraph = runSummary.actionGraph;
+    const goalStack = runSummary.goalStack;
+    const criticPatch = runSummary.criticPatch;
+    const reviseCycleApplied = runSummary.reviseCycleApplied;
     const worldStateBefore = await this.loadSessionWorldState(sessionKey);
 
     await this.writeRunManifest(sessionKey, {
@@ -397,6 +400,9 @@ export class SynthRuntime {
       worldStateBefore,
       worldStateAfter: worldStateBefore,
       worldStateDiffs: [],
+      goalStack,
+      criticPatch,
+      reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
     });
 
@@ -516,6 +522,9 @@ export class SynthRuntime {
       worldStateBefore,
       worldStateAfter,
       worldStateDiffs,
+      goalStack,
+      criticPatch,
+      reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
     });
 
@@ -597,6 +606,9 @@ export class SynthRuntime {
       endedAtMs: number;
       reason?: string;
     }>;
+    goalStack?: Record<string, unknown>;
+    criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
+    reviseCycleApplied: boolean;
     policyLoadError?: string;
   }> {
     const signals = await this.signalBus.readTail(sessionKey, fromOffset, 1000);
@@ -723,6 +735,17 @@ export class SynthRuntime {
         }
       : undefined;
 
+    const memoryWrites = signals
+      .filter(signal => signal.type === 'MEMORY_WRITE_SUGGESTED')
+      .map(signal => signal.payload as { key?: string; value?: unknown; reason?: string });
+
+    const goalStackPayload = [...memoryWrites].reverse().find(item => String(item.key ?? '').startsWith('goal_stack:'));
+    const criticPatchPayload = [...memoryWrites].reverse().find(item => String(item.key ?? '').startsWith('critic_patch:'));
+
+    const replanSignals = signals
+      .filter(signal => signal.type === 'EXEC_REQUEST_REPLAN')
+      .map(signal => signal.payload as { reviseCycle?: boolean });
+
     const responseSummary = typeof outputPayload?.content === 'string'
       ? outputPayload.content
       : (typeof evalPayload?.summary === 'string' ? evalPayload.summary : 'No summary available');
@@ -738,6 +761,16 @@ export class SynthRuntime {
       toolOutcomes,
       actionGraph,
       executionTrace,
+      goalStack: (goalStackPayload?.value && typeof goalStackPayload.value === 'object') ? goalStackPayload.value as Record<string, unknown> : undefined,
+      criticPatch: (criticPatchPayload?.value && typeof criticPatchPayload.value === 'object')
+        ? {
+            issue: String((criticPatchPayload.value as Record<string, unknown>).issue ?? ''),
+            proposedFix: String((criticPatchPayload.value as Record<string, unknown>).proposedFix ?? ''),
+            confidence: Number((criticPatchPayload.value as Record<string, unknown>).confidence ?? 0),
+            reviseCycle: Number((criticPatchPayload.value as Record<string, unknown>).reviseCycle ?? 0) || undefined,
+          }
+        : undefined,
+      reviseCycleApplied: replanSignals.some(item => Boolean(item.reviseCycle)),
       policyLoadError: responseSummary.includes('[Policy load warning:') ? responseSummary : undefined,
     };
   }
@@ -789,6 +822,9 @@ export class SynthRuntime {
     worldStateBefore: SessionWorldState;
     worldStateAfter: SessionWorldState;
     worldStateDiffs: WorldStateDiff[];
+    goalStack?: Record<string, unknown>;
+    criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
+    reviseCycleApplied?: boolean;
     policyLoadError?: string;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');

@@ -65,7 +65,7 @@ export class CriticLoop implements MicroLoop {
   readonly maxSignalsOut = 10;
   readonly reads = ['activeConcepts', 'activeSchemas', 'selfModel', 'uncertainties'] as const;
   readonly writes = ['uncertainties'] as const;
-  readonly subscriptions: SignalType[] = ['PLAN_CREATED', 'SLOTS_MISSING'];
+  readonly subscriptions: SignalType[] = ['PLAN_CREATED', 'SLOTS_MISSING', 'EVALUATION_COMPLETE'];
 
   private readonly config: CriticLoopConfig;
 
@@ -235,6 +235,43 @@ export class CriticLoop implements MicroLoop {
               { causedBy: [signal.signalId] }
             ));
           }
+        }
+      }
+
+      if (signal.type === 'EVALUATION_COMPLETE') {
+        const payload = signal.payload as { result?: string; summary?: string };
+        const summary = String(payload.summary ?? '');
+        const result = payload.result ?? 'partial';
+
+        if (result !== 'success' || /failed|blocked|awaiting approval/i.test(summary)) {
+          const issue = summary.includes('Blocked by policy')
+            ? 'Policy-blocked output quality degradation'
+            : summary.includes('Execution failed')
+              ? 'Execution failure impacted output quality'
+              : 'Evaluation result was not success';
+
+          const proposedFix = summary.includes('Blocked by policy')
+            ? 'Revise plan to local-only or request explicit approval for blocked action.'
+            : summary.includes('Execution failed')
+              ? 'Retry with simplified decomposition and lower-risk tool sequence.'
+              : 'Run one bounded revise cycle with critic patch applied.';
+
+          const confidence = summary.includes('Execution failed') || summary.includes('Blocked by policy') ? 0.78 : 0.62;
+
+          signalsOut.push(SignalBus.createSignal(
+            'SUGGEST_ALTERNATIVE_PLAN',
+            {
+              reason: 'critic_patch_proposal',
+              issue,
+              proposedFix,
+              confidence,
+              patchId: `patch-${Date.now()}`,
+            },
+            sessionKey,
+            this.name,
+            'heartbeat',
+            { causedBy: [signal.signalId] }
+          ));
         }
       }
 
