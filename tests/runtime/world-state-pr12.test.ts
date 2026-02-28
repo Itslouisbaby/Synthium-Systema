@@ -39,8 +39,8 @@ class EchoLLM implements LLMProvider {
   }
 }
 
-describe('PR12 world-state and state-diff loop', () => {
-  it('writes world-state snapshots/diffs and emits contradiction signals', async () => {
+describe('PR12/PR25 world-state and causal model loop', () => {
+  it('writes world-state snapshots, causal hypothesis/intervention updates, and ties contradictions to causal assumptions', async () => {
     const baseDir = await mkdtemp(join(tmpdir(), 'synth-pr12-'));
     const runtime = new SynthRuntime({
       baseDir,
@@ -63,6 +63,12 @@ describe('PR12 world-state and state-diff loop', () => {
       worldStateBefore: { facts: string[] };
       worldStateAfter: { facts: string[] };
       worldStateDiffs: Array<{ type: string }>;
+      causalBeliefGraph: {
+        nodes: Array<{ nodeId: string; kind: string }>;
+        edges: Array<{ edgeId: string; expectedEffectSize: number; observedEffectSize: number }>;
+        interventions: Array<{ interventionId: string; doOperator: string }>;
+        calibration: { meanExpectedVsObservedDelta: number; confidenceCalibrationError: number };
+      };
     };
 
     expect(Array.isArray(run.worldStateBefore.facts)).toBe(true);
@@ -70,8 +76,17 @@ describe('PR12 world-state and state-diff loop', () => {
     expect(run.worldStateAfter.facts).toContain('sky blue');
     expect(run.worldStateDiffs.some(diff => diff.type === 'fact_add')).toBe(true);
 
+    expect(run.causalBeliefGraph.nodes.length).toBeGreaterThan(0);
+    expect(run.causalBeliefGraph.nodes.some(node => node.kind === 'hypothesis')).toBe(true);
+    expect(run.causalBeliefGraph.interventions.length).toBeGreaterThan(0);
+    expect(run.causalBeliefGraph.interventions.every(item => item.doOperator.startsWith('do('))).toBe(true);
+    expect(run.causalBeliefGraph.edges.every(edge => typeof edge.expectedEffectSize === 'number' && typeof edge.observedEffectSize === 'number')).toBe(true);
+    expect(run.causalBeliefGraph.calibration.meanExpectedVsObservedDelta).toBeGreaterThanOrEqual(0);
+    expect(run.causalBeliefGraph.calibration.confidenceCalibrationError).toBeGreaterThanOrEqual(0);
+
     const signalFile = join(baseDir, 'signals', sessionDir, 'signals.jsonl');
     const signalsRaw = await readFile(signalFile, 'utf8');
     expect(signalsRaw).toContain('PREDICTION_MISMATCH');
+    expect(signalsRaw).toContain('causalAssumptionId');
   });
 });

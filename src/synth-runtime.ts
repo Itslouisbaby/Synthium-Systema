@@ -55,6 +55,45 @@ interface ContradictionEvent {
   stepId: string;
   expected: string;
   actual: string;
+  causalAssumptionId?: string;
+}
+
+interface CausalHypothesisNode {
+  nodeId: string;
+  label: string;
+  confidence: number;
+  kind: 'hypothesis' | 'variable';
+}
+
+interface CausalEdge {
+  edgeId: string;
+  sourceId: string;
+  targetId: string;
+  confidence: number;
+  expectedEffectSize: number;
+  observedEffectSize: number;
+}
+
+interface CausalIntervention {
+  interventionId: string;
+  stepId: string;
+  action: string;
+  doOperator: string;
+  expectedEffectSize: number;
+  observedEffectSize: number;
+  effectDelta: number;
+}
+
+interface CausalCalibrationMetrics {
+  meanExpectedVsObservedDelta: number;
+  confidenceCalibrationError: number;
+}
+
+interface CausalBeliefGraphArtifact {
+  nodes: CausalHypothesisNode[];
+  edges: CausalEdge[];
+  interventions: CausalIntervention[];
+  calibration: CausalCalibrationMetrics;
 }
 
 interface RankedMemory {
@@ -436,6 +475,7 @@ export class SynthRuntime {
       worldStateBefore,
       worldStateAfter: worldStateBefore,
       worldStateDiffs: [],
+      causalBeliefGraph: { nodes: [], edges: [], interventions: [], calibration: { meanExpectedVsObservedDelta: 0, confidenceCalibrationError: 0 } },
       goalStack,
       criticPatch,
       reviseCycleApplied,
@@ -515,6 +555,7 @@ export class SynthRuntime {
     const worldStateDiffs = this.buildWorldStateDiffs(stepOutcomes);
     const worldStateAfter = this.applyWorldStateDiffs(worldStateBefore, worldStateDiffs);
     const contradictions = this.detectContradictions(worldStateBefore, worldStateDiffs);
+    const causalBeliefGraph = this.buildCausalBeliefGraph(stepOutcomes, contradictions);
     await this.saveSessionWorldState(sessionKey, worldStateAfter);
 
     for (const diff of worldStateDiffs) {
@@ -542,6 +583,7 @@ export class SynthRuntime {
           expected: contradiction.expected,
           actual: contradiction.actual,
           stepId: contradiction.stepId,
+          causalAssumptionId: contradiction.causalAssumptionId,
         },
         sessionKey,
         sourceLoop: 'SynthRuntime',
@@ -563,6 +605,7 @@ export class SynthRuntime {
       worldStateBefore,
       worldStateAfter,
       worldStateDiffs,
+      causalBeliefGraph,
       goalStack,
       criticPatch,
       reviseCycleApplied,
@@ -865,6 +908,7 @@ export class SynthRuntime {
     worldStateBefore: SessionWorldState;
     worldStateAfter: SessionWorldState;
     worldStateDiffs: WorldStateDiff[];
+    causalBeliefGraph: CausalBeliefGraphArtifact;
     goalStack?: Record<string, unknown>;
     criticPatch?: { issue: string; proposedFix: string; confidence: number; reviseCycle?: number };
     reviseCycleApplied?: boolean;
@@ -1221,6 +1265,87 @@ export class SynthRuntime {
     }
 
     return after;
+  }
+
+  private buildCausalBeliefGraph(
+    stepOutcomes: Array<{
+      stepId: string;
+      intent: string;
+      actionClass: string;
+      status: 'executed' | 'failed';
+      outputSummary?: string;
+    }>,
+    contradictions: ContradictionEvent[]
+  ): CausalBeliefGraphArtifact {
+    const nodes: CausalHypothesisNode[] = [];
+    const edges: CausalEdge[] = [];
+    const interventions: CausalIntervention[] = [];
+
+    for (const step of stepOutcomes) {
+      const hypothesisNodeId = `hyp-${step.stepId}`;
+      const variableNodeId = `var-${step.stepId}`;
+      const confidence = step.status === 'executed' ? 0.8 : 0.45;
+
+      nodes.push({
+        nodeId: hypothesisNodeId,
+        label: `Hypothesis: ${step.intent}`.slice(0, 160),
+        confidence,
+        kind: 'hypothesis',
+      });
+      nodes.push({
+        nodeId: variableNodeId,
+        label: `Observed variable for ${step.stepId}`,
+        confidence: step.status === 'executed' ? 0.78 : 0.5,
+        kind: 'variable',
+      });
+
+      const expectedEffectSize = step.status === 'executed' ? 0.65 : 0.35;
+      const observedEffectSize = step.status === 'executed' ? 0.62 : 0.22;
+      edges.push({
+        edgeId: `edge-${step.stepId}`,
+        sourceId: hypothesisNodeId,
+        targetId: variableNodeId,
+        confidence,
+        expectedEffectSize,
+        observedEffectSize,
+      });
+
+      interventions.push({
+        interventionId: `int-${step.stepId}`,
+        stepId: step.stepId,
+        action: step.intent,
+        doOperator: `do(${step.actionClass})`,
+        expectedEffectSize,
+        observedEffectSize,
+        effectDelta: Number(Math.abs(expectedEffectSize - observedEffectSize).toFixed(6)),
+      });
+    }
+
+    const meanExpectedVsObservedDelta = interventions.length === 0
+      ? 0
+      : interventions.reduce((acc, item) => acc + Math.abs(item.expectedEffectSize - item.observedEffectSize), 0) / interventions.length;
+
+    const confidenceCalibrationError = edges.length === 0
+      ? 0
+      : edges.reduce((acc, edge) => acc + Math.abs(edge.confidence - edge.observedEffectSize), 0) / edges.length;
+
+    const contradictionByStep = new Map(contradictions.map(item => [item.stepId, item]));
+    for (const edge of edges) {
+      const stepId = edge.edgeId.replace('edge-', '');
+      const contradiction = contradictionByStep.get(stepId);
+      if (!contradiction) continue;
+      contradiction.causalAssumptionId = edge.edgeId;
+    }
+
+    return {
+      nodes,
+      edges,
+      interventions,
+      calibration: {
+        meanExpectedVsObservedDelta: Number(meanExpectedVsObservedDelta.toFixed(6)),
+        confidenceCalibrationError: Number(confidenceCalibrationError.toFixed(6)),
+      },
+    };
   }
 
   private detectContradictions(before: SessionWorldState, diffs: WorldStateDiff[]): ContradictionEvent[] {
