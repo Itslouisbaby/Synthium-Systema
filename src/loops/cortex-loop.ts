@@ -66,6 +66,20 @@ export interface PipelineArtifactPaths {
     endedAtMs: number;
     reason?: string;
   }>;
+  toolDag?: {
+    executionOrder: string[];
+    executionLevels: string[][];
+    aggregated: { totalNodes: number; succeeded: number; failed: number; blockedDependency: number };
+  };
+  experimentEvents?: Array<{
+    experimentId: string;
+    stepId: string;
+    hypothesis: string;
+    outcome: 'success' | 'failed' | 'budget_exhausted';
+    observations: string[];
+    strategyUpdate: string;
+    timestampMs: number;
+  }>;
 }
 
 export type V1LoopFunction = (input: {
@@ -77,6 +91,9 @@ export type V1LoopFunction = (input: {
   autonomyLevel?: number;
   enableMemory?: boolean;
   policyPath?: string;
+  runtimeMode?: 'full' | 'conservative' | 'safe_minimal';
+  maxPlanSteps?: number;
+  experimentBudget?: number;
 }) => Promise<{
   plan: Plan;
   evaluation: Evaluation;
@@ -95,7 +112,10 @@ export interface CortexLoopConfig {
   readonly enableMemory?: boolean;
   /** Runtime policy path passed to v1 adapter */
   readonly policyPath?: string;
+  /** Optional runtime governor mode resolver */
+  readonly resolveRuntimeMode?: () => 'full' | 'conservative' | 'safe_minimal';
 }
+
 
 /**
  * CortexLoop - Event-driven wrapper for v1 loop
@@ -345,6 +365,9 @@ export class CortexLoop implements MicroLoop {
         autonomyLevel: this.config.autonomyLevel ?? 1,
         enableMemory: this.config.enableMemory ?? true,
         policyPath: this.config.policyPath,
+        runtimeMode: this.config.resolveRuntimeMode ? this.config.resolveRuntimeMode() : this.config.runtimeMode,
+        maxPlanSteps: this.config.maxPlanSteps,
+        experimentBudget: this.config.experimentBudget,
       }
     );
   }

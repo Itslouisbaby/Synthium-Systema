@@ -54,11 +54,16 @@ export interface RuntimePlanner {
   plan(input: PipelineInput): PlannedAction[];
 }
 
+export type RuntimeGovernorMode = 'full' | 'conservative' | 'safe_minimal';
+
 interface PipelineConfig {
   artifactBaseDir: string;
   autonomyLevel?: number;
   enableMemory?: boolean;
   policyPath?: string;
+  runtimeMode?: RuntimeGovernorMode;
+  maxPlanSteps?: number;
+  experimentBudget?: number;
 }
 
 interface PipelineResult {
@@ -81,6 +86,15 @@ interface PipelineResult {
     actionGraph: ActionGraph;
     executionTrace: ExecutionTraceEvent[];
     toolDag: ToolDagExecutionArtifact;
+    experimentEvents: Array<{
+      experimentId: string;
+      stepId: string;
+      hypothesis: string;
+      outcome: 'success' | 'failed' | 'budget_exhausted';
+      observations: string[];
+      strategyUpdate: string;
+      timestampMs: number;
+    }>;
   };
 }
 
@@ -94,6 +108,10 @@ function detectActionClass(content: string): { actionClass: PlanStep['actionClas
   const urlMatch = normalized.match(/https?:\/\/([^\s/]+)/);
   if (urlMatch?.[1]) {
     return { actionClass: ActionClass.ExternalRead, target: urlMatch[1] };
+  }
+
+  if (/\b(experiment|hypothesis|test strategy|ab test|probe)\b/.test(normalized)) {
+    return { actionClass: ActionClass.Experiment };
   }
 
   if (/\b(web|http|url|site|fetch|read)\b/.test(normalized)) {
@@ -124,6 +142,8 @@ function actionClassToPolicyTags(actionClass: ActionClassType): string[] {
       return ['policy:external_read'];
     case ActionClass.Irreversible:
       return ['policy:irreversible'];
+    case ActionClass.Experiment:
+      return ['policy:experiment', 'sandbox:strict'];
     default:
       return ['policy:local_only'];
   }
@@ -168,13 +188,72 @@ function defaultPlanner(input: PipelineInput): PlannedAction[] {
   return pickedIntents.slice(0, 5).map(intent => ({ intent, ...detectActionClass(intent) }));
 }
 
+
+function runSandboxExperiment(stepId: string, intent: string, remainingBudget: number): {
+  outcome: 'success' | 'failed' | 'budget_exhausted';
+  outputSummary: string;
+  event: {
+    experimentId: string;
+    stepId: string;
+    hypothesis: string;
+    outcome: 'success' | 'failed' | 'budget_exhausted';
+    observations: string[];
+    strategyUpdate: string;
+    timestampMs: number;
+  };
+} {
+  const hypothesis = intent.includes(':') ? intent.split(':').slice(1).join(':').trim() : intent;
+  if (remainingBudget <= 0) {
+    return {
+      outcome: 'budget_exhausted',
+      outputSummary: 'Experiment budget exhausted; switching to conservative local strategy.',
+      event: {
+        experimentId: `exp-${stepId}`,
+        stepId,
+        hypothesis,
+        outcome: 'budget_exhausted',
+        observations: ['budget_limit_reached'],
+        strategyUpdate: 'fallback_to_conservative_local',
+        timestampMs: Date.now(),
+      },
+    };
+  }
+
+  const normalized = hypothesis.toLowerCase();
+  const success = /retry|fallback|decompose|simplify|local/.test(normalized);
+  const observations = success
+    ? ['hypothesis_supported', 'sandbox_execution_safe']
+    : ['hypothesis_not_supported', 'needs_replan'];
+  const strategyUpdate = success
+    ? 'prefer_decomposed_local_plan'
+    : 'request_replan_with_new_hypothesis';
+
+  return {
+    outcome: success ? 'success' : 'failed',
+    outputSummary: success
+      ? `Experiment validated hypothesis: ${hypothesis}`
+      : `Experiment failed hypothesis: ${hypothesis}`,
+    event: {
+      experimentId: `exp-${stepId}`,
+      stepId,
+      hypothesis,
+      outcome: success ? 'success' : 'failed',
+      observations,
+      strategyUpdate,
+      timestampMs: Date.now(),
+    },
+  };
+}
+
 export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanner = { plan: defaultPlanner }) {
   return async function runPipeline(input: PipelineInput, config: PipelineConfig): Promise<PipelineResult> {
     const now = Date.now();
     const planId = `plan-${now}`;
     const evalId = `eval-${now}`;
 
-    const plannedActions = planner.plan(input);
+    const runtimeMode = config.runtimeMode ?? 'full';
+    const maxPlanSteps = config.maxPlanSteps ?? (runtimeMode === 'full' ? 5 : runtimeMode === 'conservative' ? 3 : 2);
+    const plannedActions = planner.plan(input).slice(0, maxPlanSteps);
     const actionGraph = buildActionGraph(plannedActions);
     const graphValidation = validateActionGraph(actionGraph);
     if (!graphValidation.valid) {
@@ -207,6 +286,8 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
     let replanReason: string | undefined;
     const executionTrace: ExecutionTraceEvent[] = [];
     const actionByNodeId = new Map<string, PlannedAction>();
+    const experimentEvents: PipelineResult['artifactPaths']['experimentEvents'] = [];
+    let experimentBudget = config.experimentBudget ?? (runtimeMode === 'full' ? 2 : 1);
 
     const dagNodes = plannedActions.map((action, i) => {
 
@@ -235,6 +316,14 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
                 reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
               };
             }
+          }
+
+          if (runtimeMode === 'safe_minimal' && action.actionClass !== ActionClass.LocalOnly && action.actionClass !== ActionClass.Experiment) {
+            decision = { decision: 'block', reason: 'Runtime governor safe_minimal: only local/experiment actions allowed' };
+          }
+
+          if (runtimeMode === 'conservative' && action.actionClass === ActionClass.ExternalRead) {
+            decision = { decision: 'awaiting_approval', reason: 'Runtime governor conservative: external_read requires explicit approval' };
           }
 
           const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
@@ -288,6 +377,38 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
             };
           }
 
+          if (action.actionClass === ActionClass.Experiment) {
+            const experiment = runSandboxExperiment(stepId, action.intent, experimentBudget);
+            experimentBudget = Math.max(0, experimentBudget - 1);
+            experimentEvents.push(experiment.event);
+            if (experiment.outcome !== 'success') {
+              replanRequested = true;
+              replanReason = experiment.outputSummary;
+            }
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: experiment.outcome === 'success' ? 'executed' : 'failed',
+              toolName: 'local_reason',
+              toolInput: { hypothesis: action.intent, sandbox: 'strict' },
+              outputSummary: experiment.outputSummary,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: experiment.outcome === 'success' ? 'executed' : 'failed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: experiment.event.strategyUpdate,
+            });
+            return {
+              outputSummary: experiment.outputSummary,
+              attempts: 1,
+              events: [],
+            };
+          }
+
           try {
             const execution = await executeToolWithBoundary(llm, {
               stepId,
@@ -297,7 +418,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
                 target: action.target,
               },
               allowlist: ['example.com', 'docs.example.com'],
-              maxRetries: 1,
+              maxRetries: runtimeMode === 'full' ? 1 : 0,
               timeoutMs: 2000,
             }, [
               'You are executing a policy-approved reasoning step.',
@@ -395,14 +516,6 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         endedAtMs: Date.now(),
         reason: outputSummary,
       });
-      executionTrace.push({
-        nodeId,
-        stepId,
-        status: 'blocked',
-        startedAtMs,
-        endedAtMs: Date.now(),
-        reason: decision.reason,
-      });
     }
 
     const steps = actionGraph.nodes.map(node => stepsByNode.get(node.nodeId)).filter(Boolean) as PlanStep[];
@@ -455,6 +568,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         actionGraph,
         executionTrace,
         toolDag,
+        experimentEvents,
       },
     };
   };

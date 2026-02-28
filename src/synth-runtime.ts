@@ -67,6 +67,15 @@ interface RankedMemory {
   metadata: Record<string, unknown>;
 }
 
+type RuntimeGovernorMode = 'full' | 'conservative' | 'safe_minimal';
+
+interface RuntimeGovernorState {
+  mode: RuntimeGovernorMode;
+  recentErrors: number;
+  recentSuccesses: number;
+  lastUpdatedMs: number;
+}
+
 /** Synth runtime configuration */
 export interface SynthRuntimeConfig {
   baseDir: string;
@@ -122,6 +131,7 @@ export class SynthRuntime {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private maintenanceInterval: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
+  private runtimeGovernor: RuntimeGovernorState = { mode: 'full', recentErrors: 0, recentSuccesses: 0, lastUpdatedMs: Date.now() };
 
   constructor(config: Partial<SynthRuntimeConfig> = {}) {
     const userProvidedLLM = config.llm !== undefined;
@@ -149,6 +159,7 @@ export class SynthRuntime {
         ? undefined
         : new MockLLMProvider(4096),
       onDegraded: (event) => {
+        this.recordGovernorError(event.reason);
         void this.signalBus.append({
           type: 'MODEL_ERROR_DETECTED',
           payload: {
@@ -196,6 +207,9 @@ export class SynthRuntime {
       autonomyLevel: this.config.autonomyLevel,
       enableMemory: this.config.enableMemory,
       policyPath: this.config.policyPath,
+      resolveRuntimeMode: () => this.runtimeGovernor.mode,
+      maxPlanSteps: 5,
+      experimentBudget: 2,
     });
 
     // Initialize memory
@@ -378,6 +392,7 @@ export class SynthRuntime {
         metadata: {
           context,
           memoryContext,
+          runtimeMode: this.runtimeGovernor.mode,
         },
       },
       sessionKey,
@@ -393,6 +408,11 @@ export class SynthRuntime {
     const response = output?.content ?? 'No output emitted by runtime.';
 
     const runSummary = await this.collectRunSummary(sessionKey, signalCursor);
+    if (runSummary.evaluation.result === 'failure') {
+      this.recordGovernorError(runSummary.evaluation.summary);
+    } else {
+      this.recordGovernorSuccess();
+    }
     const policyDecisions = Array.isArray(runSummary.policyDecisions) ? runSummary.policyDecisions : [];
     const stepOutcomes = Array.isArray(runSummary.stepOutcomes) ? runSummary.stepOutcomes : [];
     const toolOutcomes = Array.isArray(runSummary.toolOutcomes) ? runSummary.toolOutcomes : [];
@@ -421,6 +441,7 @@ export class SynthRuntime {
       reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
       retrievalTrace,
+      runtimeGovernor: this.runtimeGovernor,
     });
 
     // 4. Store response
@@ -547,6 +568,7 @@ export class SynthRuntime {
       reviseCycleApplied,
       policyLoadError: runSummary.policyLoadError,
       retrievalTrace,
+      runtimeGovernor: this.runtimeGovernor,
     });
 
     return response;
@@ -848,6 +870,7 @@ export class SynthRuntime {
     reviseCycleApplied?: boolean;
     policyLoadError?: string;
     retrievalTrace?: RankedMemory[];
+    runtimeGovernor?: RuntimeGovernorState;
   }): Promise<void> {
     const runDir = join(this.config.baseDir, 'artifacts', sessionKey, 'runs');
     await mkdir(runDir, { recursive: true });
@@ -919,6 +942,34 @@ export class SynthRuntime {
     const memoryNegative = negations.some(n => ` ${m} `.includes(n));
     return queryNegative !== memoryNegative;
   }
+
+  private recordGovernorError(reason: string): void {
+    const now = Date.now();
+    this.runtimeGovernor.recentErrors += 1;
+    this.runtimeGovernor.recentSuccesses = Math.max(0, this.runtimeGovernor.recentSuccesses - 1);
+    this.runtimeGovernor.lastUpdatedMs = now;
+
+    if (this.runtimeGovernor.recentErrors >= 5) {
+      this.runtimeGovernor.mode = 'safe_minimal';
+    } else if (this.runtimeGovernor.recentErrors >= 2) {
+      this.runtimeGovernor.mode = 'conservative';
+    }
+  }
+
+  private recordGovernorSuccess(): void {
+    const now = Date.now();
+    this.runtimeGovernor.recentSuccesses += 1;
+    this.runtimeGovernor.lastUpdatedMs = now;
+
+    if (this.runtimeGovernor.mode === 'safe_minimal' && this.runtimeGovernor.recentSuccesses >= 3) {
+      this.runtimeGovernor.mode = 'conservative';
+      this.runtimeGovernor.recentErrors = Math.max(0, this.runtimeGovernor.recentErrors - 1);
+    } else if (this.runtimeGovernor.mode === 'conservative' && this.runtimeGovernor.recentSuccesses >= 5) {
+      this.runtimeGovernor.mode = 'full';
+      this.runtimeGovernor.recentErrors = Math.max(0, this.runtimeGovernor.recentErrors - 1);
+    }
+  }
+
 
   /**
    * Query knowledge
@@ -1121,6 +1172,9 @@ export class SynthRuntime {
 
       if (step.status === 'executed' && summary) {
         diffs.push({ stepId: step.stepId, type: 'fact_add', value: summary, status: step.status });
+        if (step.actionClass === 'experiment') {
+          diffs.push({ stepId: step.stepId, type: 'fact_add', value: `experiment_result:${summary}`, status: step.status });
+        }
       }
 
       if (step.status === 'failed') {
