@@ -59,3 +59,10 @@ Auto-abort must automatically stop canary progression and route traffic back to 
 - **Ops owner:** canary progression, rollback drills, and incident response.
 
 Use this file as the authoritative cutover gate reference for PR17 onward.
+
+## 6) Evidence links (PR23 / PR24)
+
+- Stage B canary and rollback drill log: `docs/NEURONWAVES_V2_CANARY_DRILL_EVIDENCE.md`
+- Stage B + rollback machine artifacts: `docs/artifacts/canary/pr23/`
+- Stage C controlled tenant routing policy artifact: `docs/artifacts/canary/pr24/stage-c-routing-policy.json`
+
