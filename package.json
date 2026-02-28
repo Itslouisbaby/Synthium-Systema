@@ -28,7 +28,9 @@
     "test": "vitest run",
     "dev": "vitest",
     "lint": "npm run typecheck",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "capability:eval": "node dist/cli/index.mjs capability eval",
+    "capability:gate": "node dist/cli/index.mjs capability gate"
   },
   "dependencies": {
     "blessed": "^0.1.81",
