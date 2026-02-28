@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 
 export interface CanaryRoutingContext {
   tenantId?: string;
@@ -22,7 +21,6 @@ export interface RoutingDecision {
   route: 'v1' | 'v2';
   reason: string;
   autoAbort: boolean;
-  effectivePercentToV2: number;
 }
 
 function stablePercent(seed: string): number {
@@ -39,66 +37,42 @@ function inControlledCohort(context: CanaryRoutingContext, policy: CanaryRouting
   return policy.controlledSessions.includes(context.sessionId);
 }
 
-export function applyGateDecisionToPercent(percentToV2: number, gate?: CanaryGateStatus): number {
-  const bounded = Math.max(0, Math.min(100, percentToV2));
-  if (!gate) return bounded;
-
-  if (gate.decision === 'rollback') {
-    return 0;
-  }
-
-  if (gate.decision === 'hold') {
-    return Math.min(bounded, 5);
-  }
-
-  return bounded;
-}
-
 export function resolveCanaryRoute(
   context: CanaryRoutingContext,
   policy: CanaryRoutingPolicy,
   gate?: CanaryGateStatus
 ): RoutingDecision {
   if (!policy.enabled) {
-    return { route: 'v1', reason: 'v2 canary routing disabled', autoAbort: false, effectivePercentToV2: 0 };
+    return { route: 'v1', reason: 'v2 canary routing disabled', autoAbort: false };
   }
 
-  const effectivePercentToV2 = applyGateDecisionToPercent(policy.percentToV2, gate);
-
-  if (gate?.decision === 'rollback') {
+  if (gate && gate.decision !== 'promote') {
     return {
       route: 'v1',
       reason: `auto-abort active from canary gate decision: ${gate.decision}`,
       autoAbort: true,
-      effectivePercentToV2,
     };
   }
 
   if (!inControlledCohort(context, policy)) {
-    return { route: 'v1', reason: 'outside controlled tenant/session cohort', autoAbort: false, effectivePercentToV2 };
+    return { route: 'v1', reason: 'outside controlled tenant/session cohort', autoAbort: false };
   }
 
-  if (effectivePercentToV2 <= 0) {
-    return {
-      route: 'v1',
-      reason: gate?.decision === 'hold'
-        ? 'gate hold throttled v2 route to 0%-5% envelope'
-        : 'policy percentToV2 is 0%',
-      autoAbort: false,
-      effectivePercentToV2,
-    };
+  const percent = Math.max(0, Math.min(100, policy.percentToV2));
+  if (percent <= 0) {
+    return { route: 'v1', reason: 'policy percentToV2 is 0%', autoAbort: false };
   }
 
-  if (effectivePercentToV2 >= 100) {
-    return { route: 'v2', reason: 'policy percentToV2 is 100%', autoAbort: false, effectivePercentToV2 };
+  if (percent >= 100) {
+    return { route: 'v2', reason: 'policy percentToV2 is 100%', autoAbort: false };
   }
 
   const seed = `${context.tenantId ?? 'no-tenant'}:${context.sessionId}`;
   const bucket = stablePercent(seed);
 
-  return bucket < effectivePercentToV2
-    ? { route: 'v2', reason: `bucket ${bucket} < ${effectivePercentToV2}`, autoAbort: false, effectivePercentToV2 }
-    : { route: 'v1', reason: `bucket ${bucket} >= ${effectivePercentToV2}`, autoAbort: false, effectivePercentToV2 };
+  return bucket < percent
+    ? { route: 'v2', reason: `bucket ${bucket} < ${percent}`, autoAbort: false }
+    : { route: 'v1', reason: `bucket ${bucket} >= ${percent}`, autoAbort: false };
 }
 
 function parseList(raw: string | undefined): string[] {
@@ -128,29 +102,4 @@ export function parseGateStatusFromEnv(env: NodeJS.ProcessEnv = process.env): Ca
     decision,
     failedChecks: parseList(env.SYNTH_V2_GATE_FAILED_CHECKS),
   };
-}
-
-export async function loadGateStatusFromMachineReport(path: string): Promise<CanaryGateStatus | undefined> {
-  try {
-    const raw = await readFile(path, 'utf8');
-    const parsed = JSON.parse(raw) as { decision?: string; report?: { failedChecks?: string[] } };
-    if (parsed.decision !== 'promote' && parsed.decision !== 'hold' && parsed.decision !== 'rollback') {
-      return undefined;
-    }
-
-    return {
-      decision: parsed.decision,
-      failedChecks: parsed.report?.failedChecks ?? [],
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-export async function resolveGateStatusFromEnvOrReport(env: NodeJS.ProcessEnv = process.env): Promise<CanaryGateStatus | undefined> {
-  const envGate = parseGateStatusFromEnv(env);
-  if (envGate) return envGate;
-
-  const reportPath = env.SYNTH_V2_GATE_REPORT_PATH ?? '.synth/canary/promotion-gate-report.json';
-  return loadGateStatusFromMachineReport(reportPath);
 }
