@@ -30,6 +30,23 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Capability score gate
+        env:
+          SYNTH_CAPABILITY_SCORE_FLOOR: '0.60'
+        run: pnpm capability:gate
+
+      - name: AGI matrix gate
+        env:
+          SYNTH_AGI_MATRIX_BATCH_SIZE: '50'
+          SYNTH_AGI_MATRIX_AGGREGATE_FLOOR: '0.65'
+          SYNTH_AGI_MATRIX_OOD_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_TEMPLATE_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_TOOLS_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_DOMAINS_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_DOMAIN_FLOOR: '0.58'
+          SYNTH_AGI_MATRIX_STABILITY_STDDEV_CEILING: '0.08'
+        run: pnpm capability:matrix
+
   v2-promotion-gate:
     runs-on: ubuntu-latest
     needs: build
