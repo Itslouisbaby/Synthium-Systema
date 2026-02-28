@@ -3,6 +3,7 @@ import { ActionClass, Autonomy, type ActionClassType } from '../policy/types.js'
 import { loadPolicy, simulatePolicyDecision } from '../policy-artifacts/index.js';
 import type { LLMProvider } from '../llm/llm-provider.js';
 import type { Evaluation, Plan, PlanStep } from '../types.js';
+import { executeToolWithBoundary, type ToolExecutionEvent, type SupportedToolName } from './tool-executor.js';
 
 interface PipelineInput {
   content: string;
@@ -37,6 +38,7 @@ interface PipelineResult {
       reason: string;
       timestampMs: number;
     }>;
+    toolExecutionEvents: ToolExecutionEvent[];
     replanRequested: boolean;
     replanReason?: string;
     policySource?: string;
@@ -115,6 +117,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
 
     const steps: PlanStep[] = [];
     const policyAuditEvents: PipelineResult['artifactPaths']['policyAuditEvents'] = [];
+    const toolExecutionEvents: PipelineResult['artifactPaths']['toolExecutionEvents'] = [];
     let replanRequested = false;
     let replanReason: string | undefined;
 
@@ -144,22 +147,50 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
 
       if (decision.decision === 'allow') {
         try {
-          const response = await llm.generateWithContext(action.intent, [
+          const toolName: SupportedToolName = action.actionClass === ActionClass.LocalOnly
+            ? 'local_reason'
+            : 'external_read_reasoning';
+
+          const execution = await executeToolWithBoundary(llm, {
+            stepId,
+            toolName,
+            input: {
+              content: action.intent,
+              target: action.target,
+            },
+            allowlist: ['example.com', 'docs.example.com'],
+            maxRetries: 1,
+            timeoutMs: 2000,
+          }, [
             'You are executing a policy-approved reasoning step.',
             ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
           ]);
+
+          toolExecutionEvents.push(...execution.events);
           steps.push({
             stepId,
             intent: action.intent,
             actionClass: action.actionClass,
             status: 'executed',
-            toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
+            toolName,
             toolInput: { content: action.intent, target: action.target },
-            outputSummary: response,
+            outputSummary: execution.outputSummary,
           });
         } catch (error) {
           replanRequested = true;
           replanReason = error instanceof Error ? error.message : String(error);
+          toolExecutionEvents.push({
+            eventId: `${stepId}-attempt-final`,
+            stepId,
+            toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
+            attempt: 2,
+            status: 'failed',
+            startedAtMs: Date.now(),
+            endedAtMs: Date.now(),
+            durationMs: 0,
+            inputHash: stepId,
+            error: replanReason,
+          });
           steps.push({
             stepId,
             intent: action.intent,
@@ -173,6 +204,18 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
       }
 
       if (decision.decision === 'awaiting_approval') {
+        toolExecutionEvents.push({
+          eventId: `${stepId}-policy-awaiting`,
+          stepId,
+          toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
+          attempt: 0,
+          status: 'skipped_policy',
+          startedAtMs: Date.now(),
+          endedAtMs: Date.now(),
+          durationMs: 0,
+          inputHash: stepId,
+          error: decision.reason,
+        });
         steps.push({
           stepId,
           intent: action.intent,
@@ -184,6 +227,18 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
         continue;
       }
 
+      toolExecutionEvents.push({
+        eventId: `${stepId}-policy-block`,
+        stepId,
+        toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
+        attempt: 0,
+        status: 'skipped_policy',
+        startedAtMs: Date.now(),
+        endedAtMs: Date.now(),
+        durationMs: 0,
+        inputHash: stepId,
+        error: decision.reason,
+      });
       steps.push({
         stepId,
         intent: action.intent,
@@ -234,6 +289,7 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
       evaluation,
       artifactPaths: {
         policyAuditEvents,
+        toolExecutionEvents,
         replanRequested,
         ...(replanReason ? { replanReason } : {}),
         ...(policy ? { policySource: policy.source, policyVersion: policy.policy.version, policyHash: policy.policyHash } : {}),
