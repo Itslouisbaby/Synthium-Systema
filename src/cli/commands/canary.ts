@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import { appendCanaryEvidenceDoc, parseCanaryEnv, runCanaryController } from '../../neuronwaves-v2/canary/canary-controller.js';
+import { applyGateDecisionToPercent, parseRoutingPolicyFromEnv } from '../../neuronwaves-v2/canary/default-route.js';
 
 export async function runCanary(action?: string): Promise<void> {
   switch (action) {
@@ -29,6 +30,25 @@ async function runGate(): Promise<void> {
   console.log(`[canary] stage=${artifact.stage} decision=${artifact.decision}`);
   console.log(`[canary] report=${machineReportPath}`);
   console.log(`[canary] artifact=${options.artifactPath}`);
+
+  const policy = parseRoutingPolicyFromEnv();
+  const effectivePercentToV2 = applyGateDecisionToPercent(policy.percentToV2, {
+    decision: artifact.decision,
+    failedChecks: artifact.report.failedChecks,
+  });
+  const routingStatePath = process.env.SYNTH_V2_ROUTING_STATE_PATH ?? '.synth/canary/runtime-routing-state.json';
+  await mkdir(dirname(routingStatePath), { recursive: true });
+  await writeFile(routingStatePath, `${JSON.stringify({
+    generatedAt: artifact.generatedAt,
+    stage: artifact.stage,
+    decision: artifact.decision,
+    failedChecks: artifact.report.failedChecks,
+    basePercentToV2: policy.percentToV2,
+    effectivePercentToV2,
+  }, null, 2)}
+`, 'utf8');
+
+  console.log(`[canary] routing-state=${routingStatePath}`);
 
   const requirePromote = process.env.SYNTH_CANARY_REQUIRE_PROMOTE === '1';
   const shouldFail = artifact.decision === 'rollback' || (requirePromote && artifact.decision !== 'promote');

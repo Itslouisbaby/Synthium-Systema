@@ -6,6 +6,7 @@
 import { OllamaProvider } from '../../llm/llm-provider.js';
 import { CoreMemories } from '../../memory/core-memories.js';
 import { loadConfig } from '../setup.js';
+import { parseRoutingPolicyFromEnv, resolveCanaryRoute, resolveGateStatusFromEnvOrReport } from '../../neuronwaves-v2/canary/default-route.js';
 
 export async function runStatus(): Promise<void> {
   const config = await loadConfig();
@@ -58,6 +59,29 @@ export async function runStatus(): Promise<void> {
     console.log(`  Total:   ${stats.flashCount + stats.warmCount + stats.recentCount + stats.archiveCount + stats.coreCount} entries`);
   } catch (err) {
     console.log(`✗ Error: ${err instanceof Error ? err.message : 'Unknown'}`);
+  }
+
+
+  // Canary routing status
+  console.log('\nCanary Routing:');
+  try {
+    const gate = await resolveGateStatusFromEnvOrReport();
+    const policy = parseRoutingPolicyFromEnv();
+    const route = resolveCanaryRoute(
+      {
+        tenantId: process.env.SYNTH_TENANT_ID,
+        sessionId: process.env.SYNTH_STATUS_SESSION_ID ?? 'status-probe',
+      },
+      policy,
+      gate
+    );
+
+    console.log(`  Gate Decision: ${gate?.decision ?? 'none'}`);
+    console.log(`  Base Percent:  ${policy.percentToV2}%`);
+    console.log(`  Effective:     ${route.effectivePercentToV2}%`);
+    console.log(`  Probe Route:   ${route.route} (${route.reason})`);
+  } catch (error) {
+    console.log(`  ✗ Error: ${error instanceof Error ? error.message : 'Unknown'}`);
   }
 
   // Configuration
