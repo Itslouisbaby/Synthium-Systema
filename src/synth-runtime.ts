@@ -113,9 +113,7 @@ export class SynthRuntime {
       maxPromptChars: Number(process.env.SYNTH_LLM_MAX_PROMPT_CHARS ?? '4000'),
       maxContextChars: Number(process.env.SYNTH_LLM_MAX_CONTEXT_CHARS ?? '6000'),
       maxInputTokensApprox: Number(process.env.SYNTH_LLM_MAX_INPUT_TOKENS ?? '3500'),
-      fallbackProvider: (process.env.SYNTH_LLM_DISABLE_FALLBACK === '1' || userProvidedLLM)
-        ? undefined
-        : new MockLLMProvider(4096),
+      fallbackProvider: process.env.SYNTH_LLM_DISABLE_FALLBACK === '1' ? undefined : new MockLLMProvider(4096),
       onDegraded: (event) => {
         void this.signalBus.append({
           type: 'MODEL_ERROR_DETECTED',
@@ -362,8 +360,6 @@ export class SynthRuntime {
       planId: runSummary.planId,
       evaluation: runSummary.evaluation,
       policyDecisions: runSummary.policyDecisions,
-      stepOutcomes: runSummary.stepOutcomes,
-      toolOutcomes: runSummary.toolOutcomes,
       policyLoadError: runSummary.policyLoadError,
     });
 
@@ -472,22 +468,6 @@ export class SynthRuntime {
     planId: string;
     evaluation: { result: string; summary: string };
     policyDecisions: Array<{ stepId: string; decision: string; reason: string }>;
-    stepOutcomes: Array<{
-      stepId: string;
-      intent: string;
-      actionClass: string;
-      status: 'executed' | 'failed';
-      toolName?: string;
-      toolInput?: Record<string, unknown>;
-      outputSummary?: string;
-    }>;
-    toolOutcomes: Array<{
-      toolName: string;
-      success: boolean;
-      durationMs: number;
-      input: Record<string, unknown>;
-      output: Record<string, unknown>;
-    }>;
     policyLoadError?: string;
   }> {
     const signals = await this.signalBus.readTail(sessionKey, fromOffset, 1000);
@@ -503,59 +483,11 @@ export class SynthRuntime {
     const policyDecisions = signals
       .filter(signal => signal.type === 'POLICY_DECISION_EMITTED')
       .map(signal => {
-        const payload = signal.payload as { stepId?: string; decision?: string; reason?: string };
+        const payload = signal.payload as { ruleId?: string; decision?: string; reason?: string };
         return {
-          stepId: payload.stepId ?? signal.signalId,
+          stepId: payload.ruleId ?? signal.signalId,
           decision: payload.decision ?? 'unknown',
           reason: payload.reason ?? 'No reason provided',
-        };
-      });
-
-    const stepOutcomes = signals
-      .filter(signal => signal.type === 'STEP_EXECUTED' || signal.type === 'STEP_FAILED')
-      .map(signal => {
-        if (signal.type === 'STEP_EXECUTED') {
-          const payload = signal.payload as {
-            stepId?: string;
-            result?: { output?: unknown; toolName?: string; toolInput?: Record<string, unknown>; intent?: string; actionClass?: string };
-          };
-          return {
-            stepId: payload.stepId ?? signal.signalId,
-            intent: String(payload.result?.intent ?? ''),
-            actionClass: String(payload.result?.actionClass ?? 'unknown'),
-            status: 'executed' as const,
-            toolName: payload.result?.toolName,
-            toolInput: payload.result?.toolInput,
-            outputSummary: typeof payload.result?.output === 'string' ? payload.result.output : JSON.stringify(payload.result?.output ?? ''),
-          };
-        }
-
-        const failedPayload = signal.payload as { stepId?: string; error?: string };
-        return {
-          stepId: failedPayload.stepId ?? signal.signalId,
-          intent: '',
-          actionClass: 'unknown',
-          status: 'failed' as const,
-          outputSummary: failedPayload.error,
-        };
-      });
-
-    const toolOutcomes = signals
-      .filter(signal => signal.type === 'TOOL_RESULT_RECEIVED')
-      .map(signal => {
-        const payload = signal.payload as {
-          toolName?: string;
-          success?: boolean;
-          durationMs?: number;
-          input?: Record<string, unknown>;
-          output?: Record<string, unknown>;
-        };
-        return {
-          toolName: payload.toolName ?? 'unknown',
-          success: Boolean(payload.success),
-          durationMs: Number(payload.durationMs ?? 0),
-          input: payload.input ?? {},
-          output: payload.output ?? {},
         };
       });
 
@@ -570,8 +502,6 @@ export class SynthRuntime {
         summary: responseSummary,
       },
       policyDecisions,
-      stepOutcomes,
-      toolOutcomes,
       policyLoadError: responseSummary.includes('[Policy load warning:') ? responseSummary : undefined,
     };
   }
