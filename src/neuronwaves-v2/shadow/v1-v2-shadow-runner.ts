@@ -41,13 +41,6 @@ interface PolicyMismatchBreakdown {
   extraInV2: number;
 }
 
-interface PolicyMismatchBreakdown {
-  decisionTypeMismatch: number;
-  reasonMismatch: number;
-  missingInV2: number;
-  extraInV2: number;
-}
-
 interface PolicyAuditParity {
   v1DecisionCounts: Record<string, number>;
   v2DecisionCounts: Record<string, number>;

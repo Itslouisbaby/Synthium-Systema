@@ -7,6 +7,7 @@ import { OllamaProvider } from '../../llm/llm-provider.js';
 import { CoreMemories } from '../../memory/core-memories.js';
 import { loadConfig } from '../setup.js';
 import { parseRoutingPolicyFromEnv, resolveCanaryRoute, resolveGateStatusFromEnvOrReport } from '../../neuronwaves-v2/canary/default-route.js';
+import { loadRolloutState } from '../../neuronwaves-v2/canary/cohort-rollout.js';
 
 export async function runStatus(): Promise<void> {
   const config = await loadConfig();
@@ -80,6 +81,11 @@ export async function runStatus(): Promise<void> {
     console.log(`  Base Percent:  ${policy.percentToV2}%`);
     console.log(`  Effective:     ${route.effectivePercentToV2}%`);
     console.log(`  Probe Route:   ${route.route} (${route.reason})`);
+    const rolloutState = await loadRolloutState(process.env.SYNTH_V2_ROLLOUT_STATE_PATH ?? '.synth/canary/rollout-state.json');
+    if (rolloutState) {
+      console.log(`  Rollout Stage: ${rolloutState.stage}`);
+      console.log(`  Cohorts Seen:  ${Object.keys(rolloutState.cohorts).length}`);
+    }
   } catch (error) {
     console.log(`  ✗ Error: ${error instanceof Error ? error.message : 'Unknown'}`);
   }

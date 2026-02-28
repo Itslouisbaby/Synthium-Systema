@@ -25,6 +25,19 @@ export interface PipelineArtifactPaths {
     reason: string;
     timestampMs: number;
   }>;
+  toolExecutionEvents: Array<{
+    eventId: string;
+    stepId: string;
+    toolName: string;
+    attempt: number;
+    status: 'success' | 'failed' | 'skipped_policy';
+    startedAtMs: number;
+    endedAtMs: number;
+    durationMs: number;
+    inputHash: string;
+    outputSummary?: string;
+    error?: string;
+  }>;
   replanRequested: boolean;
   replanReason?: string;
   policySource?: string;
@@ -124,6 +137,32 @@ export class CortexLoop implements MicroLoop {
           const policyByStepId = new Map(
             result.artifactPaths.policyAuditEvents.map(event => [event.stepId, event])
           );
+
+          const stepInputById = new Map(
+            result.plan.steps.map(step => [step.stepId, step.toolInput ?? { content: step.intent }])
+          );
+
+          for (const toolEvent of result.artifactPaths.toolExecutionEvents) {
+            signalsOut.push(SignalBus.createSignal(
+              'TOOL_RESULT_RECEIVED',
+              {
+                toolName: toolEvent.toolName,
+                input: stepInputById.get(toolEvent.stepId) ?? {},
+                output: {
+                  outputSummary: toolEvent.outputSummary,
+                  error: toolEvent.error,
+                  status: toolEvent.status,
+                  attempt: toolEvent.attempt,
+                },
+                success: toolEvent.status === 'success',
+                durationMs: toolEvent.durationMs,
+              },
+              sessionKey,
+              this.name,
+              'event',
+              { causedBy: [signal.signalId] }
+            ));
+          }
 
           // Emit policy decision signals for each step
           for (const step of result.plan.steps) {

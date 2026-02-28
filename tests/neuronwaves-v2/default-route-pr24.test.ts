@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseGateStatusFromEnv, parseRoutingPolicyFromEnv, resolveCanaryRoute } from '../../src/neuronwaves-v2/canary/default-route';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import {
+  applyGateDecisionToPercent,
+  loadGateStatusFromMachineReport,
+  parseGateStatusFromEnv,
+  parseRoutingPolicyFromEnv,
+  resolveCanaryRoute,
+  resolveGateStatusFromEnvOrReport,
+} from '../../src/neuronwaves-v2/canary/default-route';
 
 describe('PR24 default-route canary policy', () => {
   it('routes to v2 for controlled tenant when bucket falls inside configured percent', () => {
@@ -58,7 +69,8 @@ describe('PR24 default-route canary policy', () => {
     );
 
     expect(holdDecision.route).toBe('v1');
-    expect(holdDecision.autoAbort).toBe(true);
+    expect(holdDecision.autoAbort).toBe(false);
+    expect(holdDecision.effectivePercentToV2).toBe(5);
   });
 
   it('parses routing and gate env knobs', () => {
@@ -80,4 +92,45 @@ describe('PR24 default-route canary policy', () => {
     const gate = parseGateStatusFromEnv(env);
     expect(gate?.decision).toBe('promote');
   });
+
+  it('loads gate decision from machine report and auto-aborts route on rollback', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'synth-pr8-gate-'));
+    const reportPath = join(dir, 'gate.json');
+    await writeFile(reportPath, JSON.stringify({
+      decision: 'rollback',
+      report: { failedChecks: ['semantic_below_floor'] },
+    }), 'utf8');
+
+    const gate = await loadGateStatusFromMachineReport(reportPath);
+    expect(gate?.decision).toBe('rollback');
+
+    const decision = resolveCanaryRoute(
+      { tenantId: 'tenant-alpha', sessionId: 's1' },
+      {
+        enabled: true,
+        percentToV2: 25,
+        controlledTenants: ['tenant-alpha'],
+        controlledSessions: [],
+      },
+      gate
+    );
+
+    expect(decision.route).toBe('v1');
+    expect(decision.autoAbort).toBe(true);
+    expect(decision.effectivePercentToV2).toBe(0);
+  });
+
+  it('throttles effective percent on hold decision and resolves from env/report fallback', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'synth-pr8-hold-'));
+    const reportPath = join(dir, 'gate.json');
+    await writeFile(reportPath, JSON.stringify({ decision: 'hold', report: { failedChecks: [] } }), 'utf8');
+
+    const gate = await resolveGateStatusFromEnvOrReport({
+      SYNTH_V2_GATE_REPORT_PATH: reportPath,
+    } as NodeJS.ProcessEnv);
+
+    expect(gate?.decision).toBe('hold');
+    expect(applyGateDecisionToPercent(25, gate)).toBe(5);
+  });
+
 });

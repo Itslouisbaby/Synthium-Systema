@@ -6,7 +6,18 @@
  */
 import { SynthRuntime } from '../../synth-runtime.js';
 import { NeuronWavesRuntime } from '../../neuronwaves-v2/neuronwaves-runtime.js';
-import { parseGateStatusFromEnv, parseRoutingPolicyFromEnv, resolveCanaryRoute } from '../../neuronwaves-v2/canary/default-route.js';
+import {
+  resolveCanaryRoute,
+  resolveGateStatusFromEnvOrReport,
+  resolveRoutingPolicyFromEnvOrState,
+  shouldBlockGACutover,
+} from '../../neuronwaves-v2/canary/default-route.js';
+import {
+  defaultRolloutState,
+  loadRolloutState,
+  recordCohortHealth,
+  saveRolloutState,
+} from '../../neuronwaves-v2/canary/cohort-rollout.js';
 import { validateSessionId } from '../types.js';
 import type { CLIOptions, CLIResult } from '../types.js';
 
@@ -60,16 +71,25 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
   const artifactBaseDir = `${workspace}/.synth/neuronwaves`;
   const tenantId = process.env.SYNTH_TENANT_ID;
 
+  const canaryGate = await resolveGateStatusFromEnvOrReport();
+  const gaGuard = shouldBlockGACutover(canaryGate);
+  if (gaGuard.blocked && !FORCE_V1_RUNTIME) {
+    return {
+      exitCode: 1,
+      error: `Error: ${gaGuard.reason}`,
+    };
+  }
+
   const canaryRoute = resolveCanaryRoute(
     {
       tenantId,
       sessionId,
     },
-    parseRoutingPolicyFromEnv(),
-    parseGateStatusFromEnv()
+    await resolveRoutingPolicyFromEnvOrState(),
+    canaryGate
   );
 
-  const useV2Runtime = USE_V2_RUNTIME || canaryRoute.route === 'v2';
+  const useV2Runtime = !FORCE_V1_RUNTIME && (canaryRoute.route === 'v2' || process.env.SYNTH_GA_DEFAULT_V2 !== '0');
 
   try {
     if (useV2Runtime) {
@@ -93,10 +113,16 @@ export default async function runCommand(options: CLIOptions): Promise<CLIResult
       runtime.stop();
     }
 
+    const statePath = resolveRolloutStatePath();
+    const routeKey = tenantId ? `tenant:${tenantId}` : `session:${sessionId}`;
+    const state = (await loadRolloutState(statePath)) ?? defaultRolloutState(await resolveRoutingPolicyFromEnvOrState());
+    const nextState = recordCohortHealth(state, routeKey, useV2Runtime ? 'v2' : 'v1', canaryGate?.decision);
+    await saveRolloutState(statePath, nextState);
+
     // Success: print summary and exit 0
     return {
       exitCode: 0,
-      output: `Session ${sessionId}: Event loop execution complete. Runtime=${useV2Runtime ? 'v2' : 'v1'} (${canaryRoute.reason}). System responded to "${text}"`,
+      output: `Session ${sessionId}: Event loop execution complete. Runtime=${useV2Runtime ? 'v2' : 'v1'} (${canaryRoute.reason}; effectiveV2=${canaryRoute.effectivePercentToV2}%). System responded to "${text}"`,
     };
   } catch (error) {
     // Error: print error message and exit 2

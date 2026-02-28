@@ -3,6 +3,13 @@ import { dirname } from 'node:path';
 
 import { appendCanaryEvidenceDoc, parseCanaryEnv, runCanaryController } from '../../neuronwaves-v2/canary/canary-controller.js';
 import { applyGateDecisionToPercent, parseRoutingPolicyFromEnv } from '../../neuronwaves-v2/canary/default-route.js';
+import {
+  defaultRolloutState,
+  loadRolloutState,
+  promoteRollout,
+  rollbackRollout,
+  saveRolloutState,
+} from '../../neuronwaves-v2/canary/cohort-rollout.js';
 
 export async function runCanary(action?: string): Promise<void> {
   switch (action) {
