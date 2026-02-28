@@ -72,6 +72,34 @@ interface WindowStability {
   worstDecileScore: number;
 }
 
+type RevisionOutcome = 'uplift' | 'regression' | 'no_change';
+
+interface RevisionContractArtifact {
+  taskId: string;
+  baselineDraft: string;
+  criticPatch: string;
+  revisedDraft: string;
+  baselineScore: number;
+  revisedScore: number;
+  objectiveDelta: number;
+  minUplift: number;
+  accepted: boolean;
+  outcome: RevisionOutcome;
+}
+
+interface RevisionStats {
+  total: number;
+  upliftCount: number;
+  regressionCount: number;
+  noChangeCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  meanDelta: number;
+  meanAcceptedDelta: number;
+  acceptedUpliftRate: number;
+  minUplift: number;
+}
+
 export interface AGIMatrixScorecard {
   runId: string;
   timestampMs: number;
@@ -93,11 +121,26 @@ export interface AGIMatrixScorecard {
     stddev: number;
   };
   rollingWindow: WindowStability;
+  revisionStats: RevisionStats;
+  revisionContracts: RevisionContractArtifact[];
   results: AGIMatrixTaskResult[];
 }
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function hashToUnitInterval(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
 }
 
 function asScoreGroup(score: number, max: number): ScoreGroup {
@@ -137,6 +180,71 @@ function computeTransferIndex(history: AGIMatrixScorecard[], current: AGIMatrixS
     postLearningOOD: Number(postLearningOOD.toFixed(6)),
     inDomainGain: Number(inDomainGain.toFixed(6)),
     transferIndex: Number(transferIndex.toFixed(6)),
+  };
+}
+
+function buildRevisionContract(task: AGIMatrixTask, minUplift: number): RevisionContractArtifact {
+  const baselineRaw = 0.64
+    + (task.scoringHooks.requiredSignals.length * 0.02)
+    - (task.scoringHooks.difficulty * 0.045)
+    - (task.scoringHooks.forbiddenSignals.length * 0.012)
+    - (task.toolProfile.requiresTools ? 0.03 : 0);
+  const baselineScore = clamp(baselineRaw, 0, 1);
+
+  const deterministicJitter = (hashToUnitInterval(task.taskId) - 0.5) * 0.08;
+  const patchEffect = 0.04
+    + (task.scoringHooks.requiredSignals.length * 0.01)
+    - (task.scoringHooks.forbiddenSignals.length * 0.005)
+    + deterministicJitter;
+  const revisedScore = clamp(baselineScore + patchEffect, 0, 1);
+
+  const objectiveDelta = revisedScore - baselineScore;
+  const accepted = objectiveDelta > minUplift;
+
+  let outcome: RevisionOutcome = 'no_change';
+  if (objectiveDelta > 0) outcome = 'uplift';
+  else if (objectiveDelta < 0) outcome = 'regression';
+
+  return {
+    taskId: task.taskId,
+    baselineDraft: `baseline:${task.promptTemplate.slice(0, 80)}`,
+    criticPatch: `critic_patch: tighten logic for ${task.expectedOutcome.slice(0, 60)}`,
+    revisedDraft: `revised:${task.promptTemplate.slice(0, 70)} + patch`,
+    baselineScore: Number(baselineScore.toFixed(6)),
+    revisedScore: Number(revisedScore.toFixed(6)),
+    objectiveDelta: Number(objectiveDelta.toFixed(6)),
+    minUplift: Number(minUplift.toFixed(6)),
+    accepted,
+    outcome,
+  };
+}
+
+function computeRevisionStats(contracts: RevisionContractArtifact[], minUplift: number): RevisionStats {
+  const upliftCount = contracts.filter(item => item.outcome === 'uplift').length;
+  const regressionCount = contracts.filter(item => item.outcome === 'regression').length;
+  const noChangeCount = contracts.filter(item => item.outcome === 'no_change').length;
+  const acceptedCount = contracts.filter(item => item.accepted).length;
+  const rejectedCount = contracts.length - acceptedCount;
+  const meanDelta = contracts.length === 0
+    ? 0
+    : contracts.reduce((acc, item) => acc + item.objectiveDelta, 0) / contracts.length;
+  const acceptedDeltas = contracts.filter(item => item.accepted).map(item => item.objectiveDelta);
+  const meanAcceptedDelta = acceptedDeltas.length === 0
+    ? 0
+    : acceptedDeltas.reduce((acc, item) => acc + item, 0) / acceptedDeltas.length;
+  const acceptedUpliftRate = contracts.length === 0 ? 0 : acceptedCount / contracts.length;
+
+  return {
+    total: contracts.length,
+    upliftCount,
+    regressionCount,
+    noChangeCount,
+    acceptedCount,
+    rejectedCount,
+    meanDelta: Number(meanDelta.toFixed(6)),
+    meanAcceptedDelta: Number(meanAcceptedDelta.toFixed(6)),
+    acceptedUpliftRate: Number(acceptedUpliftRate.toFixed(6)),
+    minUplift: Number(minUplift.toFixed(6)),
   };
 }
 
@@ -186,22 +294,39 @@ async function loadTasks(rootDir: string): Promise<AGIMatrixTask[]> {
   return tasks;
 }
 
-function evaluateTask(task: AGIMatrixTask): AGIMatrixTaskResult {
+function evaluateTask(task: AGIMatrixTask, minUplift: number): { result: AGIMatrixTaskResult; revisionContract?: RevisionContractArtifact } {
+  const maxScore = Number(task.scoringHooks.baselineWeight.toFixed(4));
+
+  if (task.domain === 'self_correction') {
+    const revisionContract = buildRevisionContract(task, minUplift);
+    const normalized = revisionContract.accepted ? revisionContract.revisedScore : revisionContract.baselineScore;
+    return {
+      result: {
+        taskId: task.taskId,
+        domain: task.domain,
+        split: task.split,
+        score: Number((maxScore * normalized).toFixed(4)),
+        maxScore,
+      },
+      revisionContract,
+    };
+  }
+
   const complexityPenalty = Math.min(0.35, task.scoringHooks.difficulty * 0.05);
   const signalBonus = Math.min(0.25, task.scoringHooks.requiredSignals.length * 0.03);
   const forbiddenRisk = Math.min(0.2, task.scoringHooks.forbiddenSignals.length * 0.02);
   const toolPenalty = task.toolProfile.requiresTools ? 0.06 : 0;
 
   const normalized = Math.max(0, Math.min(1, 0.82 + signalBonus - complexityPenalty - forbiddenRisk - toolPenalty));
-  const maxScore = Number(task.scoringHooks.baselineWeight.toFixed(4));
-  const score = Number((maxScore * normalized).toFixed(4));
 
   return {
-    taskId: task.taskId,
-    domain: task.domain,
-    split: task.split,
-    score,
-    maxScore,
+    result: {
+      taskId: task.taskId,
+      domain: task.domain,
+      split: task.split,
+      score: Number((maxScore * normalized).toFixed(4)),
+      maxScore,
+    },
   };
 }
 
@@ -248,17 +373,27 @@ export async function runAGIEvalMatrix(options?: {
   rollingWindowSize?: number;
   rollingStddevCeiling?: number;
   rollingWorstDecileFloor?: number;
+  reviseMinUplift?: number;
+  revisionUpliftFloor?: number;
 }): Promise<AGIMatrixScorecard> {
   const rootDir = options?.rootDir ?? '.';
   const batchSize = Math.max(1, options?.batchSize ?? 40);
   const rollingWindowSize = Math.max(1, options?.rollingWindowSize ?? 20);
+  const reviseMinUplift = Math.max(0, options?.reviseMinUplift ?? 0.015);
 
   const tasks = await loadTasks(rootDir);
   const results: AGIMatrixTaskResult[] = [];
+  const revisionContracts: RevisionContractArtifact[] = [];
 
   for (let i = 0; i < tasks.length; i += batchSize) {
     const batch = tasks.slice(i, i + batchSize);
-    results.push(...batch.map(evaluateTask));
+    for (const task of batch) {
+      const evaluation = evaluateTask(task, reviseMinUplift);
+      results.push(evaluation.result);
+      if (evaluation.revisionContract) {
+        revisionContracts.push(evaluation.revisionContract);
+      }
+    }
   }
 
   const aggregateScore = Number(results.reduce((acc, r) => acc + r.score, 0).toFixed(6));
@@ -277,9 +412,7 @@ export async function runAGIEvalMatrix(options?: {
 
   const seenGroup = sumGroup(results.filter(r => SEEN_SPLITS.includes(r.split)));
   const oodGroup = sumGroup(results.filter(r => OOD_SPLITS.includes(r.split)));
-  const oodScore = oodGroup.score;
-  const oodMax = oodGroup.max;
-  const oodNormalized = oodGroup.normalized;
+  const revisionStats = computeRevisionStats(revisionContracts, reviseMinUplift);
 
   const outDir = join(rootDir, '.synth', 'evals', 'agi-matrix');
   await mkdir(outDir, { recursive: true });
@@ -308,9 +441,9 @@ export async function runAGIEvalMatrix(options?: {
     bySplit,
     seenGroup,
     oodGroup,
-    oodScore,
-    oodMax,
-    oodNormalized,
+    oodScore: oodGroup.score,
+    oodMax: oodGroup.max,
+    oodNormalized: oodGroup.normalized,
     transfer: {
       preLearningOOD: 0,
       postLearningOOD: 0,
@@ -325,6 +458,8 @@ export async function runAGIEvalMatrix(options?: {
       stddev: 0,
       worstDecileScore: normalizedScore,
     },
+    revisionStats,
+    revisionContracts,
     results,
   };
 
@@ -348,12 +483,13 @@ export async function runAGIEvalMatrix(options?: {
   const stabilityStddevCeiling = options?.stabilityStddevCeiling;
   const rollingStddevCeiling = options?.rollingStddevCeiling;
   const rollingWorstDecileFloor = options?.rollingWorstDecileFloor;
+  const revisionUpliftFloor = options?.revisionUpliftFloor;
 
   if (typeof aggregateFloor === 'number' && normalizedScore < aggregateFloor) {
     throw new Error(`agi_matrix_aggregate_floor_not_met:${normalizedScore.toFixed(4)}<${aggregateFloor.toFixed(4)}`);
   }
-  if (typeof oodFloor === 'number' && oodNormalized < oodFloor) {
-    throw new Error(`agi_matrix_ood_floor_not_met:${oodNormalized.toFixed(4)}<${oodFloor.toFixed(4)}`);
+  if (typeof oodFloor === 'number' && scorecard.oodNormalized < oodFloor) {
+    throw new Error(`agi_matrix_ood_floor_not_met:${scorecard.oodNormalized.toFixed(4)}<${oodFloor.toFixed(4)}`);
   }
 
   const oodSplitFloors: Array<{ split: Split; floor?: number }> = [
@@ -383,6 +519,9 @@ export async function runAGIEvalMatrix(options?: {
   }
   if (typeof rollingWorstDecileFloor === 'number' && rollingWindow.worstDecileScore < rollingWorstDecileFloor) {
     throw new Error(`agi_matrix_rolling_worst_decile_floor_not_met:${rollingWindow.worstDecileScore.toFixed(6)}<${rollingWorstDecileFloor.toFixed(6)}`);
+  }
+  if (typeof revisionUpliftFloor === 'number' && revisionStats.acceptedUpliftRate < revisionUpliftFloor) {
+    throw new Error(`agi_matrix_revision_uplift_floor_not_met:${revisionStats.acceptedUpliftRate.toFixed(6)}<${revisionUpliftFloor.toFixed(6)}`);
   }
 
   return scorecard;

@@ -48,6 +48,8 @@ jobs:
           SYNTH_AGI_MATRIX_ROLLING_WINDOW_SIZE: '20'
           SYNTH_AGI_MATRIX_ROLLING_STDDEV_CEILING: '0.05'
           SYNTH_AGI_MATRIX_ROLLING_WORST_DECILE_FLOOR: '0.58'
+          SYNTH_AGI_MATRIX_REVISE_MIN_UPLIFT: '0.015'
+          SYNTH_AGI_MATRIX_REVISION_UPLIFT_FLOOR: '0.30'
         run: pnpm capability:matrix
 
   v2-promotion-gate:

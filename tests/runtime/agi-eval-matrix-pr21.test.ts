@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runAGIEvalMatrix, validateAGIMatrixTask } from '../../src/evals/agi-eval-matrix';
 
-describe('PR21/PR22/PR23 AGI Eval Matrix', () => {
+describe('PR21/PR22/PR23/PR24 AGI Eval Matrix', () => {
   it('loads and validates 200+ multi-domain tasks and emits domain/split plus seen vs OOD score groups', async () => {
     const taskRaw = JSON.parse(await readFile(join(process.cwd(), 'evals', 'agi-matrix', 'tasks', 'core-v1.json'), 'utf8'));
     expect(Array.isArray(taskRaw)).toBe(true);
@@ -111,4 +111,27 @@ describe('PR21/PR22/PR23 AGI Eval Matrix', () => {
       await rm(rootDir, { recursive: true, force: true });
     }
   });
+
+  it('enforces revise-loop uplift contract and fails when revision uplift floor regresses', async () => {
+    const scorecard = await runAGIEvalMatrix({
+      rootDir: process.cwd(),
+      batchSize: 60,
+      reviseMinUplift: 0.015,
+      revisionUpliftFloor: 0.1,
+    });
+
+    expect(scorecard.revisionStats.total).toBeGreaterThan(0);
+    expect(scorecard.revisionContracts.length).toBe(scorecard.revisionStats.total);
+    expect(scorecard.revisionContracts.every(item => typeof item.objectiveDelta === 'number')).toBe(true);
+    expect(scorecard.revisionStats.upliftCount + scorecard.revisionStats.regressionCount + scorecard.revisionStats.noChangeCount)
+      .toBe(scorecard.revisionStats.total);
+
+    await expect(runAGIEvalMatrix({
+      rootDir: process.cwd(),
+      batchSize: 60,
+      reviseMinUplift: 0.2,
+      revisionUpliftFloor: 0.1,
+    })).rejects.toThrow('agi_matrix_revision_uplift_floor_not_met');
+  });
+
 });

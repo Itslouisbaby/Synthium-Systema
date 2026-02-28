@@ -27,6 +27,8 @@ export async function runCapability(action?: string, args: string[] = []): Promi
       const rollingWindowSize = Number(args.find(arg => arg.startsWith('--rolling-window='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_WINDOW_SIZE ?? '20');
       const rollingStddevCeiling = Number(args.find(arg => arg.startsWith('--rolling-stddev='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_STDDEV_CEILING ?? '0.05');
       const rollingWorstDecileFloor = Number(args.find(arg => arg.startsWith('--rolling-worst-decile-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_ROLLING_WORST_DECILE_FLOOR ?? '0.58');
+      const reviseMinUplift = Number(args.find(arg => arg.startsWith('--revise-min-uplift='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_REVISE_MIN_UPLIFT ?? '0.015');
+      const revisionUpliftFloor = Number(args.find(arg => arg.startsWith('--revision-uplift-floor='))?.split('=')[1] ?? process.env.SYNTH_AGI_MATRIX_REVISION_UPLIFT_FLOOR ?? '0.30');
 
       const scorecard = await runAGIEvalMatrix({
         rootDir: '.',
@@ -41,6 +43,8 @@ export async function runCapability(action?: string, args: string[] = []): Promi
         rollingWindowSize,
         rollingStddevCeiling,
         rollingWorstDecileFloor,
+        reviseMinUplift,
+        revisionUpliftFloor,
       });
 
       console.log(`[AGI Matrix] Run ${scorecard.runId}`);
@@ -48,6 +52,7 @@ export async function runCapability(action?: string, args: string[] = []): Promi
       console.log(`[AGI Matrix] Transfer index: ${scorecard.transfer.transferIndex.toFixed(3)} (OOD ${scorecard.transfer.preLearningOOD.toFixed(3)} -> ${scorecard.transfer.postLearningOOD.toFixed(3)} | in-domain gain ${scorecard.transfer.inDomainGain.toFixed(3)})`);
       console.log(`[AGI Matrix] OOD splits: templates=${scorecard.bySplit.ood_unseen_templates.normalized.toFixed(3)}, tools=${scorecard.bySplit.ood_unseen_tools.normalized.toFixed(3)}, domains=${scorecard.bySplit.ood_unseen_domains.normalized.toFixed(3)}`);
       console.log(`[AGI Matrix] Rolling window (n=${scorecard.rollingWindow.windowSize}): mean=${scorecard.rollingWindow.mean.toFixed(3)}, stddev=${scorecard.rollingWindow.stddev.toFixed(4)}, worst-decile=${scorecard.rollingWindow.worstDecileScore.toFixed(3)}`);
+      console.log(`[AGI Matrix] Revision uplift: accepted-rate=${scorecard.revisionStats.acceptedUpliftRate.toFixed(3)}, mean-delta=${scorecard.revisionStats.meanDelta.toFixed(4)}, accepted=${scorecard.revisionStats.acceptedCount}, regressions=${scorecard.revisionStats.regressionCount}, no-change=${scorecard.revisionStats.noChangeCount}`);
       for (const [domain, stats] of Object.entries(scorecard.byDomain)) {
         console.log(`  - ${domain}: ${stats.normalized.toFixed(3)} (${stats.score.toFixed(2)}/${stats.max.toFixed(2)})`);
       }
@@ -67,7 +72,7 @@ export async function runCapability(action?: string, args: string[] = []): Promi
     }
 
     default:
-      console.log('Usage: synth capability [eval|gate|matrix] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58]');
+      console.log('Usage: synth capability [eval|gate|matrix] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58] [--revise-min-uplift=0.015] [--revision-uplift-floor=0.30]');
       return;
   }
 }
