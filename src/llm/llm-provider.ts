@@ -479,6 +479,190 @@ export class MockLLMProvider implements LLMProvider {
   }
 }
 
+
+
+export interface ReliableLLMConfig {
+  timeoutMs?: number;
+  maxPromptChars?: number;
+  maxContextChars?: number;
+  maxInputTokensApprox?: number;
+  fallbackProvider?: LLMProvider;
+  onDegraded?: (event: { type: 'timeout' | 'fallback' | 'budget_truncate' | 'context_truncate'; reason: string }) => void;
+}
+
+export class ReliableLLMProvider implements LLMProvider {
+  private readonly timeoutMs: number;
+  private readonly maxPromptChars: number;
+  private readonly maxContextChars: number;
+  private readonly maxInputTokensApprox: number;
+
+  constructor(
+    private readonly primary: LLMProvider,
+    private readonly config: ReliableLLMConfig = {}
+  ) {
+    this.timeoutMs = config.timeoutMs ?? 5000;
+    this.maxPromptChars = config.maxPromptChars ?? 4000;
+    this.maxContextChars = config.maxContextChars ?? 6000;
+    this.maxInputTokensApprox = config.maxInputTokensApprox ?? 3500;
+  }
+
+  async generate(prompt: string, options: GenerateOptions = {}): Promise<string> {
+    const adjustedPrompt = this.truncatePrompt(prompt);
+    const budgetedOptions = this.applyTokenBudget(adjustedPrompt, [], options);
+
+    try {
+      return await this.withTimeout(this.primary.generate(adjustedPrompt, budgetedOptions));
+    } catch (error) {
+      return this.tryFallback('generate', adjustedPrompt, [], budgetedOptions, error);
+    }
+  }
+
+  async generateWithContext(prompt: string, context: string[], options: GenerateOptions = {}): Promise<string> {
+    const adjustedPrompt = this.truncatePrompt(prompt);
+    const adjustedContext = this.truncateContext(context);
+    const budgetedOptions = this.applyTokenBudget(adjustedPrompt, adjustedContext, options);
+
+    try {
+      return await this.withTimeout(this.primary.generateWithContext(adjustedPrompt, adjustedContext, budgetedOptions));
+    } catch (error) {
+      return this.tryFallback('generateWithContext', adjustedPrompt, adjustedContext, budgetedOptions, error);
+    }
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const adjusted = this.truncatePrompt(text);
+    try {
+      return await this.withTimeout(this.primary.embed(adjusted));
+    } catch (error) {
+      if (this.config.fallbackProvider) {
+        this.config.onDegraded?.({ type: 'fallback', reason: this.describeError(error) });
+        return this.config.fallbackProvider.embed(adjusted);
+      }
+      throw error;
+    }
+  }
+
+  async embedBatch(texts: string[]): Promise<number[][]> {
+    const adjusted = texts.map(text => this.truncatePrompt(text));
+    try {
+      return await this.withTimeout(this.primary.embedBatch(adjusted));
+    } catch (error) {
+      if (this.config.fallbackProvider) {
+        this.config.onDegraded?.({ type: 'fallback', reason: this.describeError(error) });
+        return this.config.fallbackProvider.embedBatch(adjusted);
+      }
+      throw error;
+    }
+  }
+
+  getModelInfo(): ModelInfo {
+    const primary = this.primary.getModelInfo();
+    return {
+      ...primary,
+      provider: this.config.fallbackProvider
+        ? `reliable(${primary.provider}->${this.config.fallbackProvider.getModelInfo().provider})`
+        : `reliable(${primary.provider})`,
+    };
+  }
+
+  async healthCheck(): Promise<boolean> {
+    const primaryOk = await this.primary.healthCheck();
+    if (primaryOk) return true;
+    if (this.config.fallbackProvider) {
+      return this.config.fallbackProvider.healthCheck();
+    }
+    return false;
+  }
+
+  private truncatePrompt(prompt: string): string {
+    if (prompt.length <= this.maxPromptChars) {
+      return prompt;
+    }
+    this.config.onDegraded?.({ type: 'budget_truncate', reason: `prompt truncated to ${this.maxPromptChars} chars` });
+    return prompt.slice(0, this.maxPromptChars);
+  }
+
+  private truncateContext(context: string[]): string[] {
+    const joined = context.join('\n');
+    if (joined.length <= this.maxContextChars) {
+      return context;
+    }
+
+    this.config.onDegraded?.({ type: 'context_truncate', reason: `context truncated to ${this.maxContextChars} chars` });
+
+    const trimmed: string[] = [];
+    let used = 0;
+    for (let i = context.length - 1; i >= 0; i -= 1) {
+      const next = context[i];
+      if ((used + next.length) > this.maxContextChars) {
+        continue;
+      }
+      trimmed.unshift(next);
+      used += next.length;
+    }
+    return trimmed;
+  }
+
+  private applyTokenBudget(prompt: string, context: string[], options: GenerateOptions): GenerateOptions {
+    const approxTokens = Math.ceil((prompt.length + context.join('').length) / 4);
+    if (approxTokens <= this.maxInputTokensApprox) {
+      return options;
+    }
+
+    const remaining = Math.max(64, this.maxInputTokensApprox - approxTokens);
+    this.config.onDegraded?.({ type: 'budget_truncate', reason: `token budget exceeded (approx=${approxTokens})` });
+    return {
+      ...options,
+      maxTokens: Math.min(options.maxTokens ?? remaining, remaining),
+    };
+  }
+
+  private async withTimeout<T>(promise: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.config.onDegraded?.({ type: 'timeout', reason: `llm timeout after ${this.timeoutMs}ms` });
+        reject(new Error(`llm_timeout_${this.timeoutMs}ms`));
+      }, this.timeoutMs);
+
+      promise
+        .then(value => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch(error => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+  }
+
+  private async tryFallback(
+    method: 'generate' | 'generateWithContext',
+    prompt: string,
+    context: string[],
+    options: GenerateOptions,
+    error: unknown
+  ): Promise<string> {
+    if (!this.config.fallbackProvider) {
+      throw error;
+    }
+
+    this.config.onDegraded?.({ type: 'fallback', reason: this.describeError(error) });
+    if (method === 'generate') {
+      return this.config.fallbackProvider.generate(prompt, options);
+    }
+
+    return this.config.fallbackProvider.generateWithContext(prompt, context, options);
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+export function createReliableLLMProvider(primary: LLMProvider, config: ReliableLLMConfig = {}): LLMProvider {
+  return new ReliableLLMProvider(primary, config);
+}
 /**
  * LLM Provider Factory
  * 
