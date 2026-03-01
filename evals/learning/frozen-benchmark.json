@@ -1,0 +1,32 @@
+[
+  {
+    "taskId": "frozen-se-001",
+    "domain": "software_engineering",
+    "description": "Design a retry-safe tool orchestration plan with deterministic rollback",
+    "masteredScore": 0.81
+  },
+  {
+    "taskId": "frozen-math-001",
+    "domain": "math_formal_reasoning",
+    "description": "Solve constrained optimization with proof sketch",
+    "masteredScore": 0.79
+  },
+  {
+    "taskId": "frozen-planning-001",
+    "domain": "planning_under_uncertainty",
+    "description": "Choose robust sequence under uncertain observations",
+    "masteredScore": 0.77
+  },
+  {
+    "taskId": "frozen-tool-001",
+    "domain": "tool_use_composition",
+    "description": "Chain three tools with validation and fallback",
+    "masteredScore": 0.8
+  },
+  {
+    "taskId": "frozen-self-001",
+    "domain": "self_correction",
+    "description": "Generate baseline, apply critic patch, accept only positive uplift",
+    "masteredScore": 0.76
+  }
+]
