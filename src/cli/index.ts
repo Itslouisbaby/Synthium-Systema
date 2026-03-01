@@ -58,6 +58,14 @@ async function main() {
       await runCanary(subcommand);
       break;
 
+    case 'capability':
+      await runCapability(subcommand);
+      break;
+
+    case 'ops':
+      await runOps(subcommand);
+      break;
+
     case 'help':
     case '--help':
     case '-h':
@@ -107,6 +115,16 @@ async function runCanary(action?: string): Promise<void> {
   await runCanary(action);
 }
 
+async function runCapability(action?: string): Promise<void> {
+  const { runCapability } = await import('./commands/capability.js');
+  await runCapability(action, process.argv.slice(3));
+}
+
+async function runOps(action?: string): Promise<void> {
+  const { runOps } = await import('./commands/ops.js');
+  await runOps(action, process.argv.slice(3));
+}
+
 function showHelp(version: string): void {
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
@@ -128,7 +146,18 @@ Commands:
     get <key>               Get config value
     set <key> <value>       Set config value
   canary [action]           Run v2 promotion gate automation
+  capability [action]       Run capability evaluation and score gating
+    eval                    Generate per-run capability scorecard
+    gate                    Enforce capability score floor (CI-safe)
+  ops [action]              Agentic operations queue controls
+    inspect                 Inspect queued goals and ops state
+    enqueue <goal>          Add autonomous goal (approval required)
+    run [--approved=id,..]  Execute queued goals with bounded budget
+    stop|autopause|resume   Control autonomous queue execution
     gate                    Evaluate parity gates and emit machine report
+    promote                 Advance rollout stage and v2 percentage
+    rollback                Emergency rollback to stage C at 0% v2
+    status                  Show rollout stage and cohort health counters
   help                      Show this help message
   version                   Show version
 

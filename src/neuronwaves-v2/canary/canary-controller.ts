@@ -6,7 +6,7 @@ import { MockLLMProvider } from '../../llm/llm-provider.js';
 import { runV1V2ShadowComparison, type ShadowComparisonResult } from '../shadow/v1-v2-shadow-runner.js';
 import { DEFAULT_PROMOTION_THRESHOLDS, evaluatePromotionGate, type PromotionGateReport, type PromotionGateThresholds } from './promotion-gate.js';
 
-export type CanaryStage = 'A' | 'B' | 'C';
+export type CanaryStage = 'A' | 'B' | 'C' | 'D';
 
 export interface CanaryControllerOptions {
   stage: CanaryStage;
@@ -77,10 +77,10 @@ function chooseDecision(
     };
   }
 
-  if (stage !== 'A' && !previousStageAZeroMismatchPass) {
+  if ((stage === 'B' || stage === 'C' || stage === 'D') && !previousStageAZeroMismatchPass) {
     return {
       decision: 'hold',
-      reason: 'Stage B/C blocked: no prior Stage A artifact with zero mismatch pass found.',
+      reason: 'Stage B/C/D blocked: no prior Stage A artifact with zero mismatch pass found.',
     };
   }
 
