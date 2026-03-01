@@ -1,66 +1,95 @@
-# Synthium Systema (NeuronWaves)
+# Synth AI / NeuronWaves Engineering Brief
 
-Synthium Systema is a local-first cognitive runtime and tooling stack for agentic workflows.
+Synthium Systema is the engineering repository for **Synth AI**, powered by the **NeuronWaves** cognitive engine and a persistent **CoreMemory** substrate.
 
-> **Repository status (operational):** actively evolving; contains a mix of stable, experimental, and incubating components.
+This README is intentionally written as a compact technical brief. For the full experiment-style white paper, see:
 
-## What is in this repository today
+- [`docs/SYNTH_AI_ENGINEERING_WHITEPAPER.md`](./docs/SYNTH_AI_ENGINEERING_WHITEPAPER.md)
 
-- Core runtime orchestration (`SynthRuntime`, autonomy/cognition loops, memory, policy gate)
-- CLI + TUI interfaces
-- Multi-agent routing/session/registry primitives
-- Policy artifact lifecycle tooling (load/simulate/diff/sign/verify)
-- External-read safety/audit components
-- Shadow scheduler subsystem
-- NeuronWaves v2 namespace and adapter surface (partially integrated)
+---
 
-For a system map, see [docs/ARCHITECTURE_MAP.md](./docs/ARCHITECTURE_MAP.md).
+## System identity
 
-## Stability lanes (GA / Experimental / Incubating)
+- **Product / agent identity:** Synth AI
+- **Cognitive engine:** NeuronWaves (v1 GA path, v2 staged/canary path)
+- **Memory substrate:** CoreMemory (episodic + semantic retrieval, provenance, ranking, and artifact linkage)
 
-See full policy in [docs/RELEASE_LANES.md](./docs/RELEASE_LANES.md).
+---
 
-- **GA (safe default):** core v1 runtime path and baseline CLI/TUI workflow.
-- **Experimental (usable with caution):** policy artifact authoring/versioning flows, external-read stack, multi-agent orchestration modules.
-- **Incubating (for development):** NeuronWaves v2 namespaces and feature-flagged transitions.
+## What exists in this repository
 
-For de-stubbing and productionization of the reasoning path, see [docs/PHASE_A_DESTUB_RUNTIME_PLAN.md](./docs/PHASE_A_DESTUB_RUNTIME_PLAN.md).
+- Runtime orchestration (`SynthRuntime`, loop stack, reliability governor, policy gates)
+- NeuronWaves v2 runtime and canary routing controls
+- Capability and AGI evaluation harnesses (matrix, learning guard, red-team, expectancy board)
+- Tool execution envelope and dependency-aware tool DAG execution
+- Agentic operations manager and continual learning substrate
+- CLI + TUI operator interfaces
+- Artifacting for auditability and replay (`.synth/*` outputs)
+
+For module-level map and topology, see:
+
+- [`docs/ARCHITECTURE_MAP.md`](./docs/ARCHITECTURE_MAP.md)
+
+---
+
+## Operational lanes
+
+See full lane policy in:
+
+- [`docs/RELEASE_LANES.md`](./docs/RELEASE_LANES.md)
+
+At a high level:
+
+- **GA:** default v1 runtime path + baseline CLI/TUI
+- **Experimental:** advanced policy tooling, multi-agent layers, extended eval surfaces
+- **Incubating:** v2 cutover primitives and actively tuned autonomy features
+
+---
 
 ## Runtime selection
 
-`run` command defaults to v1 runtime. v2 runtime is opt-in via env flag:
+Default runtime path is v1. To force NeuronWaves v2 during execution:
 
 ```bash
 SYNTH_NEURONWAVES_RUNTIME=v2
 ```
 
-## Current command/testing reality
+---
+
+## Build/test commands
 
 ```bash
-# install deps
 pnpm install
-
-# build all deliverables
-npm run build
-
-# test suites currently wired in this checkout
-npm test
-
-# static type validation
-npm run typecheck
-
-# lint alias (currently delegates to typecheck)
-npm run lint
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm lint
 ```
 
-## Notes on documentation truth
+Key evaluation commands used in CI governance:
 
-Historical milestone documents are retained for context, but operational truth should come from:
+```bash
+pnpm capability:gate
+pnpm capability:matrix
+pnpm capability:learning-guard
+pnpm capability:red-team
+pnpm capability:expectancy-board
+pnpm canary:gate
+```
 
-1. This README
-2. `MILESTONES.md` (Operational Snapshot section)
-3. Build/test output in CI
+---
+
+## Source-of-truth policy
+
+When docs diverge, operational truth follows this precedence:
+
+1. Current repository code + test outcomes
+2. CI workflow gates and artifact outputs
+3. This README and active white paper
+4. Historical milestone docs (context only)
+
+---
 
 ## License
 
-MIT.
+MIT
