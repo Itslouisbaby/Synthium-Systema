@@ -30,6 +30,56 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Capability score gate
+        env:
+          SYNTH_CAPABILITY_SCORE_FLOOR: '0.60'
+        run: pnpm capability:gate
+
+      - name: AGI matrix gate
+        env:
+          SYNTH_AGI_MATRIX_BATCH_SIZE: '50'
+          SYNTH_AGI_MATRIX_AGGREGATE_FLOOR: '0.65'
+          SYNTH_AGI_MATRIX_OOD_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_TEMPLATE_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_TOOLS_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_OOD_DOMAINS_FLOOR: '0.55'
+          SYNTH_AGI_MATRIX_DOMAIN_FLOOR: '0.58'
+          SYNTH_AGI_MATRIX_STABILITY_STDDEV_CEILING: '0.08'
+          SYNTH_AGI_MATRIX_ROLLING_WINDOW_SIZE: '20'
+          SYNTH_AGI_MATRIX_ROLLING_STDDEV_CEILING: '0.05'
+          SYNTH_AGI_MATRIX_ROLLING_WORST_DECILE_FLOOR: '0.58'
+          SYNTH_AGI_MATRIX_REVISE_MIN_UPLIFT: '0.015'
+          SYNTH_AGI_MATRIX_REVISION_UPLIFT_FLOOR: '0.30'
+        run: pnpm capability:matrix
+
+
+      - name: Continual learning anti-regression guard
+        env:
+          SYNTH_LEARNING_GUARD_TOLERANCE: '0.02'
+          SYNTH_LEARNING_GUARD_REGRESSION_BUDGET: '0.08'
+        run: pnpm capability:learning-guard
+
+
+      - name: Adversarial red-team robustness gate
+        env:
+          SYNTH_REDTEAM_GRACEFUL_FLOOR: '0.75'
+          SYNTH_REDTEAM_INCORRECT_HIGH_CONFIDENCE_CEILING: '0.15'
+          SYNTH_REDTEAM_STRESS_LEVEL: '0.05'
+        run: pnpm capability:red-team
+
+      - name: AGI expectancy board release policy gate
+        env:
+          SYNTH_EXPECTANCY_TARGET: '0.60'
+          SYNTH_EXPECTANCY_COLLAPSE_FLOOR: '0.40'
+          SYNTH_EXPECTANCY_DOMAIN_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_OOD_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_TRANSFER_FLOOR: '0.45'
+          SYNTH_EXPECTANCY_SELF_CORRECTION_FLOOR: '0.30'
+          SYNTH_EXPECTANCY_CAUSAL_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_ADVERSARIAL_FLOOR: '0.65'
+          SYNTH_EXPECTANCY_STABILITY_FLOOR: '0.70'
+        run: pnpm capability:expectancy-board
+
   v2-promotion-gate:
     runs-on: ubuntu-latest
     needs: build
@@ -56,6 +106,7 @@ jobs:
           SYNTH_CANARY_STAGE: A
           SYNTH_CANARY_WINDOWS: '3'
           SYNTH_CANARY_USE_MOCK_LLM: '1'
+          SYNTH_CANARY_SHADOW_TIMEOUT_MS: '20000'
           SYNTH_CANARY_MACHINE_REPORT: .synth/canary/promotion-gate-report.json
           SYNTH_CANARY_ARTIFACT_PATH: .synth/canary/latest-stage-report.json
         run: pnpm canary:gate

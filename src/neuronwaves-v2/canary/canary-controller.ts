@@ -6,7 +6,7 @@ import { MockLLMProvider } from '../../llm/llm-provider.js';
 import { runV1V2ShadowComparison, type ShadowComparisonResult } from '../shadow/v1-v2-shadow-runner.js';
 import { DEFAULT_PROMOTION_THRESHOLDS, evaluatePromotionGate, type PromotionGateReport, type PromotionGateThresholds } from './promotion-gate.js';
 
-export type CanaryStage = 'A' | 'B' | 'C';
+export type CanaryStage = 'A' | 'B' | 'C' | 'D';
 
 export interface CanaryControllerOptions {
   stage: CanaryStage;
@@ -15,6 +15,7 @@ export interface CanaryControllerOptions {
   llm?: LLMProvider;
   thresholds?: Partial<PromotionGateThresholds>;
   inputs?: string[];
+  shadowTimeoutMs?: number;
 }
 
 export interface CanaryStageArtifact {
@@ -77,10 +78,10 @@ function chooseDecision(
     };
   }
 
-  if (stage !== 'A' && !previousStageAZeroMismatchPass) {
+  if ((stage === 'B' || stage === 'C' || stage === 'D') && !previousStageAZeroMismatchPass) {
     return {
       decision: 'hold',
-      reason: 'Stage B/C blocked: no prior Stage A artifact with zero mismatch pass found.',
+      reason: 'Stage B/C/D blocked: no prior Stage A artifact with zero mismatch pass found.',
     };
   }
 
@@ -99,6 +100,7 @@ export async function runCanaryController(options: CanaryControllerOptions): Pro
     const comparison = await runV1V2ShadowComparison({
       input,
       llm,
+      timeoutMs: options.shadowTimeoutMs,
       recentSemanticTotals,
       thresholdConfig: {
         floor: options.thresholds?.semanticFloor ?? DEFAULT_PROMOTION_THRESHOLDS.semanticFloor,
@@ -162,11 +164,13 @@ export function parseCanaryEnv(): CanaryControllerOptions {
   const stage = (process.env.SYNTH_CANARY_STAGE ?? 'A') as CanaryStage;
   const windows = Number(process.env.SYNTH_CANARY_WINDOWS ?? '3');
   const artifactPath = process.env.SYNTH_CANARY_ARTIFACT_PATH ?? '.synth/canary/latest-stage-report.json';
+  const shadowTimeoutMs = Number(process.env.SYNTH_CANARY_SHADOW_TIMEOUT_MS ?? '15000');
 
   return {
     stage,
     windows,
     artifactPath,
+    shadowTimeoutMs,
     thresholds: {
       semanticFloor: Number(process.env.SYNTH_CANARY_SEMANTIC_FLOOR ?? DEFAULT_PROMOTION_THRESHOLDS.semanticFloor),
       requiredConsecutivePasses: Number(

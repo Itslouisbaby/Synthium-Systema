@@ -3,6 +3,13 @@ import { ActionClass, Autonomy, type ActionClassType } from '../policy/types.js'
 import { loadPolicy, simulatePolicyDecision } from '../policy-artifacts/index.js';
 import type { LLMProvider } from '../llm/llm-provider.js';
 import type { Evaluation, Plan, PlanStep } from '../types.js';
+import {
+  executeToolDag,
+  executeToolWithBoundary,
+  type ToolDagExecutionArtifact,
+  type ToolExecutionEvent,
+  type SupportedToolName,
+} from './tool-executor.js';
 
 interface PipelineInput {
   content: string;
@@ -14,17 +21,49 @@ export interface PlannedAction {
   intent: string;
   actionClass: ActionClassType;
   target?: string;
+  dependsOn?: string[];
+}
+
+export interface ActionNode {
+  nodeId: string;
+  intent: string;
+  actionClass: ActionClassType;
+  target?: string;
+  policyTags: string[];
+  preconditions: string[];
+  inputs: string[];
+  outputs: string[];
+  dependsOn: string[];
+}
+
+export interface ActionGraph {
+  version: 'v2';
+  nodes: ActionNode[];
+}
+
+export interface ExecutionTraceEvent {
+  nodeId: string;
+  stepId: string;
+  status: 'executed' | 'failed' | 'blocked' | 'awaiting_approval';
+  startedAtMs: number;
+  endedAtMs: number;
+  reason?: string;
 }
 
 export interface RuntimePlanner {
   plan(input: PipelineInput): PlannedAction[];
 }
 
+export type RuntimeGovernorMode = 'full' | 'conservative' | 'safe_minimal';
+
 interface PipelineConfig {
   artifactBaseDir: string;
   autonomyLevel?: number;
   enableMemory?: boolean;
   policyPath?: string;
+  runtimeMode?: RuntimeGovernorMode;
+  maxPlanSteps?: number;
+  experimentBudget?: number;
 }
 
 interface PipelineResult {
@@ -37,12 +76,25 @@ interface PipelineResult {
       reason: string;
       timestampMs: number;
     }>;
+    toolExecutionEvents: ToolExecutionEvent[];
     replanRequested: boolean;
     replanReason?: string;
     policySource?: string;
     policyVersion?: string;
     policyHash?: string;
     policyLoadError?: string;
+    actionGraph: ActionGraph;
+    executionTrace: ExecutionTraceEvent[];
+    toolDag: ToolDagExecutionArtifact;
+    experimentEvents: Array<{
+      experimentId: string;
+      stepId: string;
+      hypothesis: string;
+      outcome: 'success' | 'failed' | 'budget_exhausted';
+      observations: string[];
+      strategyUpdate: string;
+      timestampMs: number;
+    }>;
   };
 }
 
@@ -56,6 +108,10 @@ function detectActionClass(content: string): { actionClass: PlanStep['actionClas
   const urlMatch = normalized.match(/https?:\/\/([^\s/]+)/);
   if (urlMatch?.[1]) {
     return { actionClass: ActionClass.ExternalRead, target: urlMatch[1] };
+  }
+
+  if (/\b(experiment|hypothesis|test strategy|ab test|probe)\b/.test(normalized)) {
+    return { actionClass: ActionClass.Experiment };
   }
 
   if (/\b(web|http|url|site|fetch|read)\b/.test(normalized)) {
@@ -79,11 +135,114 @@ function splitIntoIntents(content: string): string[] {
     .filter(Boolean);
 }
 
+
+function actionClassToPolicyTags(actionClass: ActionClassType): string[] {
+  switch (actionClass) {
+    case ActionClass.ExternalRead:
+      return ['policy:external_read'];
+    case ActionClass.Irreversible:
+      return ['policy:irreversible'];
+    case ActionClass.Experiment:
+      return ['policy:experiment', 'sandbox:strict'];
+    default:
+      return ['policy:local_only'];
+  }
+}
+
+function buildActionGraph(actions: PlannedAction[]): ActionGraph {
+  const nodes: ActionNode[] = actions.map((action, index) => {
+    const nodeId = `node-${index + 1}`;
+    const dependsOn = (action.dependsOn ?? []).map(item => item.trim()).filter(Boolean);
+    return {
+      nodeId,
+      intent: action.intent,
+      actionClass: action.actionClass,
+      target: action.target,
+      policyTags: actionClassToPolicyTags(action.actionClass),
+      preconditions: dependsOn.map(dep => `completed:${dep}`),
+      inputs: ['user_input', ...(action.target ? [`target:${action.target}`] : [])],
+      outputs: ['step_output_summary'],
+      dependsOn,
+    };
+  });
+
+  return { version: 'v2', nodes };
+}
+
+function validateActionGraph(graph: ActionGraph): { valid: boolean; reason?: string } {
+  const known = new Set(graph.nodes.map(node => node.nodeId));
+  for (const node of graph.nodes) {
+    for (const dep of node.dependsOn) {
+      if (!known.has(dep)) {
+        return { valid: false, reason: `node ${node.nodeId} has unresolved dependency ${dep}` };
+      }
+    }
+  }
+  return { valid: true };
+}
+
 function defaultPlanner(input: PipelineInput): PlannedAction[] {
   const intents = splitIntoIntents(input.content);
   const pickedIntents = intents.length > 0 ? intents : [normalizeIntent(input.content)];
 
   return pickedIntents.slice(0, 5).map(intent => ({ intent, ...detectActionClass(intent) }));
+}
+
+
+function runSandboxExperiment(stepId: string, intent: string, remainingBudget: number): {
+  outcome: 'success' | 'failed' | 'budget_exhausted';
+  outputSummary: string;
+  event: {
+    experimentId: string;
+    stepId: string;
+    hypothesis: string;
+    outcome: 'success' | 'failed' | 'budget_exhausted';
+    observations: string[];
+    strategyUpdate: string;
+    timestampMs: number;
+  };
+} {
+  const hypothesis = intent.includes(':') ? intent.split(':').slice(1).join(':').trim() : intent;
+  if (remainingBudget <= 0) {
+    return {
+      outcome: 'budget_exhausted',
+      outputSummary: 'Experiment budget exhausted; switching to conservative local strategy.',
+      event: {
+        experimentId: `exp-${stepId}`,
+        stepId,
+        hypothesis,
+        outcome: 'budget_exhausted',
+        observations: ['budget_limit_reached'],
+        strategyUpdate: 'fallback_to_conservative_local',
+        timestampMs: Date.now(),
+      },
+    };
+  }
+
+  const normalized = hypothesis.toLowerCase();
+  const success = /retry|fallback|decompose|simplify|local/.test(normalized);
+  const observations = success
+    ? ['hypothesis_supported', 'sandbox_execution_safe']
+    : ['hypothesis_not_supported', 'needs_replan'];
+  const strategyUpdate = success
+    ? 'prefer_decomposed_local_plan'
+    : 'request_replan_with_new_hypothesis';
+
+  return {
+    outcome: success ? 'success' : 'failed',
+    outputSummary: success
+      ? `Experiment validated hypothesis: ${hypothesis}`
+      : `Experiment failed hypothesis: ${hypothesis}`,
+    event: {
+      experimentId: `exp-${stepId}`,
+      stepId,
+      hypothesis,
+      outcome: success ? 'success' : 'failed',
+      observations,
+      strategyUpdate,
+      timestampMs: Date.now(),
+    },
+  };
 }
 
 export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanner = { plan: defaultPlanner }) {
@@ -92,7 +251,14 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
     const planId = `plan-${now}`;
     const evalId = `eval-${now}`;
 
-    const plannedActions = planner.plan(input);
+    const runtimeMode = config.runtimeMode ?? 'full';
+    const maxPlanSteps = config.maxPlanSteps ?? (runtimeMode === 'full' ? 5 : runtimeMode === 'conservative' ? 3 : 2);
+    const plannedActions = planner.plan(input).slice(0, maxPlanSteps);
+    const actionGraph = buildActionGraph(plannedActions);
+    const graphValidation = validateActionGraph(actionGraph);
+    if (!graphValidation.valid) {
+      throw new Error(`invalid_action_graph: ${graphValidation.reason}`);
+    }
 
     let policy: Awaited<ReturnType<typeof loadPolicy>> | null = null;
     let policyLoadError: string | undefined;
@@ -113,86 +279,246 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
       policyHash: policy?.policyHash ?? 'local-runtime',
     });
 
-    const steps: PlanStep[] = [];
+    const stepsByNode = new Map<string, PlanStep>();
     const policyAuditEvents: PipelineResult['artifactPaths']['policyAuditEvents'] = [];
+    const toolExecutionEvents: PipelineResult['artifactPaths']['toolExecutionEvents'] = [];
     let replanRequested = false;
     let replanReason: string | undefined;
+    const executionTrace: ExecutionTraceEvent[] = [];
+    const actionByNodeId = new Map<string, PlannedAction>();
+    const experimentEvents: PipelineResult['artifactPaths']['experimentEvents'] = [];
+    let experimentBudget = config.experimentBudget ?? (runtimeMode === 'full' ? 2 : 1);
 
-    for (let i = 0; i < plannedActions.length; i++) {
-      const action = plannedActions[i];
+    const dagNodes = plannedActions.map((action, i) => {
+
       const stepId = `step-${now}-${i}`;
+      const node = actionGraph.nodes[i];
+      const nodeId = node?.nodeId ?? `node-${i + 1}`;
+      const toolName: SupportedToolName = action.actionClass === ActionClass.LocalOnly
+        ? 'local_reason'
+        : 'external_read_reasoning';
 
-      let decision = policyGate.evaluate({ stepId, actionClass: action.actionClass, target: action.target });
-
-      if (policy && action.actionClass === ActionClass.ExternalRead && action.target) {
-        const sim = simulatePolicyDecision(policy.policy, { operation: 'external_read', domain: action.target });
-        if (sim.decision === 'deny') {
-          decision = {
-            decision: 'block',
-            reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
-          };
-        }
-      }
-
-      const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
-      policyAuditEvents.push({
-        stepId: audit.stepId,
-        decision: audit.decision,
-        reason: decision.reason,
-        timestampMs: audit.timestampMs,
-      });
-
-      if (decision.decision === 'allow') {
-        try {
-          const response = await llm.generateWithContext(action.intent, [
-            'You are executing a policy-approved reasoning step.',
-            ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
-          ]);
-          steps.push({
-            stepId,
-            intent: action.intent,
-            actionClass: action.actionClass,
-            status: 'executed',
-            toolName: action.actionClass === ActionClass.LocalOnly ? 'local_reason' : 'external_read_reasoning',
-            toolInput: { content: action.intent, target: action.target },
-            outputSummary: response,
-          });
-        } catch (error) {
-          replanRequested = true;
-          replanReason = error instanceof Error ? error.message : String(error);
-          steps.push({
-            stepId,
-            intent: action.intent,
-            actionClass: action.actionClass,
-            status: 'failed',
-            toolInput: { content: action.intent, target: action.target },
-            outputSummary: `Execution failed: ${replanReason}`,
-          });
-        }
-        continue;
-      }
-
-      if (decision.decision === 'awaiting_approval') {
-        steps.push({
-          stepId,
-          intent: action.intent,
-          actionClass: action.actionClass,
-          status: 'awaiting_approval',
-          toolInput: { content: action.intent, target: action.target },
-          outputSummary: `Awaiting approval: ${decision.reason}`,
-        });
-        continue;
-      }
-
-      steps.push({
+      actionByNodeId.set(nodeId, action);
+      return {
+        nodeId,
         stepId,
-        intent: action.intent,
-        actionClass: action.actionClass,
-        status: 'blocked',
-        toolInput: { content: action.intent, target: action.target },
-        outputSummary: `Blocked by policy: ${decision.reason}`,
+        toolName,
+        dependsOn: node?.dependsOn ?? [],
+        execute: async () => {
+          const startedAtMs = Date.now();
+          let decision = policyGate.evaluate({ stepId, actionClass: action.actionClass, target: action.target });
+
+          if (policy && action.actionClass === ActionClass.ExternalRead && action.target) {
+            const sim = simulatePolicyDecision(policy.policy, { operation: 'external_read', domain: action.target });
+            if (sim.decision === 'deny') {
+              decision = {
+                decision: 'block',
+                reason: `Policy artifact denied domain ${action.target}: ${sim.reason}`,
+              };
+            }
+          }
+
+          if (runtimeMode === 'safe_minimal' && action.actionClass !== ActionClass.LocalOnly && action.actionClass !== ActionClass.Experiment) {
+            decision = { decision: 'block', reason: 'Runtime governor safe_minimal: only local/experiment actions allowed' };
+          }
+
+          if (runtimeMode === 'conservative' && action.actionClass === ActionClass.ExternalRead) {
+            decision = { decision: 'awaiting_approval', reason: 'Runtime governor conservative: external_read requires explicit approval' };
+          }
+
+          const audit = policyGate.createAuditEvent(stepId, decision, Date.now());
+          policyAuditEvents.push({
+            stepId: audit.stepId,
+            decision: audit.decision,
+            reason: decision.reason,
+            timestampMs: audit.timestampMs,
+          });
+
+          if (decision.decision !== 'allow') {
+            const status = decision.decision === 'awaiting_approval' ? 'awaiting_approval' : 'blocked';
+            const message = decision.decision === 'awaiting_approval'
+              ? `Awaiting approval: ${decision.reason}`
+              : `Blocked by policy: ${decision.reason}`;
+
+            toolExecutionEvents.push({
+              eventId: `${stepId}-policy-${status}`,
+              stepId,
+              toolName,
+              attempt: 0,
+              status: 'skipped_policy',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              durationMs: 0,
+              inputHash: stepId,
+              error: decision.reason,
+            });
+
+            const step: PlanStep = {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status,
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: message,
+            };
+            stepsByNode.set(nodeId, step);
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status,
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: decision.reason,
+            });
+            return {
+              outputSummary: message,
+              attempts: 0,
+              events: [] as ToolExecutionEvent[],
+            };
+          }
+
+          if (action.actionClass === ActionClass.Experiment) {
+            const experiment = runSandboxExperiment(stepId, action.intent, experimentBudget);
+            experimentBudget = Math.max(0, experimentBudget - 1);
+            experimentEvents.push(experiment.event);
+            if (experiment.outcome !== 'success') {
+              replanRequested = true;
+              replanReason = experiment.outputSummary;
+            }
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: experiment.outcome === 'success' ? 'executed' : 'failed',
+              toolName: 'local_reason',
+              toolInput: { hypothesis: action.intent, sandbox: 'strict' },
+              outputSummary: experiment.outputSummary,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: experiment.outcome === 'success' ? 'executed' : 'failed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: experiment.event.strategyUpdate,
+            });
+            return {
+              outputSummary: experiment.outputSummary,
+              attempts: 1,
+              events: [],
+            };
+          }
+
+          try {
+            const execution = await executeToolWithBoundary(llm, {
+              stepId,
+              toolName,
+              input: {
+                content: action.intent,
+                target: action.target,
+              },
+              allowlist: ['example.com', 'docs.example.com'],
+              maxRetries: runtimeMode === 'full' ? 1 : 0,
+              timeoutMs: 2000,
+            }, [
+              'You are executing a policy-approved reasoning step.',
+              ...(input.memoryContext?.slice(-3).map(entry => `Memory: ${entry}`) ?? []),
+            ]);
+
+            toolExecutionEvents.push(...execution.events);
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: 'executed',
+              toolName,
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: execution.outputSummary,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: 'executed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+            });
+            return execution;
+          } catch (error) {
+            replanRequested = true;
+            replanReason = error instanceof Error ? error.message : String(error);
+            toolExecutionEvents.push({
+              eventId: `${stepId}-attempt-final`,
+              stepId,
+              toolName,
+              attempt: 2,
+              status: 'failed',
+              startedAtMs: Date.now(),
+              endedAtMs: Date.now(),
+              durationMs: 0,
+              inputHash: stepId,
+              error: replanReason,
+            });
+            stepsByNode.set(nodeId, {
+              stepId,
+              intent: action.intent,
+              actionClass: action.actionClass,
+              status: 'failed',
+              toolInput: { content: action.intent, target: action.target },
+              outputSummary: `Execution failed: ${replanReason}`,
+            });
+            executionTrace.push({
+              nodeId,
+              stepId,
+              status: 'failed',
+              startedAtMs,
+              endedAtMs: Date.now(),
+              reason: replanReason,
+            });
+            throw error;
+          }
+        },
+      };
+    });
+
+    const toolDag = await executeToolDag(dagNodes, (node, result) => ({
+      nodeId: node.nodeId,
+      stepId: node.stepId,
+      toolName: node.toolName,
+      status: 'success',
+      summary: result.outputSummary,
+      payload: {
+        attempts: result.attempts,
+        events: result.events,
+      },
+    }));
+
+    for (const node of actionGraph.nodes) {
+      if (stepsByNode.has(node.nodeId)) continue;
+      const dagResult = toolDag.results[node.nodeId];
+      if (!dagResult || dagResult.status !== 'blocked_dependency') continue;
+
+      const stepId = dagResult.stepId;
+      const action = actionByNodeId.get(node.nodeId);
+      const outputSummary = dagResult.summary;
+      stepsByNode.set(node.nodeId, {
+        stepId,
+        intent: action?.intent ?? node.intent,
+        actionClass: action?.actionClass ?? node.actionClass,
+        status: 'failed',
+        toolInput: { content: action?.intent ?? node.intent, target: action?.target ?? node.target },
+        outputSummary,
+      });
+      executionTrace.push({
+        nodeId: node.nodeId,
+        stepId,
+        status: 'failed',
+        startedAtMs: Date.now(),
+        endedAtMs: Date.now(),
+        reason: outputSummary,
       });
     }
+
+    const steps = actionGraph.nodes.map(node => stepsByNode.get(node.nodeId)).filter(Boolean) as PlanStep[];
 
     const hasFailed = steps.some(s => s.status === 'failed');
     const hasBlocked = steps.some(s => s.status === 'blocked');
@@ -234,10 +560,15 @@ export function createV1PipelineAdapter(llm: LLMProvider, planner: RuntimePlanne
       evaluation,
       artifactPaths: {
         policyAuditEvents,
+        toolExecutionEvents,
         replanRequested,
         ...(replanReason ? { replanReason } : {}),
         ...(policy ? { policySource: policy.source, policyVersion: policy.policy.version, policyHash: policy.policyHash } : {}),
         ...(policyLoadError ? { policyLoadError } : {}),
+        actionGraph,
+        executionTrace,
+        toolDag,
+        experimentEvents,
       },
     };
   };
