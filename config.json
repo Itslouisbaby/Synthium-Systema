@@ -1,0 +1,9 @@
+{
+    "model": "llama3.2",
+    "ollamaUrl": "http://localhost:11434",
+    "baseDir": ".synth",
+    "persona": "cyberpunk",
+    "enableAutonomy": true,
+    "enableLearning": true,
+    "glitchLevel": "immersive"
+}
