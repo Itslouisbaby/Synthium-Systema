@@ -131,6 +131,10 @@ export class PolicyGate {
       this.stats.actionsAllowed++;
       return { decision: 'allow', reason: 'Level 1: local_only allowed' };
     }
+    if (step.actionClass === ActionClass.Experiment) {
+      this.stats.actionsAllowed++;
+      return { decision: 'allow', reason: 'Level 1: experiment allowed in strict sandbox' };
+    }
     this.stats.actionsBlocked++;
     return { decision: 'block', reason: `Level 1: ${step.actionClass} not allowed` };
   }
@@ -146,6 +150,11 @@ export class PolicyGate {
     if (step.actionClass === ActionClass.LocalOnly) {
       this.stats.actionsAllowed++;
       return { decision: 'allow', reason: 'Level 2: local_only allowed' };
+    }
+
+    if (step.actionClass === ActionClass.Experiment) {
+      this.stats.actionsAllowed++;
+      return { decision: 'allow', reason: 'Level 2: experiment allowed in strict sandbox' };
     }
 
     if (step.actionClass === ActionClass.ExternalRead) {
@@ -184,6 +193,11 @@ export class PolicyGate {
     if (step.actionClass === ActionClass.LocalOnly) {
       this.stats.actionsAllowed++;
       return { decision: 'allow', reason: 'Level 3: local_only allowed' };
+    }
+
+    if (step.actionClass === ActionClass.Experiment) {
+      this.stats.actionsAllowed++;
+      return { decision: 'allow', reason: 'Level 3: experiment allowed in strict sandbox' };
     }
 
     if (step.actionClass === ActionClass.ExternalRead) {

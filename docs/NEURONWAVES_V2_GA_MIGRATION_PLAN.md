@@ -67,3 +67,23 @@ Defined production cutover controls in `docs/NEURONWAVES_V2_CUTOVER_ROLLBACK_GAT
 - rollback SLO thresholds,
 - auto-abort criteria,
 - lane-promotion checklist for Incubating -> Experimental -> GA.
+
+## PR23 deliverable: Stage B canary execution + rollback drill evidence
+
+Executed Stage B internal canary windows and recorded gate decisions + CI artifact links in:
+
+- `docs/NEURONWAVES_V2_CANARY_DRILL_EVIDENCE.md`
+- `docs/artifacts/canary/pr23/*`
+
+Also executed rollback rehearsal with injected gate breach and captured auto-abort evidence.
+
+## PR24 deliverable: v2 default-route cutover for controlled tenants
+
+Added controlled rollout routing logic in production run path:
+
+- controlled tenant/session cohort filters,
+- percent-based deterministic routing to v2,
+- auto-abort fallback to v1 when gate decision is `hold` or `rollback`.
+
+Stage C pilot cohort kickoff evidence recorded in `docs/artifacts/canary/pr24/stage-c-routing-policy.json`.
+

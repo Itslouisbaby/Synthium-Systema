@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://synthium-systema.local/evals/agi-matrix/task-schema.json",
+  "title": "AGI Eval Matrix Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskId",
+    "domain",
+    "split",
+    "promptTemplate",
+    "expectedOutcome",
+    "toolProfile",
+    "scoringHooks"
+  ],
+  "properties": {
+    "taskId": { "type": "string", "minLength": 3 },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "software_engineering",
+        "math_formal_reasoning",
+        "scientific_reasoning",
+        "planning_under_uncertainty",
+        "social_agentic_reasoning",
+        "tool_use_composition",
+        "self_correction"
+      ]
+    },
+    "split": {
+      "type": "string",
+      "enum": [
+        "train_seen",
+        "val_seen",
+        "ood_unseen_templates",
+        "ood_unseen_tools",
+        "ood_unseen_domains"
+      ]
+    },
+    "promptTemplate": { "type": "string", "minLength": 10 },
+    "expectedOutcome": { "type": "string", "minLength": 10 },
+    "toolProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiresTools", "allowedToolClasses"],
+      "properties": {
+        "requiresTools": { "type": "boolean" },
+        "allowedToolClasses": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 2 },
+          "minItems": 1
+        }
+      }
+    },
+    "scoringHooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baselineWeight", "difficulty", "requiredSignals", "forbiddenSignals"],
+      "properties": {
+        "baselineWeight": { "type": "number", "minimum": 0.1, "maximum": 5 },
+        "difficulty": { "type": "number", "minimum": 0.1, "maximum": 5 },
+        "requiredSignals": { "type": "array", "items": { "type": "string" } },
+        "forbiddenSignals": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
