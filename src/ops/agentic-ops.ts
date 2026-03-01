@@ -3,6 +3,16 @@ import { join } from 'node:path';
 
 export type GoalStatus = 'queued' | 'running' | 'completed' | 'failed' | 'escalated' | 'autopaused';
 
+export interface GoalPortfolioScore {
+  valueEstimate: number;
+  costEstimate: number;
+  riskEstimate: number;
+  urgencyScore: number;
+  urgencyDecay: number;
+  totalScore: number;
+  scoredAtMs: number;
+}
+
 export interface AutonomousGoalItem {
   goalId: string;
   createdAtMs: number;
@@ -12,6 +22,7 @@ export interface AutonomousGoalItem {
   maxRetries: number;
   status: GoalStatus;
   lastError?: string;
+  portfolioScore?: GoalPortfolioScore;
 }
 
 export interface OpsState {
@@ -26,6 +37,11 @@ export interface OpsRunResult {
   executed: number;
   escalated: number;
   remaining: number;
+}
+
+interface RankedGoal {
+  goal: AutonomousGoalItem;
+  score: GoalPortfolioScore;
 }
 
 export class AgenticOpsManager {
@@ -119,24 +135,62 @@ export class AgenticOpsManager {
     let executed = 0;
     let escalated = 0;
 
-    for (const goal of queue) {
-      if (goal.status !== 'queued' && goal.status !== 'failed') continue;
+    while (true) {
+      const rankedPortfolio = this.rankGoalPortfolio(queue, state.updatedAtMs);
+      if (rankedPortfolio.length === 0) break;
+
+      await this.appendAudit('goal_portfolio_ranking', {
+        ranking: rankedPortfolio.map(item => ({
+          goalId: item.goal.goalId,
+          description: item.goal.description,
+          status: item.goal.status,
+          score: item.score,
+        })),
+      });
+
+      const candidate = rankedPortfolio[0];
+      const goal = candidate.goal;
+
+      await this.appendAudit('goal_selected', {
+        goalId: goal.goalId,
+        chosenScore: candidate.score,
+        opportunityCost: rankedPortfolio.slice(1, 4).map(item => ({
+          goalId: item.goal.goalId,
+          description: item.goal.description,
+          scoreDelta: Number((candidate.score.totalScore - item.score.totalScore).toFixed(6)),
+          score: item.score,
+        })),
+      });
+
       if (state.consumedToday >= state.dailyBudget) {
         goal.status = 'autopaused';
-        await this.appendAudit('goal_autopaused_budget', { goalId: goal.goalId });
-        continue;
+        await this.appendAudit('goal_autopaused_budget', {
+          goalId: goal.goalId,
+          opportunityCost: rankedPortfolio.slice(1, 4).map(item => ({
+            goalId: item.goal.goalId,
+            totalScore: item.score.totalScore,
+          })),
+        });
+        break;
       }
 
       if (goal.approvalScope === 'required' && !approved.has(goal.goalId)) {
         goal.status = 'escalated';
         goal.lastError = 'approval_required';
         escalated += 1;
-        await this.appendAudit('goal_escalated', { goalId: goal.goalId, reason: 'approval_required' });
+        await this.appendAudit('goal_escalated', {
+          goalId: goal.goalId,
+          reason: 'approval_required',
+          opportunityCost: rankedPortfolio.slice(1, 4).map(item => ({
+            goalId: item.goal.goalId,
+            totalScore: item.score.totalScore,
+          })),
+        });
         continue;
       }
 
       goal.status = 'running';
-      await this.appendAudit('goal_started', { goalId: goal.goalId });
+      await this.appendAudit('goal_started', { goalId: goal.goalId, portfolioScore: goal.portfolioScore });
 
       const result = await options.executeGoal(goal);
       state.consumedToday += 1;
@@ -152,12 +206,29 @@ export class AgenticOpsManager {
         if (goal.retries > goal.maxRetries) {
           goal.status = 'escalated';
           escalated += 1;
-          await this.appendAudit('goal_escalated', { goalId: goal.goalId, reason: result.output });
+          await this.appendAudit('goal_escalated', {
+            goalId: goal.goalId,
+            reason: result.output,
+            opportunityCost: rankedPortfolio.slice(1, 4).map(item => ({
+              goalId: item.goal.goalId,
+              totalScore: item.score.totalScore,
+            })),
+          });
         } else {
           goal.status = 'failed';
-          await this.appendAudit('goal_failed_retry', { goalId: goal.goalId, retries: goal.retries, reason: result.output });
+          await this.appendAudit('goal_failed_retry', {
+            goalId: goal.goalId,
+            retries: goal.retries,
+            reason: result.output,
+            opportunityCost: rankedPortfolio.slice(1, 4).map(item => ({
+              goalId: item.goal.goalId,
+              totalScore: item.score.totalScore,
+            })),
+          });
         }
       }
+
+      state.updatedAtMs = Date.now();
     }
 
     state.updatedAtMs = Date.now();
@@ -168,6 +239,70 @@ export class AgenticOpsManager {
       executed,
       escalated,
       remaining: queue.filter(g => g.status === 'queued' || g.status === 'failed' || g.status === 'autopaused').length,
+    };
+  }
+
+  private rankGoalPortfolio(queue: AutonomousGoalItem[], nowMs: number): RankedGoal[] {
+    const eligible = queue.filter(goal => goal.status === 'queued' || goal.status === 'failed');
+    const ranked = eligible.map(goal => {
+      const score = this.scoreGoalPortfolio(goal, nowMs);
+      goal.portfolioScore = score;
+      return { goal, score };
+    });
+
+    ranked.sort((a, b) => b.score.totalScore - a.score.totalScore || a.goal.createdAtMs - b.goal.createdAtMs);
+    return ranked;
+  }
+
+  private scoreGoalPortfolio(goal: AutonomousGoalItem, nowMs: number): GoalPortfolioScore {
+    const description = goal.description.toLowerCase();
+    const ageHours = Math.max(0, (nowMs - goal.createdAtMs) / (1000 * 60 * 60));
+
+    const valueBase =
+      (description.includes('incident') ? 0.35 : 0)
+      + (description.includes('customer') ? 0.25 : 0)
+      + (description.includes('security') ? 0.25 : 0)
+      + (description.includes('revenue') ? 0.2 : 0)
+      + 0.25;
+
+    const costBase =
+      (description.includes('migrate') ? 0.3 : 0)
+      + (description.includes('refactor') ? 0.25 : 0)
+      + (description.includes('deploy') ? 0.2 : 0)
+      + (description.includes('summary') ? 0.05 : 0)
+      + 0.15;
+
+    const riskBase =
+      (description.includes('delete') ? 0.35 : 0)
+      + (description.includes('rollback') ? 0.15 : 0)
+      + (description.includes('prod') ? 0.2 : 0)
+      + (goal.approvalScope === 'required' ? 0.2 : 0)
+      + 0.1;
+
+    const urgencySignal =
+      (description.includes('urgent') ? 0.3 : 0)
+      + (description.includes('today') ? 0.2 : 0)
+      + (description.includes('asap') ? 0.2 : 0)
+      + (description.includes('incident') ? 0.2 : 0)
+      + 0.1;
+
+    const urgencyDecay = Math.max(0.2, Math.min(1.5, 1 + (ageHours / 48)));
+
+    const valueEstimate = Math.min(1, valueBase);
+    const costEstimate = Math.min(1, costBase);
+    const riskEstimate = Math.min(1, riskBase);
+    const urgencyScore = Math.min(1, urgencySignal);
+
+    const totalScore = Number(((valueEstimate * 0.45) + (urgencyScore * urgencyDecay * 0.35) - (costEstimate * 0.1) - (riskEstimate * 0.1)).toFixed(6));
+
+    return {
+      valueEstimate: Number(valueEstimate.toFixed(6)),
+      costEstimate: Number(costEstimate.toFixed(6)),
+      riskEstimate: Number(riskEstimate.toFixed(6)),
+      urgencyScore: Number(urgencyScore.toFixed(6)),
+      urgencyDecay: Number(urgencyDecay.toFixed(6)),
+      totalScore,
+      scoredAtMs: nowMs,
     };
   }
 
