@@ -20,6 +20,7 @@ export const ActionClass = {
   Irreversible: 'irreversible',
   MoneyMovement: 'money_movement',
   IdentitySecurity: 'identity_security_sensitive',
+  Experiment: 'experiment',
 } as const;
 
 export type ActionClassType = typeof ActionClass[keyof typeof ActionClass];
