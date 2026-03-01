@@ -33,7 +33,8 @@
     "typecheck": "tsc --noEmit",
     "capability:eval": "node dist/cli/index.mjs capability eval",
     "capability:gate": "node dist/cli/index.mjs capability gate",
-    "capability:matrix": "node dist/cli/index.mjs capability matrix"
+    "capability:matrix": "node dist/cli/index.mjs capability matrix",
+    "capability:learning-guard": "node dist/cli/index.mjs capability learning-guard"
   },
   "dependencies": {
     "blessed": "^0.1.81",

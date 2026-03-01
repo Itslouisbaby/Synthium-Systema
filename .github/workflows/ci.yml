@@ -52,6 +52,13 @@ jobs:
           SYNTH_AGI_MATRIX_REVISION_UPLIFT_FLOOR: '0.30'
         run: pnpm capability:matrix
 
+
+      - name: Continual learning anti-regression guard
+        env:
+          SYNTH_LEARNING_GUARD_TOLERANCE: '0.02'
+          SYNTH_LEARNING_GUARD_REGRESSION_BUDGET: '0.08'
+        run: pnpm capability:learning-guard
+
   v2-promotion-gate:
     runs-on: ubuntu-latest
     needs: build

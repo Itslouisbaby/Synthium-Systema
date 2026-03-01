@@ -1,5 +1,6 @@
 import { runCapabilityEval } from '../../evals/capability-harness.js';
 import { runAGIEvalMatrix } from '../../evals/agi-eval-matrix.js';
+import { runLearningRegressionGuard } from '../../evals/learning-regression-guard.js';
 
 export async function runCapability(action?: string, args: string[] = []): Promise<void> {
   const baseDir = process.env.SYNTH_BASE_DIR ?? '.synth';
@@ -59,6 +60,27 @@ export async function runCapability(action?: string, args: string[] = []): Promi
       return;
     }
 
+
+    case 'learning-guard': {
+      const tolerance = Number(args.find(arg => arg.startsWith('--tolerance='))?.split('=')[1] ?? process.env.SYNTH_LEARNING_GUARD_TOLERANCE ?? '0.02');
+      const regressionBudget = Number(args.find(arg => arg.startsWith('--regression-budget='))?.split('=')[1] ?? process.env.SYNTH_LEARNING_GUARD_REGRESSION_BUDGET ?? '0.08');
+      const forcedDriftDelta = Number(args.find(arg => arg.startsWith('--forced-drift='))?.split('=')[1] ?? process.env.SYNTH_LEARNING_GUARD_FORCED_DRIFT_DELTA ?? '0');
+
+      const report = await runLearningRegressionGuard({
+        rootDir: '.',
+        tolerance,
+        regressionBudget,
+        forcedDriftDelta,
+      });
+
+      console.log(`[Learning Guard] Run ${report.runId}`);
+      console.log(`[Learning Guard] Benchmark=${report.benchmarkSize} | Regressed=${report.regressedCount} | TotalRegressionDelta=${report.totalRegressionDelta.toFixed(4)} | Budget=${report.regressionBudget.toFixed(4)}`);
+      for (const item of report.results) {
+        console.log(`  - ${item.taskId} (${item.domain}): mastered=${item.masteredScore.toFixed(3)}, replay=${item.replayScore.toFixed(3)}, delta=${item.regressionDelta.toFixed(4)}, regressed=${item.regressed}`);
+      }
+      return;
+    }
+
     case 'gate': {
       const floorArg = args.find(arg => arg.startsWith('--floor='));
       const floor = Number(
@@ -72,7 +94,7 @@ export async function runCapability(action?: string, args: string[] = []): Promi
     }
 
     default:
-      console.log('Usage: synth capability [eval|gate|matrix] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58] [--revise-min-uplift=0.015] [--revision-uplift-floor=0.30]');
+      console.log('Usage: synth capability [eval|gate|matrix|learning-guard] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58] [--revise-min-uplift=0.015] [--revision-uplift-floor=0.30] [--tolerance=0.02] [--regression-budget=0.08]');
       return;
   }
 }
