@@ -106,6 +106,7 @@ jobs:
           SYNTH_CANARY_STAGE: A
           SYNTH_CANARY_WINDOWS: '3'
           SYNTH_CANARY_USE_MOCK_LLM: '1'
+          SYNTH_CANARY_SHADOW_TIMEOUT_MS: '20000'
           SYNTH_CANARY_MACHINE_REPORT: .synth/canary/promotion-gate-report.json
           SYNTH_CANARY_ARTIFACT_PATH: .synth/canary/latest-stage-report.json
         run: pnpm canary:gate

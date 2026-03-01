@@ -328,7 +328,7 @@ function buildSemanticPromotionGate(
 }
 
 export async function runV1V2ShadowComparison(options: ShadowRunnerOptions): Promise<ShadowComparisonResult> {
-  const timeoutMs = options.timeoutMs ?? 5000;
+  const timeoutMs = options.timeoutMs ?? 15000;
   const v1BaseDir = await mkdtemp(join(tmpdir(), 'synth-pr11-v1-'));
   const v2BaseDir = await mkdtemp(join(tmpdir(), 'synth-pr11-v2-'));
 

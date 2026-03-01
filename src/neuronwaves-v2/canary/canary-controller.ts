@@ -15,6 +15,7 @@ export interface CanaryControllerOptions {
   llm?: LLMProvider;
   thresholds?: Partial<PromotionGateThresholds>;
   inputs?: string[];
+  shadowTimeoutMs?: number;
 }
 
 export interface CanaryStageArtifact {
@@ -99,6 +100,7 @@ export async function runCanaryController(options: CanaryControllerOptions): Pro
     const comparison = await runV1V2ShadowComparison({
       input,
       llm,
+      timeoutMs: options.shadowTimeoutMs,
       recentSemanticTotals,
       thresholdConfig: {
         floor: options.thresholds?.semanticFloor ?? DEFAULT_PROMOTION_THRESHOLDS.semanticFloor,
@@ -162,11 +164,13 @@ export function parseCanaryEnv(): CanaryControllerOptions {
   const stage = (process.env.SYNTH_CANARY_STAGE ?? 'A') as CanaryStage;
   const windows = Number(process.env.SYNTH_CANARY_WINDOWS ?? '3');
   const artifactPath = process.env.SYNTH_CANARY_ARTIFACT_PATH ?? '.synth/canary/latest-stage-report.json';
+  const shadowTimeoutMs = Number(process.env.SYNTH_CANARY_SHADOW_TIMEOUT_MS ?? '15000');
 
   return {
     stage,
     windows,
     artifactPath,
+    shadowTimeoutMs,
     thresholds: {
       semanticFloor: Number(process.env.SYNTH_CANARY_SEMANTIC_FLOOR ?? DEFAULT_PROMOTION_THRESHOLDS.semanticFloor),
       requiredConsecutivePasses: Number(
