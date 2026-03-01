@@ -1,6 +1,8 @@
 import { runCapabilityEval } from '../../evals/capability-harness.js';
 import { runAGIEvalMatrix } from '../../evals/agi-eval-matrix.js';
 import { runLearningRegressionGuard } from '../../evals/learning-regression-guard.js';
+import { runAdversarialRedTeamHarness } from '../../evals/adversarial-red-team-harness.js';
+import { runExpectancyBoard } from '../../evals/agi-expectancy-board.js';
 
 export async function runCapability(action?: string, args: string[] = []): Promise<void> {
   const baseDir = process.env.SYNTH_BASE_DIR ?? '.synth';
@@ -61,6 +63,55 @@ export async function runCapability(action?: string, args: string[] = []): Promi
     }
 
 
+    case 'red-team': {
+      const gracefulDegradationFloor = Number(args.find(arg => arg.startsWith('--graceful-floor='))?.split('=')[1] ?? process.env.SYNTH_REDTEAM_GRACEFUL_FLOOR ?? '0.75');
+      const incorrectHighConfidenceCeiling = Number(args.find(arg => arg.startsWith('--incorrect-high-confidence-ceiling='))?.split('=')[1] ?? process.env.SYNTH_REDTEAM_INCORRECT_HIGH_CONFIDENCE_CEILING ?? '0.15');
+      const stressLevel = Number(args.find(arg => arg.startsWith('--stress-level='))?.split('=')[1] ?? process.env.SYNTH_REDTEAM_STRESS_LEVEL ?? '0.05');
+
+      const report = await runAdversarialRedTeamHarness({
+        rootDir: '.',
+        gracefulDegradationFloor,
+        incorrectHighConfidenceCeiling,
+        stressLevel,
+      });
+
+      console.log(`[Red Team] Run ${report.runId}`);
+      console.log(`[Red Team] graceful-degradation=${report.gracefulDegradationSuccessRate.toFixed(3)} | incorrect-high-confidence=${report.incorrectHighConfidenceActionRate.toFixed(3)} | scenarios=${report.runs}`);
+      for (const item of report.results) {
+        console.log(`  - ${item.scenario}: success=${item.success}, graceful=${item.gracefulDegradation}, incorrect_high_conf=${item.highConfidenceIncorrectAction}, confidence=${item.confidence.toFixed(3)}`);
+      }
+      return;
+    }
+
+    case 'expectancy-board': {
+      const expectancyTarget = Number(args.find(arg => arg.startsWith('--expectancy-target='))?.split('=')[1] ?? process.env.SYNTH_EXPECTANCY_TARGET ?? '0.60');
+      const noSingleAxisCollapseFloor = Number(args.find(arg => arg.startsWith('--collapse-floor='))?.split('=')[1] ?? process.env.SYNTH_EXPECTANCY_COLLAPSE_FLOOR ?? '0.40');
+
+      const report = await runExpectancyBoard({
+        rootDir: '.',
+        expectancyTarget,
+        noSingleAxisCollapseFloor,
+        requiredMinima: {
+          domainCoverage: Number(process.env.SYNTH_EXPECTANCY_DOMAIN_FLOOR ?? '0.55'),
+          oodPerformance: Number(process.env.SYNTH_EXPECTANCY_OOD_FLOOR ?? '0.55'),
+          transferGain: Number(process.env.SYNTH_EXPECTANCY_TRANSFER_FLOOR ?? '0.45'),
+          selfCorrectionUplift: Number(process.env.SYNTH_EXPECTANCY_SELF_CORRECTION_FLOOR ?? '0.30'),
+          causalCalibration: Number(process.env.SYNTH_EXPECTANCY_CAUSAL_FLOOR ?? '0.55'),
+          adversarialRobustness: Number(process.env.SYNTH_EXPECTANCY_ADVERSARIAL_FLOOR ?? '0.65'),
+          stability: Number(process.env.SYNTH_EXPECTANCY_STABILITY_FLOOR ?? '0.70'),
+        },
+      });
+
+      console.log(`[Expectancy Board] Run ${report.runId}`);
+      console.log(`[Expectancy Board] index=${report.expectancyIndex.toFixed(3)} target=${report.target.toFixed(3)} collapse-floor=${report.noSingleAxisCollapseFloor.toFixed(3)} pass=${report.pass}`);
+      for (const [axis, score] of Object.entries(report.axes)) {
+        const floor = report.requiredMinima[axis as keyof typeof report.requiredMinima];
+        console.log(`  - ${axis}: ${Number(score).toFixed(3)} (floor ${Number(floor).toFixed(3)})`);
+      }
+      return;
+    }
+
+
     case 'learning-guard': {
       const tolerance = Number(args.find(arg => arg.startsWith('--tolerance='))?.split('=')[1] ?? process.env.SYNTH_LEARNING_GUARD_TOLERANCE ?? '0.02');
       const regressionBudget = Number(args.find(arg => arg.startsWith('--regression-budget='))?.split('=')[1] ?? process.env.SYNTH_LEARNING_GUARD_REGRESSION_BUDGET ?? '0.08');
@@ -94,7 +145,7 @@ export async function runCapability(action?: string, args: string[] = []): Promi
     }
 
     default:
-      console.log('Usage: synth capability [eval|gate|matrix|learning-guard] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58] [--revise-min-uplift=0.015] [--revision-uplift-floor=0.30] [--tolerance=0.02] [--regression-budget=0.08]');
+      console.log('Usage: synth capability [eval|gate|matrix|learning-guard|red-team|expectancy-board] [--floor=0.60] [--batch-size=40] [--ood-template-floor=0.55] [--ood-tools-floor=0.55] [--ood-domains-floor=0.55] [--rolling-window=20] [--rolling-stddev=0.05] [--rolling-worst-decile-floor=0.58] [--revise-min-uplift=0.015] [--revision-uplift-floor=0.30] [--tolerance=0.02] [--regression-budget=0.08] [--graceful-floor=0.75] [--incorrect-high-confidence-ceiling=0.15] [--stress-level=0.05] [--expectancy-target=0.60] [--collapse-floor=0.40]');
       return;
   }
 }

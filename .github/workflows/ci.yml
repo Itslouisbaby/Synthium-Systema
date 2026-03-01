@@ -59,6 +59,27 @@ jobs:
           SYNTH_LEARNING_GUARD_REGRESSION_BUDGET: '0.08'
         run: pnpm capability:learning-guard
 
+
+      - name: Adversarial red-team robustness gate
+        env:
+          SYNTH_REDTEAM_GRACEFUL_FLOOR: '0.75'
+          SYNTH_REDTEAM_INCORRECT_HIGH_CONFIDENCE_CEILING: '0.15'
+          SYNTH_REDTEAM_STRESS_LEVEL: '0.05'
+        run: pnpm capability:red-team
+
+      - name: AGI expectancy board release policy gate
+        env:
+          SYNTH_EXPECTANCY_TARGET: '0.60'
+          SYNTH_EXPECTANCY_COLLAPSE_FLOOR: '0.40'
+          SYNTH_EXPECTANCY_DOMAIN_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_OOD_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_TRANSFER_FLOOR: '0.45'
+          SYNTH_EXPECTANCY_SELF_CORRECTION_FLOOR: '0.30'
+          SYNTH_EXPECTANCY_CAUSAL_FLOOR: '0.55'
+          SYNTH_EXPECTANCY_ADVERSARIAL_FLOOR: '0.65'
+          SYNTH_EXPECTANCY_STABILITY_FLOOR: '0.70'
+        run: pnpm capability:expectancy-board
+
   v2-promotion-gate:
     runs-on: ubuntu-latest
     needs: build
