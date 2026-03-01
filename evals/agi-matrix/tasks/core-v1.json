@@ -1,0 +1,5117 @@
+[
+  {
+    "taskId": "sof-001",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-002",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-003",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-004",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-005",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-006",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-007",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-008",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-009",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-010",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-011",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-012",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-013",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-014",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-015",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-016",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-017",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-018",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-019",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-020",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-021",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-022",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-023",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-024",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-025",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-026",
+    "domain": "software_engineering",
+    "split": "train_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-027",
+    "domain": "software_engineering",
+    "split": "val_seen",
+    "promptTemplate": "[software_engineering] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-028",
+    "domain": "software_engineering",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[software_engineering] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-029",
+    "domain": "software_engineering",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[software_engineering] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "sof-030",
+    "domain": "software_engineering",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[software_engineering] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust software_engineering solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "plan_created",
+        "tool_result_received"
+      ],
+      "forbiddenSignals": [
+        "policy_block"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-001",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-002",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-003",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-004",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-005",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-006",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-007",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-008",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-009",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-010",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-011",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-012",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-013",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-014",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-015",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-016",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-017",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-018",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-019",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-020",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-021",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-022",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-023",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-024",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-025",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-026",
+    "domain": "math_formal_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-027",
+    "domain": "math_formal_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-028",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-029",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "mat-030",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[math_formal_reasoning] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust math_formal_reasoning solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "evaluation_complete"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-001",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-002",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-003",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-004",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-005",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-006",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-007",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-008",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-009",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-010",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-011",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-012",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-013",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-014",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-015",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-016",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-017",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-018",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-019",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-020",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-021",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-022",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-023",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-024",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-025",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-026",
+    "domain": "scientific_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-027",
+    "domain": "scientific_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-028",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-029",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "sci-030",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[scientific_reasoning] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust scientific_reasoning solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "belief_updated"
+      ],
+      "forbiddenSignals": [
+        "prediction_mismatch"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-001",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-002",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-003",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-004",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-005",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-006",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-007",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-008",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-009",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-010",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-011",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-012",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-013",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-014",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-015",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-016",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-017",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-018",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-019",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-020",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-021",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-022",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-023",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-024",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-025",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-026",
+    "domain": "planning_under_uncertainty",
+    "split": "train_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-027",
+    "domain": "planning_under_uncertainty",
+    "split": "val_seen",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-028",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-029",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "pla-030",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[planning_under_uncertainty] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust planning_under_uncertainty solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "silent_failure"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-001",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-002",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-003",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-004",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-005",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-006",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-007",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-008",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-009",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-010",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-011",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-012",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-013",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-014",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-015",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-016",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-017",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-018",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-019",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-020",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-021",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-022",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-023",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-024",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-025",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-026",
+    "domain": "social_agentic_reasoning",
+    "split": "train_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-027",
+    "domain": "social_agentic_reasoning",
+    "split": "val_seen",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-028",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-029",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "soc-030",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[social_agentic_reasoning] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust social_agentic_reasoning solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "request_clarification"
+      ],
+      "forbiddenSignals": [
+        "unsafe_output"
+      ]
+    }
+  },
+  {
+    "taskId": "too-001",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-002",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-003",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-004",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-005",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-006",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-007",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-008",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-009",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-010",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-011",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-012",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-013",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-014",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-015",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-016",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-017",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-018",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-019",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-020",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-021",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-022",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-023",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-024",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-025",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-026",
+    "domain": "tool_use_composition",
+    "split": "train_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-027",
+    "domain": "tool_use_composition",
+    "split": "val_seen",
+    "promptTemplate": "[tool_use_composition] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-028",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[tool_use_composition] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-029",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[tool_use_composition] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "too-030",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[tool_use_composition] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust tool_use_composition solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "tool_result_received",
+        "execution_trace"
+      ],
+      "forbiddenSignals": [
+        "tool_scope_violation"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-001",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 1 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 1.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-002",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 2 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 2.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-003",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 3 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 3.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-004",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 4 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 4.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-005",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 5 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 5.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-006",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 6 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 6.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-007",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 7 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 7.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-008",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 8 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 8.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-009",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 9 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 9.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-010",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 10 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 10.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-011",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 11 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 11.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-012",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 12 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 12.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-013",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 13 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 13.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-014",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 14 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 14.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-015",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 15 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 15.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-016",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 16 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 16.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-017",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 17 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 17.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-018",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 18 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 18.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-019",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 19 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 19.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-020",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 20 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 20.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-021",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 21 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 21.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-022",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 22 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 22.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-023",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 23 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 23.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-024",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 24 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 24.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.9,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-025",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 25 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 25.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 2.2,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-026",
+    "domain": "self_correction",
+    "split": "train_seen",
+    "promptTemplate": "[self_correction] Solve scenario 26 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 26.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.2,
+      "difficulty": 2.5,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-027",
+    "domain": "self_correction",
+    "split": "val_seen",
+    "promptTemplate": "[self_correction] Solve scenario 27 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 27.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.4,
+      "difficulty": 2.8,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-028",
+    "domain": "self_correction",
+    "split": "ood_unseen_templates",
+    "promptTemplate": "[self_correction] Solve scenario 28 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 28.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.6,
+      "difficulty": 1.0,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-029",
+    "domain": "self_correction",
+    "split": "ood_unseen_tools",
+    "promptTemplate": "[self_correction] Solve scenario 29 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 29.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.8,
+      "difficulty": 1.3,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "sel-030",
+    "domain": "self_correction",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[self_correction] Solve scenario 30 with explicit reasoning, evidence, and safe execution trace.",
+    "expectedOutcome": "Produces a robust self_correction solution with auditable rationale and bounded risk handling for scenario 30.",
+    "toolProfile": {
+      "requiresTools": false,
+      "allowedToolClasses": [
+        "local_reason"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 1.0,
+      "difficulty": 1.6,
+      "requiredSignals": [
+        "suggest_alternative_plan",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "mix-001",
+    "domain": "math_formal_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[cross_domain] Compose multi-domain strategy 1 and verify with introspective self-check.",
+    "expectedOutcome": "Cross-domain robust solution with transfer-aware adaptation and no unsafe shortcuts.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 2.0,
+      "difficulty": 3.5,
+      "requiredSignals": [
+        "plan_created",
+        "evaluation_complete",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected",
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "mix-002",
+    "domain": "scientific_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[cross_domain] Compose multi-domain strategy 2 and verify with introspective self-check.",
+    "expectedOutcome": "Cross-domain robust solution with transfer-aware adaptation and no unsafe shortcuts.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 2.0,
+      "difficulty": 3.5,
+      "requiredSignals": [
+        "plan_created",
+        "evaluation_complete",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected",
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "mix-003",
+    "domain": "planning_under_uncertainty",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[cross_domain] Compose multi-domain strategy 3 and verify with introspective self-check.",
+    "expectedOutcome": "Cross-domain robust solution with transfer-aware adaptation and no unsafe shortcuts.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 2.0,
+      "difficulty": 3.5,
+      "requiredSignals": [
+        "plan_created",
+        "evaluation_complete",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected",
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "mix-004",
+    "domain": "social_agentic_reasoning",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[cross_domain] Compose multi-domain strategy 4 and verify with introspective self-check.",
+    "expectedOutcome": "Cross-domain robust solution with transfer-aware adaptation and no unsafe shortcuts.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 2.0,
+      "difficulty": 3.5,
+      "requiredSignals": [
+        "plan_created",
+        "evaluation_complete",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected",
+        "infinite_revise"
+      ]
+    }
+  },
+  {
+    "taskId": "mix-005",
+    "domain": "tool_use_composition",
+    "split": "ood_unseen_domains",
+    "promptTemplate": "[cross_domain] Compose multi-domain strategy 5 and verify with introspective self-check.",
+    "expectedOutcome": "Cross-domain robust solution with transfer-aware adaptation and no unsafe shortcuts.",
+    "toolProfile": {
+      "requiresTools": true,
+      "allowedToolClasses": [
+        "local_reason",
+        "external_read_reasoning"
+      ]
+    },
+    "scoringHooks": {
+      "baselineWeight": 2.0,
+      "difficulty": 3.5,
+      "requiredSignals": [
+        "plan_created",
+        "evaluation_complete",
+        "exec_request_replan"
+      ],
+      "forbiddenSignals": [
+        "model_error_detected",
+        "infinite_revise"
+      ]
+    }
+  }
+]

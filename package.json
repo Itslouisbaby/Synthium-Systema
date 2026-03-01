@@ -28,7 +28,13 @@
     "test": "vitest run",
     "dev": "vitest",
     "lint": "npm run typecheck",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "capability:eval": "node dist/cli/index.mjs capability eval",
+    "capability:gate": "node dist/cli/index.mjs capability gate",
+    "capability:matrix": "node dist/cli/index.mjs capability matrix",
+    "capability:learning-guard": "node dist/cli/index.mjs capability learning-guard",
+    "capability:red-team": "node dist/cli/index.mjs capability red-team",
+    "capability:expectancy-board": "node dist/cli/index.mjs capability expectancy-board"
   },
   "dependencies": {
     "blessed": "^0.1.81",
